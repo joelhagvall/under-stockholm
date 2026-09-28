@@ -10,18 +10,20 @@ Every visitor shares the same timetable, and the trains can follow SL's live met
 
 ## Play
 
+Play it at [understockholm.com](https://understockholm.com/), or run it yourself:
+
 ```bash
 bun install
 bun run dev
 ```
 
-Open http://localhost:5180 and click **Gå ner i tunnelbanan** (or **English** at the top for English menus). There is no hosted build yet; the plan for one is in [DRIFT.md](DRIFT.md). The same page has three more ways in:
+Open http://localhost:5180 and click **Gå ner i tunnelbanan** (or **English** at the top for English menus). How it is hosted is in [DRIFT.md](docs/DRIFT.md). The same page has three more ways in:
 
 - **Se en tur** jumps through rush hour, snow, Lucia, 1975, Silverpilen and Kymlinge until you take over.
 - **Se hela nätet** shows every line at its real depth under Stockholm, with every train as a point of light.
 - **Ett liv på blå linjen** is one ride from Kungsträdgården to Akalla where every station is a stretch of years, 1975 to 2050.
 
-Phones work without a keyboard: thumbstick to walk, drag to look. Gamepads work too. Keys are in [GAMEPLAY.md](GAMEPLAY.md).
+Phones work without a keyboard: thumbstick to walk, drag to look. Gamepads work too. Keys are in [GAMEPLAY.md](docs/GAMEPLAY.md).
 
 ## Nine things that matter
 
@@ -33,7 +35,7 @@ Phones work without a keyboard: thumbstick to walk, drag to look. Gamepads work 
 - **Places you were never meant to see.** Staff corridors, a shelter under Rådhuset, Kymlinge, Silverpilen, inspectors, a staff key, a time machine to 1975, and a discovery book of what you have not found yet.
 - **The network from above.** Every line as a glowing tube under a dark Stockholm, trains with fading trails from the same timetables (or SL's), a time scrubber, and a long-exposure poster of any day's runs to save or share.
 - **No engine hiding the work.** Procedural caves, canvas textures, baked vertex lighting, built a slice at a time. The landing page stays small. three.js and Rapier (about 1.2 MB gzipped) load only when you enter.
-- **The small stuff is the point.** Snus on a bench, a street paper vendor, a sneeze and a "prosit", stand on the right, Kanelbullens dag, bottle bags clinking on Fridays. The full list is in [FEATURES.md](FEATURES.md).
+- **The small stuff is the point.** Snus on a bench, a street paper vendor, a sneeze and a "prosit", stand on the right, Kanelbullens dag, bottle bags clinking on Fridays. The full list is in [FEATURES.md](docs/FEATURES.md).
 
 ## Stack
 
@@ -42,9 +44,9 @@ Phones work without a keyboard: thumbstick to walk, drag to look. Gamepads work 
 - [Rapier](https://rapier.rs) (`@dimforge/rapier3d-compat`) for physics
 - No game engine. Geometry and textures are generated. Train sound, the announcement chime and the door warning are generated at runtime, and the browser's Swedish voice reads the announcements. A sneeze, a sigh and bottles clinking are public domain and CC0 recordings.
 
-The simulation is split into small domain modules rather than one monolithic game loop. Time, routes, live SL, festivities, carriage life, disruptions, the emergency brake, discoveries, 1975 and other players each have their own module: `operations.ts`, `routes.ts`, `realService.ts`, `festivities.ts`, `carriageLife.ts`, `disruptions.ts`, `emergencyBrake.ts`, `discoveries.ts`, `era.ts`, `ghosts.ts`. The [full tree](FEATURES.md#project-structure).
+The simulation is split into small domain modules rather than one monolithic game loop. Time, routes, live SL, festivities, carriage life, disruptions, the emergency brake, discoveries, 1975 and other players each have their own module: `operations.ts`, `routes.ts`, `realService.ts`, `festivities.ts`, `carriageLife.ts`, `disruptions.ts`, `emergencyBrake.ts`, `discoveries.ts`, `era.ts`, `ghosts.ts`. The [full tree](docs/FEATURES.md#project-structure).
 
-Station art is a generated interpretation, not a survey. See [DESIGN.md](DESIGN.md).
+Station art is a generated interpretation, not a survey. See [DESIGN.md](docs/DESIGN.md).
 
 ## Getting started
 
@@ -66,7 +68,7 @@ Station art is a generated interpretation, not a survey. See [DESIGN.md](DESIGN.
 
 The build fails if the landing page or the game grows past its compressed budget, and `bun run check` fails if it got slower than the numbers in `perf/baseline.json`. After launch, the relay's `/perf` page shows how the game runs for players: one anonymous report per visit (frame times, resolution, loading, class of device; no identifiers).
 
-`?debug` never pauses and exposes `window.__us`. `?natet` opens the network view, `?liv` a life on the blue line and `?debug&stromavbrott` a power cut a few seconds in. URL params for time, weather and Silverpilen, plus the relay and how to add a station, are in [FEATURES.md](FEATURES.md#debug-and-the-relay).
+`?debug` never pauses and exposes `window.__us`. `?natet` opens the network view, `?liv` a life on the blue line and `?debug&stromavbrott` a power cut a few seconds in. URL params for time, weather and Silverpilen, plus the relay and how to add a station, are in [FEATURES.md](docs/FEATURES.md#debug-and-the-relay).
 
 ## Roadmap
 
@@ -75,7 +77,7 @@ The build fails if the landing page or the game grows past its compressed budget
 - Curved tunnels and real depths in the game (the network view has them)
 - More exits, and more of the city up on the street
 
-The rest of the ideas are in [IDEAS.md](IDEAS.md).
+The rest of the ideas are in [IDEAS.md](docs/IDEAS.md).
 
 ## Disclaimer
 

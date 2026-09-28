@@ -1,6 +1,6 @@
 # Gameplay
 
-How to move, ride, sit and listen. What the game contains is in [FEATURES.md](FEATURES.md). The short version is the [README](README.md).
+How to move, ride, sit and listen. What the game contains is in [FEATURES.md](FEATURES.md). The short version is the [README](../README.md).
 
 ## Controls
 

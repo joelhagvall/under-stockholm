@@ -14,7 +14,7 @@ const log = (message: string) => console.warn(message);
 // Production always has both keys. Without them the relay still runs, but only the blue line follows SL, so say so loudly.
 if (!RT_KEY || !STATIC_KEY) {
   const missing = [!RT_KEY && 'TRAFIKLAB_RT_KEY', !STATIC_KEY && 'TRAFIKLAB_STATIC_KEY'].filter(Boolean).join(' and ');
-  console.warn(`No GTFS: ${missing} not set. Real trains come from SL's Transport API, the blue line only; the red and green lines keep to the timetable. See DRIFT.md, section 4.`);
+  console.warn(`No GTFS: ${missing} not set. Real trains come from SL's Transport API, the blue line only; the red and green lines keep to the timetable. See docs/DRIFT.md, section 4.`);
 }
 
 const feeds = createFeeds({

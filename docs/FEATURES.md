@@ -1,6 +1,6 @@
 # Features
 
-The short version is the [README](README.md). This is the rest. How to play is in [GAMEPLAY.md](GAMEPLAY.md).
+The short version is the [README](../README.md). This is the rest. How to play is in [GAMEPLAY.md](GAMEPLAY.md).
 
 [The network](#the-network) · [Live Stockholm](#live-stockholm) · [The service](#the-service) · [The platform](#the-platform) · [The train](#the-train) · [Places to find](#places-to-find) · [Beyond the platform](#beyond-the-platform) · [How it is built](#how-it-is-built) · [Project structure](#project-structure)
 
@@ -91,6 +91,7 @@ See [DESIGN.md](DESIGN.md) for image sources, deliberate simplifications and rep
 ```
 index.html             Landing page in Swedish
 en/index.html          The same page in English
+docs/                  How it is built and played (FEATURES, GAMEPLAY, DESIGN, DRIFT, NETWORK, IDEAS), and the README's clip
 src/
   main.ts              Landing page, lazy-loads the game and the network view
   lang.ts              Menu language: the player's choice or the browser's

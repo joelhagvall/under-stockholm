@@ -17,7 +17,7 @@
 //   --dry-run   everything but the upload.
 // The Worker (worker/, wrangler.jsonc) goes up with every deploy: the hub behind /ghosts, /feeds, /notes, /perf, /errors and
 // /perf. Its secrets are set once, apart: `bunx wrangler secret put TRAFIKLAB_RT_KEY` (and TRAFIKLAB_STATIC_KEY,
-// NOTES_ADMIN_TOKEN); see DRIFT.md.
+// NOTES_ADMIN_TOKEN); see docs/DRIFT.md.
 // Agents may not deploy any other way: a Claude Code hook blocks deploy commands run directly (scripts/hooks).
 
 import { readdirSync, rmSync, statSync } from 'node:fs';

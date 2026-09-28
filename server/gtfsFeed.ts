@@ -1,6 +1,6 @@
 // Every metro station's departures from Trafiklab's GTFS Regional feeds (server/gtfs.ts), for the `sl` feed: the part
 // both relays share, the Bun relay in development (server/feeds.ts, the timetable in a file) and the hub on Cloudflare
-// (worker/hub.ts, the timetable in its storage). Nothing here needs Bun. See DRIFT.md, section 4.
+// (worker/hub.ts, the timetable in its storage). Nothing here needs Bun. See docs/DRIFT.md, section 4.
 //
 // Keys: TRAFIKLAB_RT_KEY and TRAFIKLAB_STATIC_KEY, never with a VITE_ prefix: they stay on the relay.
 // Silver quota: realtime 250 a minute, so every 15 s, as often as SL updates it (the feed's ttl in feedCore.ts);

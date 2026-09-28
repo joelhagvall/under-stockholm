@@ -4,7 +4,7 @@
 // So, the standard GTFS pattern: once a day the static timetable (sl.zip, about 48 MB) is read for the metro's
 // trips (every line in the game's network), and every realtime fetch moves those trips' times to what SL expects now. The result has the same shape as
 // SL's Transport API answer, so the game and the landing map read it without knowing where it came from.
-// See DRIFT.md, section 4, for the quotas and the data.
+// See docs/DRIFT.md, section 4, for the quotas and the data.
 
 import { pad2, stockholm, stockholmEpoch } from '../src/game/clock';
 import { LINES } from '../src/landing/lines';

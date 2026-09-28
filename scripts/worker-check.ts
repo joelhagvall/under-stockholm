@@ -1,6 +1,6 @@
 // The Worker and the hub together, as Cloudflare runs them: `bun scripts/worker-check.ts`, part of `bun run check`'s
 // quick gates (after the build, which the Worker's static assets need). It starts `wrangler dev` with each address's
-// share of the day and both budgets set small, and walks what DRIFT.md section 3 promises: an address past its share
+// share of the day and both budgets set small, and walks what docs/DRIFT.md section 3 promises: an address past its share
 // is refused by the hub, which says so, and then by the Worker alone; sockets and their messages count; an IPv6 /48
 // is one block; and the players' budget and the feeds', notes' and reports' cannot spend each other.
 // Every scenario uses addresses of its own, as the counts are kept per address for the whole run.

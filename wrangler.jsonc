@@ -1,4 +1,4 @@
-// The game on Cloudflare: a Worker that serves the static build and, on the relay's paths, the hub (worker/, DRIFT.md).
+// The game on Cloudflare: a Worker that serves the static build and, on the relay's paths, the hub (worker/, docs/DRIFT.md).
 // Requests for static assets are free and unlimited and never run the Worker. Upload only with `bun run deploy`,
 // which runs the whole quality gate first.
 {
@@ -26,7 +26,7 @@
   "ratelimits": [{ "name": "LIMIT", "namespace_id": "1001", "simple": { "limit": 120, "period": 60 } }],
   "vars": {
     // Requests a day other players may spend on the Durable Object, on Workers Paid: at most about $0.15 a day past
-    // the plan's included million a month (DRIFT.md, section 3). Keep a number rather than `off`, which leaves no
+    // the plan's included million a month (docs/DRIFT.md, section 3). Keep a number rather than `off`, which leaves no
     // ceiling on the bill.
     "GHOST_BUDGET": "1000000",
     // Requests a day the feeds, notes and reports may spend, apart from the players' budget so neither can spend the

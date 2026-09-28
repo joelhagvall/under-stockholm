@@ -111,7 +111,7 @@ await Bun.write(join(SCRATCH, '.keep'), '');
 if (!(await run('typecheck', ['bunx', 'tsc', '--noEmit']))) fail('typecheck');
 if (!(await run('tests', ['bun', 'test']))) fail('tests');
 if (!(await run('build and size budgets', ['bunx', 'vite', 'build'])) || !(await run('size budgets', ['bun', 'scripts/check-budgets.ts']))) fail('build or size budgets');
-// The Worker and the hub in wrangler dev, on the build's assets: the limits of DRIFT.md section 3, end to end.
+// The Worker and the hub in wrangler dev, on the build's assets: the limits of docs/DRIFT.md section 3, end to end.
 else if (!(await run('the Worker\'s limits', ['bun', 'scripts/worker-check.ts']))) fail('the Worker\'s limits');
 
 // 2. Performance: leaks, frame rates and loading, against the dev server (unminified names) and the production build.
