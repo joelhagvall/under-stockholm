@@ -39,7 +39,9 @@ function game(): void {
   const buttons = [start, tour, resume, network];
   const statusEl = document.getElementById('status') as HTMLParagraphElement;
   // The page carries its own copy of these, in its language.
-  const { loading, error } = statusEl.dataset;
+  const { loading, error, webgl } = statusEl.dataset;
+  // A machine without WebGL (most often with hardware acceleration off) is told what to do about it.
+  const failed = (err: unknown) => (/WebGL/.test(String(err)) ? webgl : error) ?? '';
   const menu = document.getElementById('menu') as HTMLElement;
   const game = document.getElementById('game') as HTMLDivElement;
 
@@ -71,7 +73,7 @@ function game(): void {
       game.hidden = true;
       document.body.classList.remove('is-playing');
       for (const b of buttons) b.disabled = false;
-      statusEl.textContent = error ?? '';
+      statusEl.textContent = failed(err);
       focused?.focus();
     }
   };
@@ -122,7 +124,7 @@ function game(): void {
     } catch (err) {
       console.error(err);
       done(true);
-      statusEl.textContent = error ?? '';
+      statusEl.textContent = failed(err);
       button.focus();
     }
   };

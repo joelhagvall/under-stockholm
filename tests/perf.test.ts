@@ -53,6 +53,23 @@ test('the aggregate gives medians per class of device and per GPU', () => {
   expect(perfPage(all, { players: { used: 5, limit: Infinity }, data })).toContain('no daily budget');
 });
 
+test('hitches: the mean, the median visit and the share in the game\'s own code', () => {
+  const reports = [
+    parsePerf({ ...sample, hitches: 2, work: 1 })!,
+    parsePerf({ ...sample, hitches: 4, work: 0 })!,
+    // One slow machine, every frame a hitch, and a client too old to split them.
+    parsePerf({ ...sample, hitches: 1800 })!,
+  ] as PerfReport[];
+  expect(reports[2].work).toBe(-1);
+  expect(parsePerf({ ...sample, hitches: 2, work: 5 })!.work).toBe(-1);
+  const s = summarize(reports);
+  expect(s.hitchesPerMinute).toBe(301);
+  expect(s.hitchesMedian).toBe(2);
+  expect(s.hitchesWork).toBe(0.17);
+  expect(summarize([reports[2]]).hitchesWork).toBeNull();
+  expect(perfPage(aggregate(reports))).toContain('<td>17%</td>');
+});
+
 test('the client sums up its frame times', () => {
   const frames = Array.from({ length: 600 }, (_, i) => (i % 100 === 0 ? 80 : 16.7));
   const s = summarizeFrames(frames);

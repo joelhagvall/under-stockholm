@@ -1712,7 +1712,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     }
     if (manualDt === null) {
       if (resolution.frame(frameMs, workMs, now)) resize();
-      telemetry?.frame(frameMs);
+      telemetry?.frame(frameMs, workMs);
     }
     if (!freezeTimetable) time += dt;
     if (followClock || (realOn && !fixedClock)) {

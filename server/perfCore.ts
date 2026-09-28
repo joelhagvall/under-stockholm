@@ -14,6 +14,8 @@ export interface PerfReport {
   p95: number;
   /** Frames over 50 ms. */
   hitches: number;
+  /** Of those, the ones the game's own code spent most of; -1 from a client too old to say. */
+  work: number;
   /** How many notches the adaptive resolution had gone down (0 is full). */
   scale: number;
   pixelRatio: number;
@@ -51,6 +53,7 @@ export function parsePerf(raw: unknown, at = Date.now()): PerfReport | null {
   return {
     v: 1, at, kind: r.kind,
     seconds: round(r.seconds), frames: Math.round(r.frames), fps: round(r.fps), p95: round(r.p95), hitches: Math.round(r.hitches),
+    work: finite(r.work, r.hitches) ? Math.round(r.work) : -1,
     scale: Math.round(r.scale), pixelRatio: round(r.pixelRatio, 2), loadS: round(r.loadS), dpr: round(r.dpr, 2), w: Math.round(r.w), h: Math.round(r.h),
     cores: Math.round(r.cores), memory: round(r.memory), gpu: text(r.gpu, 80), lang: text(r.lang, 8), real: r.real === true, passengers: r.passengers === true,
   };
@@ -69,8 +72,13 @@ export interface PerfSummary {
   n: number;
   fps: { median: number; p10: number };
   p95: { median: number };
-  /** The mean count of frames over 50 ms per minute of play. */
+  /** The mean count of frames over 50 ms per minute of play: a few slow machines, every frame a hitch, weigh heavily. */
   hitchesPerMinute: number;
+  /** The median visit's frames over 50 ms per minute: what a usual player meets. */
+  hitchesMedian: number;
+  /** The share of those frames the game's own code spent most of (the rest is the browser, the GPU or the garbage
+   *  collector), over the reports that say; null when none does. */
+  hitchesWork: number | null;
   /** Share of visits where the resolution had gone down at least one notch. */
   downscaled: number;
   loadS: { median: number; p90: number };
@@ -96,10 +104,19 @@ export function summarize(reports: PerfReport[]): PerfSummary {
     fps: { median: percentile(fps, 0.5), p10: percentile(fps, 0.1) },
     p95: { median: percentile(reports.map((r) => r.p95), 0.5) },
     hitchesPerMinute: reports.length ? Math.round((reports.reduce((s, r) => s + (r.hitches / r.seconds) * 60, 0) / reports.length) * 10) / 10 : 0,
+    hitchesMedian: Math.round(percentile(reports.map((r) => (r.hitches / r.seconds) * 60), 0.5) * 10) / 10,
+    hitchesWork: workShare(reports.filter((r) => r.work >= 0)),
     downscaled: reports.length ? Math.round((100 * reports.filter((r) => r.scale > 0).length) / reports.length) / 100 : 0,
     loadS: { median: percentile(reports.map((r) => r.loadS), 0.5), p90: percentile(reports.map((r) => r.loadS), 0.9) },
     gpus: [...byGpu].map(([gpu, rs]) => ({ gpu, n: rs.length, fps: percentile(rs.map((r) => r.fps), 0.5) })).sort((a, b) => b.n - a.n).slice(0, 12),
   };
+}
+
+/** The share of the hitches the game's own code spent most of, over reports that say, or null. */
+function workShare(reports: PerfReport[]): number | null {
+  const hitches = reports.reduce((s, r) => s + r.hitches, 0);
+  if (!reports.length) return null;
+  return hitches ? Math.round((100 * reports.reduce((s, r) => s + r.work, 0)) / hitches) / 100 : 0;
 }
 
 export type PerfAggregate = { since: number | null; count: number; all: Record<string, PerfSummary>; day: Record<string, PerfSummary> };
@@ -117,13 +134,13 @@ export type Budgets = { players: BudgetUse; data: BudgetUse };
 
 /** The aggregate as a plain page, for a browser, with today's budgets when the relay keeps them. */
 export function perfPage(data: PerfAggregate, budgets?: Budgets): string {
-  const row = (label: string, s: PerfSummary) => `<tr><td>${label}</td><td>${s.n}</td><td>${s.fps.median}</td><td>${s.fps.p10}</td><td>${s.p95.median}</td><td>${s.hitchesPerMinute}</td><td>${Math.round(s.downscaled * 100)}%</td><td>${s.loadS.median}</td><td>${s.loadS.p90}</td></tr>`;
+  const row = (label: string, s: PerfSummary) => `<tr><td>${label}</td><td>${s.n}</td><td>${s.fps.median}</td><td>${s.fps.p10}</td><td>${s.p95.median}</td><td>${s.hitchesPerMinute}</td><td>${s.hitchesMedian}</td><td>${s.hitchesWork === null ? '' : `${Math.round(s.hitchesWork * 100)}%`}</td><td>${Math.round(s.downscaled * 100)}%</td><td>${s.loadS.median}</td><td>${s.loadS.p90}</td></tr>`;
   const gpus = (s: PerfSummary) => s.gpus.map((g) => `<tr><td>${g.gpu.replace(/</g, '&lt;')}</td><td>${g.n}</td><td>${g.fps}</td></tr>`).join('');
   return `<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><title>Under Stockholm | performance</title>
 <style>body{font:14px/1.5 system-ui;margin:2em;color:#222}table{border-collapse:collapse;margin:1em 0}td,th{border:1px solid #ccc;padding:4px 10px;text-align:right}td:first-child,th:first-child{text-align:left}</style>
 <h1>Under Stockholm: how it runs for players</h1>
 ${budgets ? budgetLine('Other players', budgets.players, 'other players are paused') + budgetLine('Feeds, notes and reports', budgets.data, 'they wait') : ''}<p>${data.count} reports since ${data.since ? new Date(data.since).toISOString().slice(0, 10) : 'never'}. One per visit, after two minutes of play. Medians unless said otherwise.</p>
-<table><tr><th></th><th>visits</th><th>fps</th><th>fps p10</th><th>p95 ms</th><th>hitches/min</th><th>downscaled</th><th>load s</th><th>load p90</th></tr>
+<table><tr><th></th><th>visits</th><th>fps</th><th>fps p10</th><th>p95 ms</th><th>hitches/min, mean</th><th>median</th><th>in the game's code</th><th>downscaled</th><th>load s</th><th>load p90</th></tr>
 ${row('desktop, all', data.all.desktop)}${row('touch, all', data.all.touch)}${row('desktop, last day', data.day.desktop)}${row('touch, last day', data.day.touch)}</table>
 <h2>By GPU</h2><table><tr><th>desktop</th><th>visits</th><th>fps</th></tr>${gpus(data.all.desktop)}</table>
 <table><tr><th>touch</th><th>visits</th><th>fps</th></tr>${gpus(data.all.touch)}</table>`;

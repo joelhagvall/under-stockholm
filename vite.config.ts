@@ -138,7 +138,7 @@ export default defineConfig({
   optimizeDeps: { exclude: ['@dimforge/rapier3d'] },
   build: {
     manifest: true,
-    target: 'es2022',
+    target: ['es2022', 'safari15'],
     chunkSizeWarningLimit: 1100,
     rolldownOptions: {
       input: PAGES.map((p) => resolve(import.meta.dirname, p.path, 'index.html')),

@@ -40,16 +40,19 @@ export function summarizeFrames(ms: number[]): FrameSummary {
 
 export class Telemetry {
   private readonly frames: number[] = [];
+  /** Frames over 50 ms that the game's own code spent most of, rather than the browser, the GPU or the garbage collector. */
+  private work = 0;
   private played = 0;
   private sent = false;
 
   /** @param url the relay's HTTP address, or null to send nothing */
   constructor(private readonly url: string | null, private readonly facts: () => Facts) {}
 
-  /** A frame of play, milliseconds since the last. */
-  frame(ms: number): void {
+  /** A frame of play, milliseconds since the last, and how long the game's own code took of it. */
+  frame(ms: number, workMs: number): void {
     if (this.sent || !this.url || !(ms > 0) || ms > AWAY_MS) return;
     this.frames.push(ms);
+    if (ms > 50 && workMs > ms / 2) this.work++;
     this.played += ms / 1000;
     if (this.played >= REPORT_SECONDS) this.send();
   }
@@ -68,6 +71,7 @@ export class Telemetry {
       v: 1,
       kind: f.touch ? 'touch' : 'desktop',
       ...summarizeFrames(this.frames),
+      work: this.work,
       scale: f.scale,
       pixelRatio: f.pixelRatio,
       loadS: f.loadS,
