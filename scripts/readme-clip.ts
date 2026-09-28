@@ -24,7 +24,7 @@ const FPS = VIDEO ? 30 : 15;
 /** How much faster than the game the clip plays: brisk enough to take in at a glance. */
 const SPEED = 1.5;
 /** WebP quality, 0 to 100. */
-const QUALITY = 82;
+const QUALITY = 90;
 const OUT_WIDTH = 1280;
 const ROOT = join(import.meta.dir, '..');
 const OUT = VIDEO ? join(ROOT, 'video', 'under-stockholm.mp4') : join(ROOT, 'docs', 'under-stockholm.webp');
