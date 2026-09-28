@@ -17,13 +17,15 @@ bun install
 bun run dev
 ```
 
-Open http://localhost:5180 and click **Gå ner i tunnelbanan** (or **English** at the top for English menus). How it is hosted is in [DRIFT.md](docs/DRIFT.md). The same page has three more ways in:
+Open http://localhost:5180 and click **Gå ner i tunnelbanan** (or **English** at the top for English menus). The same page has three more ways in:
 
 - **Se en tur** jumps through rush hour, snow, Lucia, 1975, Silverpilen and Kymlinge until you take over.
-- **Se hela nätet** shows every line at its real depth under Stockholm, with every train as a point of light.
+- **Se hela nätet** shows every line at its real depth under Stockholm, with every train as a point of light ([NETWORK.md](docs/NETWORK.md)).
 - **Ett liv på blå linjen** is one ride from Kungsträdgården to Akalla where every station is a stretch of years, 1975 to 2050.
 
 Phones work without a keyboard: thumbstick to walk, drag to look. Gamepads work too. Keys are in [GAMEPLAY.md](docs/GAMEPLAY.md).
+
+Locally the trains follow SL's blue line out of the box. For all three lines, put a GTFS Regional Realtime and Static key from [Trafiklab](https://www.trafiklab.se/) in `.env.local` as `TRAFIKLAB_RT_KEY` and `TRAFIKLAB_STATIC_KEY`: the relay reads them, the browser never sees them. How it is hosted is in [DRIFT.md](docs/DRIFT.md).
 
 ## Nine things that matter
 
