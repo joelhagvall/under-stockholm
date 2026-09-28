@@ -88,4 +88,4 @@ A fan project. Not affiliated with or endorsed by SL or Region Stockholm.
 
 ## License
 
-The code is MIT ([LICENSE](LICENSE)). It covers this project's own work, not SL's or Region Stockholm's names and marks. The sounds in `public/audio/sfx/` are public domain and CC0 (sources in its README). The recorded C20 announcements are not part of the repository ([why](public/audio/README.md)).
+The code is MIT ([LICENSE](LICENSE)). It covers this project's own work, not SL's or Region Stockholm's names and marks. The sounds in `public/audio/sfx/` are public domain and CC0 (sources in its README). The buildings round some stations in the open air come from [OpenStreetMap](https://www.openstreetmap.org/copyright) (© OpenStreetMap contributors): the files in `src/game/world/osm/` are map data under the Open Database License (ODbL), fetched by `scripts/osm.ts`. The recorded C20 announcements are not part of the repository ([why](public/audio/README.md)).

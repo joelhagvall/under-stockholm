@@ -35,10 +35,14 @@ async function brotliBytes(paths: Iterable<string>): Promise<number> {
 }
 const runtime: string[] = [];
 for await (const path of new Bun.Glob('assets/*.{js,wasm}').scan(root)) runtime.push(path);
+// OpenStreetMap's buildings round the stations in the open, a file per line, fetched only when the player comes near one.
+const mapData: string[] = [];
+for await (const path of new Bun.Glob('assets/*.json').scan(root)) mapData.push(path);
 const budgets = [
   { name: 'Landing JavaScript', files: [...landing].filter((p) => p.endsWith('.js')), limit: 6_000 },
   { name: 'Landing CSS', files: [...landing].filter((p) => p.endsWith('.css')), limit: 5_000 },
   { name: 'All JavaScript and WASM', files: runtime, limit: 1_300_000 },
+  { name: 'Map data, fetched near the open air', files: mapData, limit: 200_000 },
 ];
 for (const { name, files, limit } of budgets) {
   const bytes = await compressedBytes(files);

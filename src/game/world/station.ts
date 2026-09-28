@@ -7,6 +7,7 @@ import { escalatorSteps, type EscalatorZone } from './escalator';
 import { shiftZ } from './shifted';
 import { buildWalkway, WALKWAY, walkwayZones, type WalkwayEnd } from './walkway';
 import { openGround } from './outdoor';
+import type { OsmPatch } from './osm';
 import { buildCity, cityAnchors, cityHouse, railings } from './city';
 import type { BoxFace, MeshBuilder } from '../gfx/builder';
 import { rgb, type RGB } from '../gfx/color';
@@ -517,9 +518,10 @@ export interface StationBuild {
 /**
  * `buildStation` in steps: the rock, the furnishing, the escalators, the hall
  * and then one baked layer at a time, so a station built while the player
- * rides toward it spreads its cost over several frames.
+ * rides toward it spreads its cost over several frames. `osm`, for a station
+ * in the open, is the real buildings round it.
  */
-export function* stationSteps(physics: Physics, net: Network, index: number, cx: number, exitDir: 1 | -1, dry = false): Generator<void, StationBuild> {
+export function* stationSteps(physics: Physics, net: Network, index: number, cx: number, exitDir: 1 | -1, dry = false, osm: OsmPatch | null = null): Generator<void, StationBuild> {
   const def = net.stations[index];
   const line = net.lines[def.line];
   // Above ground: a platform under a canopy, fences and the open air instead of a cave.
@@ -619,7 +621,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     railings(s, physics, xa, xb, halfW);
     yield;
     buildCity(s, xa, xb, halfW, cityAnchors(net));
-  } else if (outdoor) openGround(s, physics, xa, xb, index * 17 + 5);
+  } else if (outdoor) openGround(s, physics, xa, xb, index * 17 + 5, true, osm ? [osm] : []);
   yield;
   for (const zc of trackZs) addTrack(s, xa, xb, zc, true);
   yield;

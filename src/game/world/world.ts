@@ -23,6 +23,7 @@ import {
 } from '../layout';
 import { ghostX, isOutdoor, lineEnd, stationRise, type Network } from '../line';
 import { buildOpenTrack, buildOpenTurnback, buildTunnelMouth, OPEN } from './outdoor';
+import { OSM_HALF_X, OsmData, type OsmPatch } from './osm';
 import { buildBridge, buildCity, cityAnchors } from './city';
 import type { Link } from '../routes';
 import { LOADING_SLICE_MS, nextFrame } from '../frames';
@@ -76,6 +77,8 @@ interface Lazy {
   groups: Object3D[];
   /** Lets go of what the rest of the game was handed from the build, when it is taken down. */
   release?(): void;
+  /** False while something the build needs is still on the way (a line's real buildings): it waits in the queue. */
+  ready?(): boolean;
 }
 
 /** How close the player must be before a lazy stretch is built. Riding at line speed, that is almost a minute ahead. */
@@ -115,6 +118,10 @@ export class World {
   readonly walkways: Walkway[] = [];
   /** Where the line runs in the open air, as ranges of x. */
   readonly openRanges: Array<[number, number]> = [];
+  /** The real buildings round the stations in the open (see `osm.ts`), fetched a line at a time. */
+  private readonly osm = new OsmData();
+  /** The stations in the open outside the city, where real buildings may stand. */
+  private readonly osmSites: Array<{ line: string; name: string; x: number }>;
   /** False at night, when the escalators stand still. */
   escalatorsRunning = true;
   private readonly updaters: Array<(dt: number) => void> = [];
@@ -140,6 +147,23 @@ export class World {
 
   private constructor(readonly net: Network) {
     this.stationX = net.x;
+    this.osmSites = net.stations.flatMap((def, i) => (isOutdoor(net, i) && !def.city ? [{ line: net.lines[def.line].id, name: def.name, x: net.x[i] }] : []));
+  }
+
+  /** The stations whose real buildings reach into `x0`..`x1`, or into `x0 + dx`..`x1 + dx` for a stretch built there and moved `dx` along x. */
+  private osmSitesAt(x0: number, x1: number, dx = 0) {
+    return this.osmSites.filter((s) => s.x + OSM_HALF_X > x0 + dx && s.x - OSM_HALF_X < x1 + dx);
+  }
+
+  /** The real buildings reaching into a stretch (see `osmSitesAt`), where it is built: those not here yet are left out. */
+  private osmAt(x0: number, x1: number, dx = 0): OsmPatch[] {
+    return this.osmSitesAt(x0, x1, dx).flatMap((s) => this.osm.patch(s.line, s.name, s.x - dx) ?? []);
+  }
+
+  /** For a lazy build of a stretch: are the real buildings reaching into it here? The first ask fetches them. */
+  private osmReady(x0: number, x1: number, dx = 0): (() => boolean) | undefined {
+    const lines = [...new Set(this.osmSitesAt(x0, x1, dx).map((s) => s.line))];
+    return lines.length ? () => lines.map((l) => this.osm.ready(l)).every(Boolean) : undefined;
   }
 
   /** Builds the blue trunk at once. */
@@ -253,13 +277,15 @@ export class World {
       add(info, wing);
       // What the dry pass handed the station, to go back to when the built one is taken down, so its meshes can go.
       const dry: StationInfo = { ...info, exit: { ...info.exit } };
+      const open = isOutdoor(net, i) && !def.city;
       this.later(xs[i] - CAVE_HALF_L - 60, xs[i] + CAVE_HALF_L + 60, function* (this: World) {
-        const built = yield* stationSteps(NO_PHYSICS, net, i, xs[i], exitDir);
+        const osm = open ? this.osm.patch(net.lines[def.line].id, def.name, xs[i]) : null;
+        const built = yield* stationSteps(NO_PHYSICS, net, i, xs[i], exitDir, false, osm);
         adopt(info, built.info);
         yield* this.add(built.group);
         if (shared) return;
         yield* this.add(buildServiceWing(NO_PHYSICS, i, xs[i], exitDir, kind).group);
-      }.bind(this), () => adopt(info, dry));
+      }.bind(this), () => adopt(info, dry), open ? this.osmReady(xs[i], xs[i]) : undefined);
       yield;
     }
 
@@ -344,15 +370,16 @@ export class World {
       const wall = xs[i] + dir * CAVE_HALF_L;
       if (isOutdoor(net, i)) {
         const far = wall + dir * (TAIL_TUBE + CAVERN_LEN);
-        const make = function* (dry: boolean): Generator<void, Group> {
+        const [t0, t1] = [Math.min(wall, far), Math.max(wall, far)];
+        const make = function* (dry: boolean, osm: OsmPatch[] = []): Generator<void, Group> {
           const s = new Section(`turnback-${i}`, OPEN_AMBIENT, dry, true);
-          buildOpenTurnback(s, dry ? physics : NO_PHYSICS, wall, dir, TAIL_TUBE + CAVERN_LEN, 200 + i * 11);
+          buildOpenTurnback(s, dry ? physics : NO_PHYSICS, wall, dir, TAIL_TUBE + CAVERN_LEN, 200 + i * 11, osm);
           yield;
           return yield* s.finishSteps();
         };
         drain(make(true));
-        this.openRanges.push([Math.min(wall, far), Math.max(wall, far)]);
-        this.later(Math.min(wall, far), Math.max(wall, far), function* (this: World) { yield* this.add(yield* make(false)); }.bind(this));
+        this.openRanges.push([t0, t1]);
+        this.later(t0, t1, function* (this: World) { yield* this.add(yield* make(false, this.osmAt(t0, t1))); }.bind(this), undefined, this.osmReady(t0, t1));
         yield;
         continue;
       }
@@ -430,14 +457,14 @@ export class World {
     const halfW = city?.wide ? CAVE_HALF_W + LANE + 0.5 : OPEN.fenceZ;
     // Built in stages with a bake per layer, so a stretch built on the way costs a frame per stage, not all at once.
     const net = this.net;
-    const make = function* (dry: boolean): Generator<void, Group> {
+    const make = function* (dry: boolean, osm: OsmPatch[] = []): Generator<void, Group> {
       const s = new Section(`open-${Math.round(x0)}`, OPEN_AMBIENT, dry, true);
       const p = dry ? shifted(physics, dx) : NO_PHYSICS;
       if (city) {
         buildBridge(s, p, x0, x1, halfW, city.wide ? [-TRACK_Z, TRACK_Z] : tracks);
         yield;
         buildCity(s, x0, x1, halfW, cityAnchors(net));
-      } else buildOpenTrack(s, p, x0, x1, seed);
+      } else buildOpenTrack(s, p, x0, x1, seed, osm);
       yield;
       for (const [x, dir] of mouths) buildTunnelMouth(s, p, x, dir, tracks, halfW + 1, !!city);
       yield;
@@ -447,7 +474,7 @@ export class World {
     };
     drain(make(true));
     this.openRanges.push([x0 + dx, x1 + dx]);
-    this.later(x0 + dx, x1 + dx, function* (this: World) { yield* this.add(yield* make(false)); }.bind(this));
+    this.later(x0 + dx, x1 + dx, function* (this: World) { yield* this.add(yield* make(false, city ? [] : this.osmAt(x0, x1, dx))); }.bind(this), undefined, city ? undefined : this.osmReady(x0, x1, dx));
   }
 
   /** The second line's rails where both lines cross the open air on one wide bridge. */
@@ -635,8 +662,8 @@ export class World {
     this.warm(group);
   }
 
-  private later(x0: number, x1: number, build: Lazy['build'], release?: Lazy['release']): void {
-    this.lazy.push({ x0, x1, build, groups: [], release });
+  private later(x0: number, x1: number, build: Lazy['build'], release?: Lazy['release'], ready?: Lazy['ready']): void {
+    this.lazy.push({ x0, x1, build, groups: [], release, ready });
   }
 
   /**
@@ -661,7 +688,7 @@ export class World {
     let distance = Infinity;
     for (const l of this.lazy) {
       const d = off(l);
-      if (d < reach && d < distance) { best = l; distance = d; }
+      if (d < reach && d < distance && (!l.ready || l.ready())) { best = l; distance = d; }
     }
     if (!best) {
       // Something set aside may be what is near now.
