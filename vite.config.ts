@@ -83,6 +83,10 @@ ${PAGES.map((p) => `  <url>\n    <loc>${base()}${p.path}</loc>\n${alternates('  
 
 - [Under Stockholm](${base()}${PAGES[1].path}): the English landing page, with a live map of the blue line and the game itself
 - [Under Stockholm på svenska](${base()}): the same page in Swedish
+
+## Source
+
+- [joelhagvall/under-stockholm](https://github.com/joelhagvall/under-stockholm): the code, MIT: TypeScript, three.js and Rapier, no game engine
 `,
     },
     ...Object.fromEntries(ICONS.map((icon) => [icon.file, { type: 'image/png', body: icon.png }])),

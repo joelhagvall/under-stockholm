@@ -426,23 +426,35 @@ kbd {
 }
 
 .menu-credit {
-  margin: 12px 0 0;
+  margin: 8px 0 0;
   font-size: 0.88rem;
+  line-height: 1.55;
   color: var(--muted);
 }
 
-.menu-credit a {
+/* Each item stays whole: a narrow screen breaks the line between them, at the dots. */
+.menu-note > span:not([aria-hidden]),
+.menu-credit > a {
+  white-space: nowrap;
+}
+
+.menu-note [aria-hidden],
+.menu-credit [aria-hidden] {
+  opacity: 0.6;
+}
+
+:is(.menu-note, .menu-credit) a {
   color: var(--ink);
   font-weight: 600;
   text-underline-offset: 3px;
   text-decoration-color: rgba(238, 242, 248, 0.35);
 }
 
-.menu-credit a:hover {
+:is(.menu-note, .menu-credit) a:hover {
   text-decoration-color: var(--ink);
 }
 
-.menu-credit a:focus-visible {
+:is(.menu-note, .menu-credit) a:focus-visible {
   outline: 3px solid var(--amber);
   outline-offset: 2px;
 }
@@ -973,6 +985,11 @@ a, button { touch-action: manipulation; }
   .menu-shot { margin-top: 64px; }
   .menu-section { margin-top: 36px; }
   .menu-note { margin-top: 36px; }
+  /* Too narrow for one line each: the dots would hang at the line ends, so space alone sets the items apart. */
+  .menu-note [aria-hidden],
+  .menu-credit [aria-hidden] { display: none; }
+  .menu-note > span,
+  .menu-credit > a { margin: 0 0.35em; }
 }
 body.is-playing { overflow: hidden; overscroll-behavior: none; }
 /* Keyboard users can jump past the language link straight to the page. */
