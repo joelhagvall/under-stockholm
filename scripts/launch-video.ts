@@ -81,13 +81,14 @@ const SCENES: Scene[] = [
     captionAt: 0.15,
   },
   {
-    // Standing still on the left of T-Centralen's escalator at rush hour, looking back at the one stuck behind you.
+    // Standing still on the left of T-Centralen's escalator at rush hour, riding up and looking up the flight the way it
+    // goes (looking back down at the one stuck behind read as riding down).
     name: 'Escalator',
     view: 'game',
     place: `{
       const e = __us.world.stations[1].escalators[0], lane = e.stoppedLane === 1 ? -1 : 1, along = lane > 0 ? 3 : 20;
       const y = 1.1 + Math.min(e.rise, Math.max(0, (along - 1.25) * Math.tan(Math.PI / 6)));
-      __stand(e.wallX + e.dir * along, y + 0.05, e.z + lane * 1.18 - 0.28 * e.dir * lane, e.dir * lane * Math.PI / 2, -0.55 * lane);
+      __stand(e.wallX + e.dir * along, y + 0.05, e.z + lane * 1.18 - 0.28 * e.dir * lane, -e.dir * lane * Math.PI / 2, 0.3 * lane);
     }`,
     // Ride a while first, so a walker has caught up and stands stuck on the step behind.
     start: `__us.step(10, 15);`,
