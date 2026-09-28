@@ -17,7 +17,7 @@ Read AGENTS.md first; this skill only adds how to work on speed.
 - Landing JavaScript 6 kB, landing CSS 5 kB, all JavaScript and WASM 1.3 MB (gzip), checked by `bun run build` (`scripts/check-budgets.ts`), which also shows the Brotli size a host like Cloudflare sends.
 - A station should cost a handful of draw calls: one mesh per baked layer per section, plus signs and displays in `extras`.
 - What the size costs a player: `bun run load` (with `bun run build && bun run serve:prod`) times the click to playing, as a desktop and as a phone on slow 4G. Measured in September 2026: 1.5 s on the desktop (inside the loading screen's 4.5 s minimum, so size costs nothing there), 9.9 s on the phone, of which 5 s is the download with Brotli (the physics binary two thirds of it) and under 5 s building the world. Work behind the loading screen runs in slices of `LOADING_SLICE_MS` (`frames.ts`): shorter slices only add frames to wait for.
-- The render resolution adapts (`RENDER_SCALES` in `resolution.ts`): half a second of slow frames lowers it a notch. A scene that only holds 60 fps at the lowest scale is too heavy.
+- The render resolution adapts (`RENDER_SCALES` in `resolution.ts`): 30 frames with a median over 22 ms lower it a notch. A scene that only holds 60 fps at the lowest scale is too heavy.
 
 ## Real frame rates, without a person
 
