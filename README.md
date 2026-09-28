@@ -34,7 +34,7 @@ Phones work without a keyboard: thumbstick to walk, drag to look. Gamepads work 
 - **Drive it.** Press `K` for a practice C20 from the cab: master controller, ATC braking curve, doors, and a score for stopping with the nose at the board.
 - **Places you were never meant to see.** Staff corridors, a shelter under Rådhuset, Kymlinge, Silverpilen, inspectors, a staff key, a time machine to 1975, and a discovery book of what you have not found yet.
 - **The network from above.** Every line as a glowing tube under a dark Stockholm, trains with fading trails from the same timetables (or SL's), a time scrubber, and a long-exposure poster of any day's runs to save or share.
-- **No engine hiding the work.** Procedural caves, canvas textures, baked vertex lighting, built a slice at a time. The landing page stays small. three.js and Rapier (about 1.2 MB gzipped) load only when you enter.
+- **No engine hiding the work.** Procedural caves, canvas textures, baked vertex lighting, built a slice at a time. The landing page stays small. three.js and Rapier (about 1 MB compressed) load only when you enter.
 - **The small stuff is the point.** Snus on a bench, a street paper vendor, a sneeze and a "prosit", stand on the right, Kanelbullens dag, bottle bags clinking on Fridays. The full list is in [FEATURES.md](docs/FEATURES.md).
 
 ## Stack
@@ -66,15 +66,16 @@ Station art is a generated interpretation, not a survey. See [DESIGN.md](docs/DE
 | `bun run fps` | Real frame rates in headless Chrome on this machine's GPU, as a desktop and as a phone; `--device` adds an Android phone over USB (needs `bun run dev`) |
 | `bun run load` | Time from click to playing, desktop and slow 4G phone (needs `bun run serve:prod`) |
 
-The build fails if the landing page or the game grows past its compressed budget, and `bun run check` fails if it got slower than the numbers in `perf/baseline.json`. After launch, the relay's `/perf` page shows how the game runs for players: one anonymous report per visit (frame times, resolution, loading, class of device; no identifiers).
+The build fails if the landing page or the game grows past its compressed budget, and `bun run check` fails if it got slower than the numbers in `perf/baseline.json`. After launch, the relay's `/perf` page shows how the game runs for players: one anonymous report per visit (frame times, resolution, loading, class of device; no identifiers), and `/errors` what went wrong in their games.
 
 `?debug` never pauses and exposes `window.__us`. `?natet` opens the network view, `?liv` a life on the blue line and `?debug&stromavbrott` a power cut a few seconds in. URL params for time, weather and Silverpilen, plus the relay and how to add a station, are in [FEATURES.md](docs/FEATURES.md#debug-and-the-relay).
 
 ## Roadmap
 
 - The great departure: thousands of players on the same platform on New Year's Eve
-- Timetables from Trafiklab's GTFS, not only the live trains
-- Curved tunnels and real depths in the game (the network view has them)
+- The extension: Barkarby and Nacka under construction at the ends of the blue line
+- 2050: the other direction of the time machine, driverless trains behind glass doors
+- Curved tunnels in the game (the network view has them)
 - More exits, and more of the city up on the street
 
 The rest of the ideas are in [IDEAS.md](docs/IDEAS.md).
