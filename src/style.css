@@ -1,0 +1,980 @@
+:root {
+  --bg: #050608;
+  --ink: #eef2f8;
+  --muted: #a9b4c4;
+  --blue: #1c63c4;
+  --blue-bright: #5b9cf0;
+  --amber: #ffb444;
+  --card: rgba(10, 16, 28, 0.82);
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+kbd {
+  display: inline-block;
+  padding: 0.05em 0.45em;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  font: 600 0.85em/1.4 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Landing page */
+
+.menu {
+  position: relative;
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 48px 16px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 55% 42% at 50% 16%, rgba(40, 90, 170, 0.4), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(255, 180, 68, 0.08), transparent 70%),
+    var(--bg);
+}
+
+/* The lit entrance sign: white roundel with a blue T on a pole. */
+.menu-roundel {
+  width: 150px;
+  height: 150px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, #ffffff, #eef2f6 60%, #dde5ec);
+  display: grid;
+  place-items: center;
+  box-shadow:
+    0 0 50px rgba(220, 235, 255, 0.55),
+    0 0 140px rgba(28, 99, 196, 0.5),
+    inset 0 0 22px rgba(28, 99, 196, 0.12);
+  animation: sign-warmup 1.6s ease-out both, sign-flicker 9s linear 1.6s infinite;
+}
+
+.menu-roundel span {
+  font: 900 86px/0.9 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color: var(--blue);
+  text-shadow: 0 0 14px rgba(28, 99, 196, 0.35);
+  transform: translateY(-4px);
+}
+
+.menu-pole {
+  width: 9px;
+  height: 84px;
+  margin: 0 auto;
+  background: linear-gradient(90deg, #2c3a4c, #6b7f99 50%, #2c3a4c);
+}
+
+.menu-ground {
+  width: 190px;
+  height: 14px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.7), transparent 70%);
+}
+
+/* An old fluorescent tube warming up, then an occasional faint dip. */
+@keyframes sign-warmup {
+  0% { opacity: 0; }
+  14% { opacity: 0; }
+  20% { opacity: 0.75; }
+  27% { opacity: 0.25; }
+  36% { opacity: 0.9; }
+  45% { opacity: 0.55; }
+  58% { opacity: 1; }
+  100% { opacity: 1; }
+}
+
+@keyframes sign-flicker {
+  0%, 91.5%, 93.5%, 95.5%, 100% { opacity: 1; }
+  92% { opacity: 0.85; }
+  94.5% { opacity: 0.92; }
+}
+
+.menu-inner {
+  position: relative;
+  width: min(640px, 100%);
+  text-align: center;
+}
+
+/* The title as a station entrance sign: a lit blue band with a yellow stripe below. */
+.menu-sign {
+  margin-top: 40px;
+  padding: 0.55em 1.3em;
+  font-size: clamp(1.05rem, 5vw, 2.1rem);
+  background: linear-gradient(180deg, #2449a6, #1b3a8f 55%, #183482);
+  border-bottom: 0.2em solid #f2c200;
+  border-radius: 2px;
+  box-shadow:
+    0 0 60px rgba(36, 73, 166, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.menu-sign h1 {
+  margin: 0;
+  font-size: 1em;
+  font-weight: 600;
+  line-height: 1.1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #fff;
+}
+
+/* Everything below the hero shares one column, so its left edges line up. */
+.line-now,
+.menu-shot,
+.menu-section {
+  max-width: 560px;
+}
+
+.menu-lead {
+  margin: 26px auto 28px;
+  max-width: 34em;
+  font-size: 1.12rem;
+  line-height: 1.55;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+/* In the landing page alone (LANDING_ONLY), where the buttons into the game would be. */
+.menu-soon {
+  margin: 0 auto;
+  max-width: 30em;
+  padding: 12px 18px;
+  border: 1px solid rgba(255, 176, 0, 0.35);
+  border-radius: 10px;
+  color: var(--ink);
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+.menu-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px 14px;
+}
+
+.menu-start,
+.menu-continue {
+  appearance: none;
+  border-radius: 10px;
+  min-height: 52px;
+  font: 700 1.05rem/1 var(--font);
+  color: #fff;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.menu-start {
+  border: 3px solid #fff;
+  padding: 15px 32px;
+  background: var(--blue);
+  box-shadow: 0 0 24px rgba(28, 99, 196, 0.5);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.menu-start:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 34px rgba(28, 99, 196, 0.7);
+}
+
+.menu-continue {
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  padding: 12px 26px;
+  background: transparent;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.menu-continue:hover {
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.menu-start:focus-visible,
+.menu-continue:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+.menu-actions button:disabled,
+.menu-more button:disabled {
+  cursor: progress;
+  opacity: 0.75;
+}
+
+/* The other ways in, quieter than the way down: each says what it opens. */
+.menu-more {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.menu-more button,
+.menu-more a {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 10px;
+  font: 600 0.98rem/1.35 var(--font);
+  color: var(--ink);
+  text-decoration: none;
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s ease;
+}
+
+.menu-more span {
+  text-decoration: underline;
+  text-decoration-color: rgba(238, 242, 248, 0.35);
+  text-underline-offset: 4px;
+  transition: text-decoration-color 0.15s ease;
+}
+
+.menu-more button:hover,
+.menu-more a:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.menu-more :hover > span {
+  text-decoration-color: var(--ink);
+}
+
+/* Side by side where there is room, the three read as one row of choices. */
+@media (min-width: 601px) {
+  .menu-more {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.menu-more button:focus-visible,
+.menu-more a:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.menu-more small,
+.menu-continue small {
+  display: block;
+  margin-top: 4px;
+  text-wrap: balance;
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.menu-continue small:empty {
+  display: none;
+}
+
+.menu-status {
+  min-height: 1.5em;
+  margin: 10px 0 0;
+  color: var(--muted);
+}
+
+/* The departure strip hangs under the entrance sign, styled like a dot-matrix sign over the platform: a row per train. */
+.menu-board {
+  position: relative;
+  display: inline-grid;
+  /* Two rows tall and one width whatever it says, so nothing jumps when the departures come in. */
+  grid-template-rows: repeat(2, 1.4em);
+  align-content: center;
+  box-sizing: border-box;
+  width: min(100%, 36rem);
+  margin: 14px auto 0;
+  padding: 8px 22px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 176, 0, 0.25);
+  border-radius: 6px;
+  background: rgba(2, 4, 8, 0.85);
+  font: 700 0.95rem/1.4 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  text-align: left;
+  color: var(--amber);
+  text-shadow: 0 0 10px rgba(255, 180, 68, 0.55);
+  transition: color 0.3s, text-shadow 0.3s;
+}
+
+/* Route number, where to, and the minutes out at the right edge. */
+.menu-board-row {
+  display: grid;
+  grid-template-columns: 3ch 1fr auto;
+  gap: 1.5ch;
+}
+
+.menu-board-row > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Dark until the live map has the departures, so the routes in the HTML never flash up first. */
+.menu-board.is-pending {
+  color: transparent;
+  text-shadow: none;
+}
+
+/* A fine dot grid over the text, like the LED matrix on a real board. */
+.menu-board::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(2, 4, 8, 0.55) 0.9px, transparent 1.1px);
+  background-size: 3px 3px;
+  pointer-events: none;
+}
+
+/* A look down at the platform, below the fold on a phone so it never holds up the first paint. */
+.menu-shot {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 32px auto 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: #0a1220;
+}
+
+/* Plain text sections under the map, on the page rather than in cards. */
+.menu-section {
+  margin: 44px auto 0;
+  text-align: left;
+}
+
+.menu-section h2,
+.line-now h2 {
+  text-wrap: balance;
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.menu-section h2 {
+  margin-bottom: 12px;
+}
+
+.menu-controls dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 10px 20px;
+  margin: 0;
+}
+
+/* Each row keeps the list's columns, so the keys line up however long the widest is. */
+.menu-controls dl > div {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+}
+
+.menu-controls dt {
+  color: var(--muted);
+}
+
+.menu-controls kbd + kbd {
+  margin-left: 3px;
+}
+
+.menu-controls dd {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.menu-note {
+  margin: 44px auto 0;
+  max-width: 36em;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.menu-credit {
+  margin: 12px 0 0;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.menu-credit a {
+  color: var(--ink);
+  font-weight: 600;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(238, 242, 248, 0.35);
+}
+
+.menu-credit a:hover {
+  text-decoration-color: var(--ink);
+}
+
+.menu-credit a:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.menu-about p,
+.menu-about ul {
+  margin: 0 0 12px;
+  line-height: 1.6;
+}
+
+.menu-about ul {
+  padding-left: 1.2em;
+}
+
+.menu-about h3 {
+  text-wrap: balance;
+  margin: 22px 0 6px;
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.menu-about > :last-child {
+  margin-bottom: 0;
+}
+
+/* The longer story, folded away so the page stays short; still in the HTML for search engines. */
+.menu-details summary {
+  width: fit-content;
+  margin-top: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.menu-details summary:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.menu-details > :last-child {
+  margin-bottom: 0;
+}
+
+/* Names with a hyphen, T-Centralen, never break at it. */
+.nobr {
+  white-space: nowrap;
+}
+
+/* The other language, top right. */
+.menu-lang {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  z-index: 1;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  font-size: 0.9rem;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.menu-lang:hover {
+  border-color: var(--blue-bright);
+}
+
+.menu-lang:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 2px;
+}
+
+/* Live line map on the landing page. Heights are fixed so nothing shifts when the map loads. */
+
+.line-now {
+  /* The line shown: its colour for the tracks, and a darker one that white text reads on. */
+  --line: var(--blue);
+  --line-ink: var(--blue);
+  margin: 28px auto 0;
+  padding: 18px 20px 16px;
+  max-width: 560px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  text-align: left;
+}
+
+.line-now[data-line='red'] {
+  --line: #d7263d;
+  --line-ink: #c21f33;
+}
+
+.line-now[data-line='green'] {
+  --line: #2e8b57;
+  --line-ink: #1f7a45;
+}
+
+.line-now-lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.line-now-lines button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  font: 600 0.85rem/1 var(--font);
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.line-now-lines button::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--blue);
+}
+
+.line-now-lines [data-line='1']::before {
+  background: #d7263d;
+}
+
+.line-now-lines [data-line='2']::before {
+  background: #2e8b57;
+}
+
+.line-now-lines button:hover {
+  border-color: rgba(255, 255, 255, 0.45);
+  color: var(--ink);
+}
+
+.line-now-lines button[aria-pressed='true'] {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.line-now-lines button:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.line-map {
+  position: relative;
+  height: 132px;
+  margin: 18px 0 10px;
+}
+
+/* The trunk runs across the middle; where routes part, the northern branch goes up. */
+.line-tracks {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.line-tracks polyline {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.line-station {
+  position: absolute;
+  width: 6px;
+  height: 22px;
+  border-radius: 3px;
+  background: var(--ink);
+  transform: translate(-50%, -50%);
+}
+
+.line-station-name {
+  position: absolute;
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+/* Names at the edges line up with them instead of running off the card. */
+.line-station-name.is-start {
+  transform: translateX(-6px);
+}
+
+.line-station-name.is-end {
+  transform: translateX(calc(-100% + 6px));
+}
+
+/* A name in the fork where routes part runs from the switch out between the branches. */
+.line-station-name.is-fork {
+  transform: none;
+}
+
+.line-station-name.is-fork-left {
+  transform: translateX(-100%);
+}
+
+/* On narrow screens only the outer ends of the routes keep their names; the list below names the rest. */
+@media (max-width: 520px) {
+  .line-station-name {
+    font-size: 0.68rem;
+  }
+
+  .line-station-name:not(.is-outer) {
+    display: none;
+  }
+}
+
+.line-train {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 18px;
+  border: 2px solid var(--ink);
+  border-radius: 9px;
+  background: var(--line-ink);
+  color: #fff;
+  font: 700 0.65rem/1 var(--font);
+  transform: translate(-50%, -50%);
+}
+
+.line-train.is-open {
+  border-color: var(--amber);
+}
+
+/* SL's own trains are drawn light, so they are not mistaken for the game's. */
+.line-now.is-real .line-train {
+  border-color: var(--line-ink);
+  background: var(--ink);
+  color: var(--line-ink);
+}
+
+.line-now.is-real .line-train.is-open {
+  border-color: var(--amber);
+}
+
+.line-trains {
+  display: grid;
+  font-variant-numeric: tabular-nums;
+  gap: 4px;
+  min-height: 7.5em;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+}
+
+.line-train-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  line-height: 1.5;
+}
+
+.line-train-row.is-empty {
+  color: var(--muted);
+}
+
+.line-train-badge {
+  flex: none;
+  min-width: 2.2em;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--line-ink);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.line-train-destination {
+  font-weight: 600;
+}
+
+.line-train-where {
+  color: var(--muted);
+}
+
+.line-note {
+  min-height: 3em;
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* Game */
+
+.game {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  user-select: none;
+}
+
+.game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.game-canvas.is-pixel {
+  image-rendering: pixelated;
+}
+
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hud-status {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 22px;
+  border-radius: 12px;
+  background: var(--card);
+  text-align: center;
+  min-width: 220px;
+}
+
+.hud-title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.hud-sub {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--amber);
+}
+
+.hud-cross {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.hud-warning {
+  position: absolute;
+  top: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: #b3261e;
+  color: #fff;
+  font-weight: 700;
+}
+
+.hud-caption {
+  position: absolute;
+  bottom: 150px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(720px, calc(100% - 32px));
+  margin: 0;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.72);
+  font-size: 1.05rem;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.hud-caption.is-on {
+  opacity: 1;
+}
+
+.hud-map {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  width: 360px;
+  height: auto;
+  max-width: calc(100% - 32px);
+}
+
+.hud-help {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  max-width: 460px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--card);
+  font-size: 0.85rem;
+  line-height: 1.9;
+  transition: opacity 0.6s ease;
+}
+
+.hud-help p {
+  margin: 0;
+}
+
+.hud-help.is-faded {
+  opacity: 0;
+}
+
+.hud-fade {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.hud-fade.is-on {
+  opacity: 1;
+}
+
+.pause {
+  position: absolute;
+  inset: 0;
+  display: none;
+  place-items: center;
+  padding: 16px;
+  background: rgba(3, 5, 9, 0.55);
+  cursor: pointer;
+}
+
+.pause.is-on {
+  display: grid;
+}
+
+.pause-card {
+  max-width: 520px;
+  padding: 26px 30px;
+  border-radius: 16px;
+  background: var(--card);
+  text-align: center;
+}
+
+.pause-card h2 {
+  margin: 0 0 8px;
+  font-size: 1.6rem;
+}
+
+.pause-card p {
+  margin: 8px 0 0;
+  line-height: 1.7;
+}
+
+.pause-keys {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.pause-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin: 14px 0 0;
+}
+
+.pause-support {
+  display: inline-block;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-underline-offset: 3px;
+}
+
+.pause-support:hover {
+  color: var(--ink);
+}
+
+.pause-support:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-start,
+  .menu-continue,
+  .menu-more button,
+  .menu-more a,
+  .hud-caption,
+  .hud-help,
+  .hud-fade {
+    transition: none;
+  }
+
+  .menu-roundel {
+    animation: none;
+  }
+}
+
+.touch-instructions { display: none; margin: 0; line-height: 1.65; }
+.touch-device .touch-instructions { display: block; }
+.touch-device .desktop-controls { display: none; }
+.menu { padding-top: max(36px, env(safe-area-inset-top)); padding-bottom: max(36px, env(safe-area-inset-bottom)); }
+/* A phone on its side is wider than the narrow layout, and its notch is at the side. */
+.menu { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+a, button { touch-action: manipulation; }
+.game { height: 100%; height: 100dvh; overflow: hidden; overscroll-behavior: none; }
+@media (max-width: 600px) {
+  .menu { padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(20px, env(safe-area-inset-right)); }
+  .menu-roundel { width: 112px; height: 112px; }
+  .menu-roundel span { font-size: 64px; }
+  .menu-pole { height: 60px; }
+  .menu-sign { margin-top: 30px; padding: 0.5em 0.8em; }
+  .menu-board { font-size: 0.85rem; padding-inline: 16px; }
+  .menu-lead { font-size: 1rem; margin: 20px auto 24px; }
+  /* Clear of a phone's first screen, where it would become the largest paint. */
+  .menu-shot { margin-top: 64px; }
+  .menu-section { margin-top: 36px; }
+  .menu-note { margin-top: 36px; }
+}
+body.is-playing { overflow: hidden; overscroll-behavior: none; }
+/* Keyboard users can jump past the language link straight to the page. */
+.skip-link { position: absolute; left: max(16px, env(safe-area-inset-left)); top: -60px; z-index: 30; padding: 10px 14px; border-radius: 8px; background: var(--ink); color: #0b1220; font-weight: 700; text-decoration: none; }
+.skip-link:focus-visible { top: max(12px, env(safe-area-inset-top)); outline: 3px solid var(--amber); outline-offset: 2px; }

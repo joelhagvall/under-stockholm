@@ -1,0 +1,951 @@
+{
+  "line": "BLÅ LINJEN",
+  "walk": "gå",
+  "run": "spring",
+  "jump": "hoppa",
+  "climb": "klättra upp",
+  "mute": "ljud",
+  "pixels": "pixelläge",
+  "help": "hjälp",
+  "pause": "paus",
+  "look": "se dig omkring",
+  "mouse": "Mus",
+  "resume": "Klicka för att fortsätta resan.",
+  "passengers": "Resenärer",
+  "passengersOn": "Resenärer på",
+  "passengersOff": "Resenärer av",
+  "on": "På",
+  "off": "Av",
+  "announcements": {
+    "tCentralenTransfer": "Byte till övriga tunnelbanan och pendeltåg.",
+    "alightingWarning": "Tänk på avståndet mellan vagn och plattform när du stiger av.",
+    "next": "Nästa: {station}.",
+    "terminal": "Slutstation.",
+    "leaveTrain": "Slutstation, avstigning för samtliga trafikanter.",
+    "turnback": "Tåget går till vändspåret. Det här tåget är inte i trafik.",
+    "fridhemsplanTransfer": "Byte till övriga tunnelbanan.",
+    "trafficInfo": "Trafikinformation.",
+    "trafficInfoCaption": "Trafikinformation: {header}",
+    "sundbybergTransfer": "Byte till pendeltåg och Tvärbanan.",
+    "otherMetro": "Byte till övriga tunnelbanan.",
+    "slussenTransfer": "Byte till övriga tunnelbanan och Saltsjöbanan.",
+    "ropstenTransfer": "Byte till Lidingöbanan.",
+    "roslagsbanaTransfer": "Byte till Roslagsbanan.",
+    "tvarbanaTransfer": "Byte till Tvärbanan.",
+    "alvikTransfer": "Byte till Tvärbanan och Nockebybanan.",
+    "pendeltagTransfer": "Byte till pendeltåg."
+  },
+  "sit": "sätt dig / res dig",
+  "seatHint": "F · Sätt dig på en ledig plats",
+  "standHint": "F · Res dig",
+  "seated": "Du sitter ner. Tryck F för att resa dig.",
+  "trackWarning": "Spårområde! Tryck E för att klättra upp.",
+  "motion": "Vagnsgungning",
+  "motionOn": "Vagnsgungning på",
+  "motionOff": "Vagnsgungning av",
+  "soundOff": "Ljud av",
+  "soundOn": "Ljud på",
+  "language": "English",
+  "languageCode": "en",
+  "touch": {
+    "move": "Gå",
+    "look": "Dra för att se dig omkring",
+    "run": "Spring",
+    "jump": "Hoppa",
+    "sit": "Sitt",
+    "stand": "Res dig",
+    "climb": "Klättra upp",
+    "pause": "Paus",
+    "resume": "Fortsätt resan",
+    "map": "Karta",
+    "sound": "Ljud",
+    "pixels": "Pixelläge",
+    "help": "Styr med vänster tumspak. Dra över vyn för att titta runt. Använd knapparna för att springa, hoppa och sätta dig. Du kan gå och titta samtidigt.",
+    "seatHint": "Tryck på Sitt för att sätta dig.",
+    "standHint": "Tryck på Res dig för att stå upp.",
+    "seated": "Du sitter ner. Tryck på Res dig för att stå upp.",
+    "trackWarning": "Spårområde! Tryck på Klättra upp för att komma upp på perrongen.",
+    "use": "Använd",
+    "driverHelp": "Kör: + och − styr körkontrollen."
+  },
+  "cabinPoster": {
+    "title": "Plats för alla",
+    "lines": [
+      "Låt andra gå av först.",
+      "Lämna plats vid dörrarna.",
+      "Tack för att du visar hänsyn."
+    ]
+  },
+  "service": {
+    "staffOnly": "Endast personal",
+    "corridor": "Servicegång",
+    "turnback": "Vändspår · Obehöriga äga ej tillträde",
+    "staffRoom": "Personalrum",
+    "emergencyExit": "Nödutgång",
+    "exitVasagatan": "Nödutgång · Vasagatan",
+    "alarmed": "Larmad dörr",
+    "pushPrompt": "E · Tryck på dörren",
+    "lockedExit": "Dörren är låst och larmad. Nödutgången leder upp till Vasagatan, men bara när det brinner.",
+    "coffeePrompt": "E · Ta en kopp kaffe",
+    "coffee": "Automaten hostar fram en kopp. Den är ljummen och beskare än du trodde.",
+    "notices": [
+      "Glöm inte reflexvästen på spåret!",
+      "Diska efter dig. Ingen annan gör det.",
+      "Skiftbyte sker vid spärren, inte här.",
+      "Vem tog mjölken? /Natten"
+    ],
+    "kitchenNotes": [
+      "Till den som tog min yoghurt: jag vet vem du är. /K",
+      "Avkalka maskinen efter dig!!! Tack på förhand.",
+      "Skåp 14 är MITT. Flytta dina skor. /Natten"
+    ],
+    "shelter": "Skyddsrum",
+    "shelterStairs": "Trappa till skyddsrum",
+    "shelterPlate": "Skyddsrum 01-4127 · 480 platser",
+    "rations": "Nödproviant",
+    "posterInfo": "Information",
+    "posterCalm": "Håll dig lugn",
+    "posterLines": [
+      "Följ personalens anvisningar.",
+      "Ta med filt och vatten.",
+      "Stäng tryckdörren bakom dig.",
+      "Lyssna på radion."
+    ],
+    "ventilation": "Skyddsrumsfilter",
+    "crankPrompt": "E · Veva ventilationen",
+    "crank": "Du vevar. Fläkten hostar igång och det börjar dra svagt i kinden.",
+    "reserveExit": "Reservutgången är igensvetsad sedan länge.",
+    "reserveExitSign": "Reservutgång",
+    "shelterLock": "Sluss",
+    "shelterCommand": "Skyddsrumsledning",
+    "shelterFilters": "Filterrum",
+    "shelterToilets": "Torrtoaletter",
+    "lockSign": "Stäng yttre dörren innan den inre öppnas",
+    "roomCommand": "Ledning",
+    "roomFilters": "Filterrum",
+    "roomToilets": "Torrtoaletter",
+    "posterAlarm": "Viktigt meddelande",
+    "alarmLines": [
+      "Gå inomhus.",
+      "Stäng dörrar och fönster.",
+      "Stäng av ventilationen.",
+      "Lyssna på Sveriges Radio P4."
+    ],
+    "mapTitle": "Skyddsrum · Kungsholmen · Norrmalm",
+    "mapNote": "vatten?",
+    "showerPrompt": "E · Vrid på saneringsduschen",
+    "shower": "Kranen gnisslar. Några rostiga droppar, sedan ingenting.",
+    "masksPrompt": "E · Titta på skyddsmaskerna",
+    "masks": "Skyddsmask 90, storlek 2 och 3. Filtren gick ut 1998.",
+    "radioPrompt": "E · Slå på radion",
+    "radioOffPrompt": "E · Stäng av radion",
+    "radio": [
+      "Brus, och långt bort någon som läser sjörapporten.",
+      "”… viktigt meddelande till allmänheten …” En övning från någon gång på åttiotalet, på band.",
+      "Radion står på lokalradion, men det enda som hörs är berget."
+    ],
+    "radioOff": "Radion tystnar med ett klick.",
+    "phonePrompt": "E · Lyft luren",
+    "phone": "Ingen ton. En lapp under luren: ”Ledningscentralen · lokal 2210”.",
+    "mapPrompt": "E · Studera kartan",
+    "map": "Kungsholmens skyddsrum, ringade med rött. Någon har skrivit ”vatten?” med blyerts vid Rådhuset.",
+    "toiletPrompt": "E · Titta in",
+    "toilet": "En torrtoalett: en hink, en sits och en rulle plastpåsar. Någon har ritat ett hjärta på väggen."
+  },
+  "loading": {
+    "title": "Bygger tunnelbanan …",
+    "note": "Berget sprängs, perrongerna gjuts och rulltrapporna monteras."
+  },
+  "clock": {
+    "lastTrainGone": "Sista tåget har gått",
+    "firstTrain": "Första tåg",
+    "lastTrain": "Sista tåget",
+    "lastTrainAt": "Sista tåget avgår {times}",
+    "closedCaption": "Trafiken har upphört för i natt. Första tåget går {time}.",
+    "depot": "Tåget gick till depån. Du fick kliva av vid vändspåret."
+  },
+  "escalator": {
+    "excuse": "”Ursäkta.” Någon bakom dig vill förbi på vänster sida.",
+    "excuseSpoken": "Ursäkta.",
+    "sigh": "Någon bakom dig suckar högt.",
+    "rule": "”Man står till höger och går till vänster!”",
+    "ruleSpoken": "Man står till höger.",
+    "thanks": "”Tack.”"
+  },
+  "ambience": {
+    "draft": "Ett kallt drag blåser ut ur tunnelmynningen.",
+    "prosit": "Någon nyser. ”Prosit!” säger någon annan.",
+    "prositSpoken": "Prosit!",
+    "phoneMusic": "Någon spelar musik ur mobilhögtalaren. Folk tittar upp och suckar.",
+    "passing": "Ett mötande tåg dånar förbi i tunneln.",
+    "vendorHello": "Hej hej! Gatutidningen, nya numret!",
+    "vendorSpoken": "Hej hej!",
+    "vendorPrompt": "E · Köp gatutidningen",
+    "vendorBought": "Du köper ett nummer för 80 kr. ”Tack, ha en fin dag!”",
+    "vendorBroke": "Du har inte tillräckligt på kortet. ”Ingen fara, ha en fin dag ändå!”",
+    "attendantNod": "Personalen i spärrkiosken tittar upp från skärmen och nickar.",
+    "tourist": [
+      "Två turister med en utvikt karta frågar på engelska om tåget går till Gamla stan. Det gör det inte.",
+      "En turist frågar på engelska var man köper biljett till Skansen.",
+      "Någon frågar på engelska om det här verkligen är världens längsta konstutställning."
+    ],
+    "touristSpoken": [
+      "Excuse me, does this train go to Gamla Stan?",
+      "Sorry, where can we buy tickets for Skansen?",
+      "Is this really the world's longest art gallery?"
+    ]
+  },
+  "night": {
+    "cleaner": "Städmaskinen surrar förbi."
+  },
+  "kymlinge": {
+    "name": "Kymlinge",
+    "neverOpened": "Stationen som aldrig öppnade",
+    "signPrompt": "E · Torka av skylten",
+    "sign": "Under dammet står det KYMLINGE. Någon har skrivit ett datum i kanten: hösten 1977.",
+    "clockPrompt": "E · Titta på klockan",
+    "clock": "Klockan har stannat på 03:47. Sekundvisaren darrar men kommer ingenstans.",
+    "phonePrompt": "E · Lyft luren",
+    "phone": "Det brusar i luren. Långt borta säger någon: ”Nästa station.”",
+    "noExit": "Ingen utgång"
+  },
+  "silverpilen": {
+    "destination": "Kymlinge",
+    "info": "Nästa: Kymlinge",
+    "sighted": "Ett silverglänsande tåg glider förbi utan ett ljud.",
+    "whisper": "Nästa: Kymlinge.",
+    "through": "Ett kallt drag for rakt igenom dig. Silverpilen.",
+    "name": "Silverpilen",
+    "standing": "Ett silverglänsande tåg står vid perrongen med öppna dörrar. Ingen kliver av."
+  },
+  "fares": {
+    "tapPrompt": "E · Blippa kortet",
+    "valid": "Enkelbiljetten gäller till {time}",
+    "charged": "Enkelbiljett 42 kr. Saldo {balance} kr. Biljetten gäller till {time}.",
+    "chargedBank": "Betalt med bankkort. Enkelbiljett 42 kr, gäller till {time}.",
+    "dodged": "Du plankade. Håll utkik efter kontrollanter.",
+    "ticketless": "Ingen giltig biljett",
+    "checkTitle": "Biljettkontroll",
+    "checkAsk": "Får jag se din biljett?",
+    "checkOk": "Tack, trevlig resa.",
+    "showPrompt": "E · Visa reskortet",
+    "checkRemind": "Kontrollanten väntar på att få se din biljett.",
+    "fined": "Du saknar giltig biljett. Tilläggsavgift 1 850 kr. Du får följa med av vid nästa station.",
+    "escorted": "Kontrollanterna följde dig av tåget.",
+    "boarded": "Två kontrollanter klev på i andra änden av tåget.",
+    "debt": "Obetalda tilläggsavgifter: {amount} kr",
+    "touchTap": "Blippa",
+    "topUpPrompt": "E · Fyll på reskortet med 200 kr",
+    "toppedUp": "Du fyllde på {amount} kr. Saldo {balance} kr."
+  },
+  "driver": {
+    "title": "Förarläge",
+    "start": "Förarläge",
+    "exit": "Avsluta förarläget",
+    "intro": "Övningståg på eget spår. W/S styr körkontrollen, E öppnar och stänger dörrarna, Q avslutar. Stanna med fronten vid stoppskylten.",
+    "introTouch": "Övningståg på eget spår. Använd + och − för körkontrollen och Dörrar för att öppna och stänga. Stanna med fronten vid stoppskylten.",
+    "notHere": "Förarläget startar från en perrong.",
+    "speed": "km/h",
+    "limit": "ATC",
+    "next": "Nästa",
+    "toStop": "till stopp",
+    "notch": "Körkontroll",
+    "brake": "Broms",
+    "power": "Kraft",
+    "neutral": "Noll",
+    "emergency": "Nödbroms",
+    "atc": "ATC-ingrepp! För hög hastighet.",
+    "perfect": "Perfekt stopp! {error} cm från skylten.",
+    "good": "Bra stopp, {error} cm från skylten.",
+    "ok": "Godkänt, {error} m från skylten.",
+    "short": "För kort, {error} m kvar till skylten.",
+    "long": "Du körde {error} m förbi skylten.",
+    "doorsFirst": "Stanna vid perrongen innan du öppnar dörrarna.",
+    "doorsOpen": "Stäng dörrarna innan du kör.",
+    "done": "Slut på övningen. {count} stopp, {score} poäng av {max}.",
+    "overrun": "Du körde förbi perrongen. Övningen avbruten.",
+    "plus": "+",
+    "minus": "−",
+    "doors": "Dörrar",
+    "stopSign": "Stopp"
+  },
+  "ghosts": {
+    "toggle": "Andra spelare",
+    "on": "Andra spelare syns",
+    "off": "Andra spelare dolda",
+    "count": "{count} andra under jord just nu",
+    "one": "En annan under jord just nu"
+  },
+  "weather": {
+    "snow": "Det snöar ute.",
+    "rain": "Det regnar ute.",
+    "clear": "Uppehåll ute."
+  },
+  "busker": {
+    "passage": "Gång till röd och grön linje · Pendeltåg",
+    "prompt": "E · Lägg en slant i fodralet",
+    "thanks": "Musikanten nickar och byter tonart."
+  },
+  "rush": {
+    "toCity": "↑ Pendeltåg · City",
+    "toBlue": "↑ Blå linjen · T-Centralen",
+    "city": "Pendeltåg · City",
+    "lift": "Hiss till pendeltågen",
+    "north": "Märsta · Uppsala C · Södertälje C · Nynäshamn",
+    "gatePrompt": "E · Blippa kortet",
+    "gateRed": "Spärren blinkar rött: ”Pendeltåget är inte byggt än.” Nu är det bara att tränga sig tillbaka.",
+    "liftPrompt": "E · Tryck på hissknappen",
+    "liftComing": "Knappen lyser gult. Hissen är på väg. Den har varit på väg sedan 2017.",
+    "shovePrompt": "E · Armbåga dig fram",
+    "punchPrompt": "E · Armbåga · Q · Slå",
+    "bump": ["Aj!", "Ursäkta?!", "Men hallå!", "Sluta trycka!", "Kan du se dig för?", "Oj, förlåt.", "Det är kö här, va?", "Tack för den."],
+    "shoved": ["Ey! Vad håller du på med?", "Knuffas inte!", "Seriöst?!", "Ta det lugnt!", "Vafan, ursäkta?", "Aj, min kaffe!"],
+    "muck": ["Har du nåt problem, eller?", "Vem tror du att du är?", "Vi står alla i kö här, vet du.", "Du, gå runt!", "Ska vi ta det här, eller?"],
+    "shoveBack": ["Lär dig stå i kö!", "Du får vänta som alla andra.", "Där fick du!", "Så gör man inte i Stockholm."],
+    "backOff": ["Okej, okej …", "Lugn, lugn.", "Jag orkar inte ens.", "Vissa har bråttom, alltså."],
+    "passBy": ["Ursäkta, får jag komma förbi?", "Håll till höger!", "Man står inte still mitt i gången."],
+    "knocked": "Du blev knuffad bakåt.",
+    "punched": ["Aj! Är du helt dum i huvudet?", "Vakter! Vakter!", "Ring polisen!", "Vad fan håller du på med?!", "Lugna ner dig!"],
+    "hitBack": ["Vill du ha mer, eller?", "Där fick du!", "Lär dig veta hut!", "Kom igen då!"],
+    "comeHere": ["Kom hit då, om du vågar!", "Fegis!", "Vi ses, du!"],
+    "guards": "Ordningsvakterna tar dig i armarna och följer dig ut till biljetthallen. ”Nu lugnar vi ner oss.”",
+    "finish": "Du tog dig igenom på {time}: {shoves} knuffar, {punches} slag och {fights} gräl.",
+    "record": "Nytt rekord!",
+    "best": "Rekord: {time}."
+  },
+  "use": "använd / klättra upp",
+  "newspaper": {
+    "name": "Tunnelbladet",
+    "headlines": [
+      "Rekordkyla i helgen",
+      "Nya tåg på blå linjen",
+      "Spökljud i tunneln?",
+      "Så blir sommaren"
+    ]
+  },
+  "voices": {
+    "toggle": "Röster omkring dig",
+    "hint": "Folk omkring dig säger sina repliker högt med webbläsarens svenska röst. Texten syns ändå."
+  },
+  "real": {
+    "toggle": "Riktiga tåg (SL)",
+    "hint": "Tågen följer SL:s trafik i realtid. En linje som SL inte skickar data för går på spelets egen tidtabell.",
+    "loading": "Hämtar SL:s tunnelbana i realtid …",
+    "on": "Tågen följer nu SL i realtid.",
+    "off": "Tågen följer spelets egen tidtabell.",
+    "failed": "SL svarar inte just nu. Spelets egen tidtabell används så länge.",
+    "moved": "Tågtrafiken byter. Du står på perrongen.",
+    "noTrains": "Inga tåg just nu"
+  },
+  "festive": {
+    "lucia": "Ett luciatåg skrider fram längs perrongen. Ljusen fladdrar och sången ekar i berget.",
+    "students": "Studenter i vita mössor hoppar och sjunger i vagnen. Någon har en ballong som fastnar i taket.",
+    "party": "Ett gäng på väg hem från krogen sjunger lite för högt.",
+    "shoePrompt": "E · Titta på skon",
+    "shoe": "En ensam röd högklackad sko. Någon har haft en lång natt."
+  },
+  "critters": {
+    "pigeons": "Duvorna lyfter med ett klapprande och flyger upp mot gatan.",
+    "rat": "En råtta pilar längs spårbädden vid perrongkanten."
+  },
+  "lost": {
+    "items": {
+      "mitten": [
+        "en blå vante",
+        "vanten"
+      ],
+      "keys": [
+        "ett nyckelknippe",
+        "nyckelknippet"
+      ],
+      "umbrella": [
+        "ett hopfällt paraply",
+        "paraplyet"
+      ],
+      "teddy": [
+        "en nalle",
+        "nallen"
+      ],
+      "book": [
+        "en pocketbok med hundöron",
+        "boken"
+      ],
+      "sunglasses": [
+        "ett par solglasögon",
+        "solglasögonen"
+      ],
+      "scarf": [
+        "en randig halsduk",
+        "halsduken"
+      ],
+      "hat": [
+        "en grön mössa",
+        "mössan"
+      ],
+      "lunchbox": [
+        "en matlåda",
+        "matlådan"
+      ]
+    },
+    "take": "Ta upp",
+    "phonePrompt": "E · Svara i telefonen",
+    "phoneName": "en mobiltelefon",
+    "phoneDefinite": "telefonen",
+    "phoneAnswer": "”Hallå? Åh, vad skönt att någon svarar! Det är min telefon. Kan du lämna in den i spärrkiosken? Tack, tack!”",
+    "taken": "Du stoppar {item} i väskan.",
+    "bagHint": "Lämna in hittegodset i spärrkiosken i vilken biljetthall som helst, så får du hittelön.",
+    "full": "Väskan är full. Lämna in det du hittat i spärrkiosken först.",
+    "fullPrompt": "Väskan är full · lämna in i spärrkiosken",
+    "handInPrompt": "E · Lämna in hittegods ({count})",
+    "handedTitle": "Hittegods inlämnat",
+    "handedIn": "Spärrvakten tar emot {things} och skriver upp dem. Hittelön: {reward} kr på kortet.",
+    "one": "en sak",
+    "many": "{count} saker",
+    "completeTitle": "Hela samlingen",
+    "complete": "Du har hittat en av varje sak som folk tappar här nere. Spärrvakten ger dig {bonus} kr extra.",
+    "newKind": "Ny!",
+    "bagStatus": "Väskan: {count} av {capacity}",
+    "collection": "Hittegods",
+    "about": {
+      "mitten": "En blå vante med vit mudd. Den andra sitter säkert kvar på någon förskolegård.",
+      "keys": "Ett nyckelknippe med en tagg till en port. Någon står utanför och letar i fickorna just nu.",
+      "umbrella": "Hopfällt och torrt. Det regnade nog när ägaren gick ner, men inte när hen kom upp.",
+      "teddy": "En nalle med ett öra som är mer slitet än det andra. Någon saknar den mer än allt annat.",
+      "book": "En pocketbok med hundöron. Bokmärket sitter tre kapitel före slutet.",
+      "sunglasses": "Ett par solglasögon, tappade av någon som inte behövde dem under jord.",
+      "scarf": "En randig halsduk, stickad för hand. Fransarna är ojämnt klippta.",
+      "hat": "En grön mössa med tofs. Den luktar lite regn.",
+      "lunchbox": "En matlåda med gårdagens pasta. Någon får äta ute i dag.",
+      "phone": "En mobiltelefon som ringde på en bänk. Ägaren blev så glad när du svarade."
+    },
+    "pick": "Välj en sak för att läsa om den.",
+    "hint": "Inte hittad än. Folk tappar saker på bänkarna, vid pelarna och i biljetthallarna, några om dagen på varje station.",
+    "phoneHint": "Inte hittad än. En gång om dagen ringer en telefon på en bänk någonstans i tunnelbanan.",
+    "ringing": "En mobiltelefon ringer på bänken. Ingen verkar sakna den.",
+    "tally": "Hittegods: {count}"
+  },
+  "sax": {
+    "prompt": "E · Lägg en slant i saxofonfodralet",
+    "thanks": "Saxofonisten blinkar och glider in i en ny låt."
+  },
+  "platform": {
+    "call": [
+      [
+        "”Ja, hallå? Nej, jag står på perrongen.”",
+        "Ja, hallå? Nej, jag står på perrongen."
+      ],
+      [
+        "”Tåget kommer om två minuter, säger skylten. Eller tre.”",
+        "Tåget kommer om två minuter, säger skylten. Eller tre."
+      ],
+      [
+        "”Nej men ta det, jag hämtar på förskolan. Nej, du tar det.”",
+        "Nej men ta det, jag hämtar på förskolan. Nej, du tar det."
+      ],
+      [
+        "”Köp mjölk. Och bröd. Nej, inte det där brödet, det andra.”",
+        "Köp mjölk. Och bröd. Nej, inte det där brödet, det andra."
+      ],
+      [
+        "”Hallå? Du bryts upp. Jag hör dig inte, vi är under jord.”",
+        "Hallå? Du bryts upp. Jag hör dig inte."
+      ],
+      [
+        "”Okej, puss, hej, hej, hej, hej.”",
+        "Okej, puss, hej, hej, hej, hej."
+      ]
+    ],
+    "collector": "En man med en stor blå påse går från papperskorg till papperskorg och letar pantburkar.",
+    "farewell": "Ett par tar farväl vid dörrarna. Den ena kliver på, den andra står kvar och vinkar när tåget går.",
+    "running": "Någon springer för livet mot dörrarna …",
+    "madeIt": "… och klämmer sig in i sista sekunden.",
+    "missed": "… men dörrarna stängs framför näsan. Nästa tåg om några minuter."
+  },
+  "kiosk": {
+    "name": "Tunnelkiosken",
+    "prompt": "E · Köp kaffe och kanelbulle, 45 kr",
+    "bought": "”Kaffe och bulle, det blir 45.” Bullen är borta på tre tuggor. Kaffet är varmt och ångar.",
+    "broke": "Kortet nekas. ”Du kan fylla på i spärrkiosken.”",
+    "already": "Du har ju redan en kopp.",
+    "empty": "Kaffet är slut. Du slänger muggen i papperskorgen.",
+    "prompt1975": "E · Köp kaffe och wienerbröd, 3 kr",
+    "bought1975": "”Det blir tre kronor.” Wienerbrödet är klibbigt och kaffet bränt, precis som det ska vara."
+  },
+  "carriage": {
+    "school": "En hel skolklass i reflexvästar har tagit över vagnen. Läraren räknar huvuden.",
+    "counting": [
+      "”Elva, tolv, tretton … fjorton. Bra.”",
+      "”Alla sitter kvar tills jag säger till!”",
+      "”Tolv, tretton … var är Ali? Där. Fjorton.”",
+      "”Vi går av på nästa. Håll i kompisen!”",
+      "”Nej, man slickar inte på stången.”"
+    ],
+    "seatRuleEmpty": "Nya resenärer kliver på. Alla väljer hellre ett tomt säte än platsen bredvid dig.",
+    "seatRuleFull": "Vagnen är full. Någon sätter sig motvilligt bredvid dig och tittar stint ut genom fönstret."
+  },
+  "escape": {
+    "sign": "Nödutgång",
+    "street": "Nödutgång · Gatan",
+    "passage": "Tvärtunnel",
+    "stair": "Nödutgång",
+    "prompt": "E · Tryck på nödutgångsdörren",
+    "locked": "Dörren leder upp till gatan, men den är larmad. Den är till för när det brinner."
+  },
+  "express": {
+    "sign": "Ej i trafik",
+    "caption": "Ett tomt tåg med skylten ”Ej i trafik” dundrar förbi utan att stanna. Luften slår emot dig."
+  },
+  "trackWork": {
+    "seen": "Längre in i tunneln blinkar orange ljus. Ett gult arbetsfordon står på spåret och spårarbetare i reflexkläder slipar en skarv."
+  },
+  "brake": {
+    "prompt": "E · Dra i nödbromsen",
+    "pulled": "Du drar i nödbromsen. Tåget tvärnitar i tunneln, folk tappar balansen och någon fräser: ”Vad gör du?!”",
+    "driver": "Hej, det är föraren. Någon har dragit i nödbromsen. Vi blir stående en liten stund medan jag går igenom tåget.",
+    "onward": "Vi fortsätter strax. Tack för ert tålamod, och dra bara i nödbromsen om det är en nödsituation."
+  },
+  "transfer": {
+    "area": "Röd och grön linje",
+    "fromPassage": "← Röd och grön linje",
+    "to": "Till",
+    "and": "och",
+    "way": "Gången till",
+    "blueWay": "Blå gången",
+    "arrived": "Genom Blå gången till röda och gröna linjen."
+  },
+  "explore": {
+    "found": "Ny plats",
+    "tally": "Utforskat: {count} av {total} platser"
+  },
+  "key": {
+    "takePrompt": "E · Ta nyckeln från kroken",
+    "taken": "Du tar nyckeln med den röda brickan. Det står ”Personal · Larmade dörrar” på den.",
+    "unlockPrompt": "E · Lås upp med personalnyckeln",
+    "alarm": "Larmet tjuter när dörren slår upp. Du tar trappan upp till gatan, går ett varv i kvarteret och kommer in genom stationens entré igen.",
+    "held": "Personalnyckel"
+  },
+  "art": {
+    "heading": "Konsten i tunnelbanan",
+    "prompt": "E · Läs om konsten här",
+    "progress": "Konstvandring: {count} av {total} stationer",
+    "done": "Du har gått hela konstvandringen längs blå linjen. Världens längsta konstutställning, sägs det.",
+    "stations": {
+      "Kungsträdgården": [
+        "Ett palats under jord",
+        "Konstnären Ulrik Samuelson gjorde stationen 1977 som en utgrävd trädgård, med fynd från palatset Makalös som en gång stod ovanför. I spelet: det gröna valvet, den röda och vita rutan och de räfflade kolonnerna."
+      ],
+      "T-Centralen": [
+        "Blå rankor",
+        "Per Olof Ultvedt målade 1975 berget vitt med blå rankor och blad. Bland växterna skymtar silhuetter av arbetarna som sprängde fram stationen. I spelet är rankorna ritade på nytt, i samma anda."
+      ],
+      "Rådhuset": [
+        "Grottan",
+        "Här ser berget ut som en utgrävning i terrakotta, med fragment som sticker ut ur väggarna, som om staden under staden grävts fram. Spelets version är en varm grotta med stenblock kring tunnelmynningarna."
+      ],
+      "Fridhemsplan": [
+        "Havet",
+        "Spelets tolkning: dämpade stränder, stenar i montrar och en fågel av trä som hänger över perrongen. Blå linjens stationer är sprängda grottor, och här får berget vara strand."
+      ],
+      "Stadshagen": [
+        "Idrottsplatsen",
+        "Stadshagen ligger nära idrottsplatserna på Kungsholmen. Spelet ger stationen en löparbana i rött som följer väggen hela vägen runt."
+      ],
+      "Västra skogen": [
+        "Björkarna",
+        "Den västra skogen: spelet ritar vita björkstammar på mörkgrönt berg. Här delar sig linjen, mot Akalla åt ena hållet och Hjulsta åt det andra."
+      ],
+      "Solna centrum": [
+        "Röd himmel, grön skog",
+        "Karl-Olov Björk och Anders Åberg målade en brinnande röd kvällshimmel över en mörk granskog, med bilder av hur skogen och landsbygden förändras. Det är en av tunnelbanans mest kända stationer."
+      ],
+      "Näckrosen": [
+        "Näckrosor",
+        "Spelets tolkning av namnet: blekt vatten med flytande näckrosblad. I verkligheten har stationen motiv från filmstaden i Råsunda intill."
+      ],
+      "Hallonbergen": [
+        "Barnteckningar",
+        "Konsten här bygger på barns teckningar: glada figurer och klotter i kritfärger på vit botten. Spelet gör sina egna krumelurer."
+      ],
+      "Kista": [
+        "Kretskort",
+        "Kista är staden för datorer och telefoner. Spelets tolkning: mörkblått berg med ljusa spår, som ett kretskort."
+      ],
+      "Husby": [
+        "Ängen",
+        "Spelets tolkning: ockragult berg och blå blommor lågt på väggarna, som en äng i Järvafältet."
+      ],
+      "Akalla": [
+        "Vardagsliv i kakel",
+        "Akalla är känd för sina stora målade kakelplattor med scener ur vardagen. Spelet lägger kakelpaneler i gult, blått och rött i ögonhöjd."
+      ],
+      "Huvudsta": [
+        "Guldbandet",
+        "Spelets tolkning: gråblått berg med ett smalt guldband högt upp på väggen."
+      ],
+      "Solna strand": [
+        "Himmel",
+        "Spelets tolkning: en blek himmel med drivande moln, så att berget känns lättare."
+      ],
+      "Sundbybergs centrum": [
+        "Solgult",
+        "Spelets tolkning: varmt gult berg och ränder i tegelrött längst ner. Här byter du till pendeltåg och Tvärbanan."
+      ],
+      "Duvbo": [
+        "Under vatten",
+        "Spelets tolkning: djupt blågrönt vatten med bubblor som stiger mot valvet."
+      ],
+      "Rissne": [
+        "Historien på väggen",
+        "Rissne har en tidslinje genom historien längs väggarna. Spelet ritar ett mörkt band med årsmarkeringar som löper längs hela perrongen."
+      ],
+      "Rinkeby": [
+        "Skatter",
+        "Spelets tolkning: guldglimtar i mörkt berg, som fynd ur jorden."
+      ],
+      "Tensta": [
+        "Människor och platser",
+        "Spelets tolkning: en färgglad väggmålning där många färger och människor möts."
+      ],
+      "Hjulsta": [
+        "Hjulen",
+        "Linjens ände. Spelet ritar orangea hjul på mörkt berg, för namnets skull."
+      ]
+    }
+  },
+  "notes": {
+    "title": "Hälsningar · för alla som går förbi",
+    "empty": "Tavlan är tom. Sätt upp den första lappen!",
+    "prompt": "E · Sätt upp en lapp på tavlan",
+    "ask": "Skriv en kort hälsning till alla som går förbi (högst 80 tecken). Inga länkar, nummer eller elakheter.",
+    "send": "Sätt upp",
+    "cancel": "Avbryt",
+    "posted": "Du nålar upp lappen. Alla som kommer hit kan läsa den.",
+    "local": "Du nålar upp lappen. Utan relay syns den bara för dig.",
+    "refused": "Lappen får inte sitta uppe: den är för lång, för kort eller innehåller något som inte är tillåtet.",
+    "slow": "Vänta en stund innan du sätter upp nästa lapp.",
+    "offline": "Tavlan går inte att nå just nu. Försök igen senare."
+  },
+  "saver": {
+    "start": "Skärmsläckare"
+  },
+  "mystery": {
+    "tally": "Ledtrådar: {count} av {total}",
+    "found": "Ledtråd",
+    "clues": {
+      "clipping": [
+        "Tidningsurklippet",
+        "Gulnat, från 1981: ”Spöktåget: föraren som vägrar köra efter midnatt. ’Hon kommer utan ljud. Står det Kymlinge på skylten ska man inte kliva på’, säger en förare som vill vara anonym.”"
+      ],
+      "logbook": [
+        "Körjournalen",
+        "En förares handskrivna journal. Sista uppslaget: ”03.47. Silverfärgat tåg på spår 1, ej i tidtabellen. Inga ljus i hytten. Följde efter till vändspåret. Där fanns inget spår.” Någon har rivit ut nästa sida."
+      ],
+      "scratches": [
+        "Ristat i väggen",
+        "Någon har ristat med en nyckel i betongen: ”HON STANNAR FÖR DEM SOM VÄNTAR. STANNA INTE KVAR EFTER KYMLINGE.”"
+      ],
+      "clock": [
+        "Den stannade klockan",
+        "Klockan på Kymlinge står på 03.47, samma minut som i körjournalen."
+      ],
+      "lastPage": [
+        "Den sista sidan",
+        "Den utrivna sidan ur körjournalen: ”Jag stannade kvar ombord förbi Kymlinge. Jag vaknade på en bänk på Kungsträdgården klockan fem, när första tåget gick. Det var samma morgon igen.”"
+      ]
+    },
+    "cabinetPrompt": "E · Öppna plåtskåpet",
+    "cabinetLocked": "Plåtskåpet är låst. Det står ”Personal” på dörren, och låset ser gammalt ut.",
+    "clippingPrompt": "E · Läs det gulnade urklippet",
+    "logbookPrompt": "E · Bläddra i körjournalen",
+    "scratchesPrompt": "E · Läs det som ristats i väggen",
+    "phoneAfter": "Det brusar i luren. En trött röst: ”Stanna kvar ombord, du också. Vi ses i morse.”"
+  },
+  "loop": {
+    "badge": "Tidsslinga",
+    "wake": "Du vaknar på en bänk på Kungsträdgården. Klockan är strax före fem på morgonen och första tåget ska just gå. Det är samma morgon igen.",
+    "wakeButton": "Vakna upp i nutiden",
+    "back": "Du blinkar. Klockan stämmer igen."
+  },
+  "era": {
+    "toggle": "Tidsmaskin",
+    "now": "Nu",
+    "to1975": "Det är 1975. De gröna tågen rullar, skyltarna klickar och ingen tittar i en mobil.",
+    "toNow": "Tillbaka i nutiden."
+  },
+  "preacher": {
+    "sign": [
+      "JESUS ÄR VÅR FRÄLSARE",
+      "Domedagen är nära"
+    ],
+    "prompt": "E · Ta emot en broschyr",
+    "leaflet": "Du tar emot en broschyr. Hon lyser upp: ”Gud välsigne dig, lilla vän!” och går tillbaka till sin plats.",
+    "spotted": "Predikanten får syn på dig, sänker skylten och kommer springande.",
+    "passer": "Predikanten får syn på en tonåring i luvtröja och springer efter.",
+    "gaveUp": "Hon stannar, flåsar och vänder tillbaka till sin plats.",
+    "missed": "Dörrarna stängs framför henne. Hon blir stående på perrongen och flåsar.",
+    "caught": "Hon hinner ikapp, tar dig i armen och ställer sig tätt intill dig. Nu blir det hela predikan.",
+    "amen": "”Amen!” Hon släpper taget om armen, till slut.",
+    "preach": [
+      "Jesus är vår frälsare!",
+      "Domedagen är nära, och då är det för sent!",
+      "Ni rusar och rusar, men vart är ni på väg?",
+      "Han ser er, även här under jorden!",
+      "Tro på Jesus, annars brinner ni i helvetet!"
+    ],
+    "chase": [
+      "Vänta! Du där! Jag vill bara prata!",
+      "Du kan inte springa från Herren!",
+      "Stanna! Jesus är vår frälsare!",
+      "Jag ser dig! Han ser dig också!",
+      "Du kommer att brinna i helvetet om du springer!"
+    ],
+    "sermon": [
+      "Hör på mig nu, bara en liten stund.",
+      "Jesus är vår frälsare. Tror du på det?",
+      "På domedagen står vi alla där, en efter en.",
+      "De döda ska uppstå, och då vill man vara på rätt sida.",
+      "Rulltrappan går bara åt ett håll, förstår du. Uppåt eller neråt.",
+      "Den som inte tror hamnar i helvetet, det står i Boken.",
+      "Ta en broschyr, den är gratis, till skillnad från enkelbiljetten."
+    ]
+  },
+  "discover": {
+    "title": "Upptäckter",
+    "button": "Upptäckter",
+    "progress": "{count} av {total}",
+    "intro": "Allt som kan hända här nere. Det du inte har sett än står som en ledtråd. Mycket beror på klockan, dagen och vädret, så kom tillbaka en annan gång.",
+    "found": "Upptäckt",
+    "toast": "{title} · {count} av {total}",
+    "unknown": "Inte upptäckt än",
+    "back": "Tillbaka",
+    "groups": {
+      "platform": "På perrongen",
+      "hall": "I biljetthallen",
+      "aboard": "Ombord",
+      "depths": "Bakom dörrarna",
+      "mystery": "Silverpilen",
+      "modes": "Mer att göra",
+      "regulars": "Stamgästerna"
+    },
+    "items": {
+      "rat": ["Råttan", "Något pilar längs spårbädden när rälsen börjar sjunga."],
+      "farewell": ["Farvälet", "Två som inte vill släppa varandra vid dörrarna."],
+      "runner": ["Sista sekunden", "Dörrarna stängs. Någon springer."],
+      "call": ["Samtalet", "Någon pratar lite för högt i telefon på perrongen."],
+      "collector": ["Burksamlaren", "Papperskorg efter papperskorg."],
+      "lost": ["Hittegods", "Folk tappar saker. Plocka upp och lämna in."],
+      "phone": ["Telefonen på bänken", "Varje dag ringer det någonstans längs linjen."],
+      "express": ["Ej i trafik", "Ett tåg som inte tänker stanna."],
+      "lucia": ["Luciatåget", "Den 13 december, när det är som mörkast."],
+      "shoe": ["Den röda skon", "Efter en lång helgnatt."],
+      "pigeons": ["Duvorna", "De har gått nerför trappan. Gå rakt på dem."],
+      "preacher": ["Predikanten", "Någon står med en skylt på T-Centralen. Kom för nära."],
+      "sax": ["Saxofonisten", "Jazz i Kungsträdgårdens biljetthall. Lägg en slant."],
+      "busker": ["Musikanten", "I passagen mot pendeltågen. Lägg en slant."],
+      "kiosk": ["Kaffe och bulle", "Kiosken bredvid trappan upp."],
+      "vendor": ["Gatutidningen", "Någon vid spärrarna säger hej. Köp ett nummer."],
+      "attendant": ["Spärrvakten", "Hen i glasburen tittar upp ibland."],
+      "tourists": ["Turisterna", "På sommaren hittar de inte till Gamla stan."],
+      "escalator": ["Stå till höger", "Stå kvar till vänster i rulltrappan. Vänta."],
+      "dodged": ["Plankaren", "Gå förbi spärren utan att blippa."],
+      "inspectors": ["Biljettkontroll", "Två i väst kliver på i andra änden av tåget."],
+      "fined": ["Tilläggsavgiften", "Åk utan biljett och åk fast."],
+      "school": ["Skolklassen", "En hel vagn i reflexvästar."],
+      "seat": ["Platsen bredvid", "Sitt ner och vänta tills vagnen blir full."],
+      "brake": ["Nödbromsen", "Handtaget vid dörren. Bara i nödfall."],
+      "students": ["Studenterna", "Början av juni, vita mössor."],
+      "party": ["Krogsången", "Sent en helgnatt, i vagnen."],
+      "prosit": ["Prosit", "Någon nyser."],
+      "music": ["Mobilhögtalaren", "Någon har glömt hörlurarna."],
+      "depot": ["Till depån", "Sitt kvar när tåget går in för natten."],
+      "trackWork": ["Spårarbetet", "Mitt i natten, någonstans i en tunnel."],
+      "escape": ["Tvärtunneln", "Halvvägs genom tunneln finns en väg upp."],
+      "staffCoffee": ["Personalkaffet", "Automaten i personalrummet."],
+      "shelter": ["Skyddsrummet", "Djupt under Rådhuset. Veva."],
+      "key": ["Personalnyckeln", "Den hänger på en krok någonstans under jord."],
+      "alarm": ["Larmet", "Lås upp en larmad dörr."],
+      "note": ["Lappen", "Anslagstavlan i personalrummet."],
+      "transfer": ["Röd och grön linje", "Längst in i passagen, bortom musiken."],
+      "lift": ["Hissen", "Tryck på knappen vid pendeltågen."],
+      "rush": ["Genom rusningen", "Ta dig igenom passagen när den är som fullast."],
+      "guards": ["Ordningsvakterna", "Bråka för mycket i trängseln."],
+      "silverpilen": ["Silverpilen", "Ett tåg som inte står i tidtabellen. Håll ögonen på tavlan."],
+      "through": ["Rakt igenom", "Stå i vägen för det som inte finns."],
+      "clipping": ["Urklippet", "Personalrummet på T-Centralen."],
+      "kymlinge": ["Kymlinge", "Stationen som aldrig öppnade."],
+      "lastPage": ["Den sista sidan", "Ett låst plåtskåp."],
+      "loop": ["Tidsslingan", "Följ med Silverpilen hela vägen."],
+      "art": ["Konsten", "Läs skylten om konsten på en perrong."],
+      "artDone": ["Hela konstvandringen", "Varje station längs blå linjen."],
+      "perfect": ["Perfekt stopp", "I förarläget, några centimeter från skylten."],
+      "era": ["1975", "Tidsmaskinen i pausmenyn."],
+      "real": ["Riktiga tåg", "Låt SL:s riktiga tåg köra spelets tåg."],
+      "powerCut": ["Strömavbrottet", "Ett par gånger om året går strömmen, för alla på samma gång."],
+      "regular-walker": ["Kvinnan med rollatorn", "Västra skogen, vardagar strax före kvart i åtta."],
+      "regular-guitar": ["Killen med gitarrfodralet", "Solna centrum, vardagsmorgnar."],
+      "regular-book": ["Mannen med pocketboken", "Rådhuset, vardagsmorgnar."],
+      "regular-briefcase": ["Kvinnan med portföljen", "Kungsträdgården, vardagseftermiddagar."],
+      "regular-nurse": ["Sjuksköterskan", "Skarpnäck, tidigt på vardagsmorgnar."],
+      "regular-builder": ["Byggjobbaren", "Hässelby strand, tidigt på vardagsmorgnar."],
+      "regular-flowers": ["Mannen med blommorna", "Gamla stan, vardagsförmiddagar."],
+      "regular-expecting": ["Kvinnan i den gröna jackan", "Fruängen, vardagsmorgnar."],
+      "regular-laptop": ["Mannen med datorryggsäcken", "Kista, vardagskvällar."],
+      "regular-student": ["Studenten", "Universitetet, vardagseftermiddagar."],
+      "regular-coffee": ["Mannen med kaffet", "Odenplan, vardagsmorgnar."],
+      "regular-phone": ["Kvinnan med telefonen", "Liljeholmen, vardagsmorgnar."],
+      "recognized": ["Igenkänd", "Kom tillbaka till samma perrong några vardagar i rad."]
+    }
+  },
+  "intro": {
+    "aboard": "Du sitter på blå linjen, på väg in mot {station}. Tryck F för att resa dig och E för att använda saker.",
+    "aboardTouch": "Du sitter på blå linjen, på väg in mot {station}. Tryck på Res dig för att stå upp.",
+    "dive": "Du sitter på {line}, på väg in mot {station}.",
+    "platform": "Du står på {station}."
+  },
+  "life": "Ett liv på blå linjen",
+  "network": "Se hela nätet",
+  "modes": "Gör något annat",
+  "support": "Gillar du spelet? Bjud Joel på en enkelbiljett",
+  "feedback": "Hittat en bugg eller har en idé? Mejla Joel",
+  "crash": {
+    "title": "Något gick fel",
+    "note": "Spelet stannade. Ladda om så kommer du tillbaka där du stod.",
+    "reload": "Ladda om",
+    "home": "Till startsidan",
+    "mail": "Mejla Joel om vad som hände",
+    "subject": "Under Stockholm: spelet stannade",
+    "body": "Vad gjorde du när det hände?"
+  },
+  "show": {
+    "button": "Se en tur",
+    "hint": "Tryck på en tangent eller klicka för att ta över",
+    "hintTouch": "Tryck på skärmen för att ta över",
+    "scenes": {
+      "now": ["Blå linjen", "Just nu · samma tåg för alla som spelar"],
+      "rush": ["Rusningen", "City-passagen en vardagsmorgon"],
+      "snow": ["Snö och julgran", "En decemberkväll i biljetthallen"],
+      "lucia": ["Luciamorgon", "13 december, på perrongen"],
+      "era": ["1975", "Tidsmaskinen · de gröna tågen"],
+      "silver": ["Silverpilen", "En gång i timmen, på en minut ingen kan förutse"],
+      "trackWork": ["Natt i tunneln", "Spårarbete medan tågen vilar"],
+      "kymlinge": ["Kymlinge", "Stationen som aldrig öppnade"]
+    }
+  },
+  "warnings": {
+    "header": "{level} varning för {event}",
+    "levels": { "YELLOW": "Gul", "ORANGE": "Orange", "RED": "Röd" },
+    "now": "SMHI har utfärdat varningen för Stockholms län.",
+    "later": "SMHI varnar för Stockholms län under de närmaste timmarna.",
+    "events": {
+      "THUNDER": "åska",
+      "WIND": "vind",
+      "STRONG_COOLING": "stark kyleffekt",
+      "SNOW": "snöfall",
+      "BLACK_ICE": "isbeläggning",
+      "RAIN": "regn",
+      "HIGH_TEMPERATURES": "höga temperaturer",
+      "FLOODING": "översvämning"
+    },
+    "advice": {
+      "THUNDER": "Trafiken ovan jord kan påverkas.",
+      "WIND": "Bussar och pendeltåg kan bli försenade. Planera din resa.",
+      "STRONG_COOLING": "Klä dig varmt innan du går upp på gatan.",
+      "SNOW": "Räkna med förseningar i trafiken och halka vid uppgångarna.",
+      "BLACK_ICE": "Det kan vara mycket halt vid uppgångarna. Gå försiktigt.",
+      "RAIN": "Det kan bli halt i trapporna. Gå försiktigt.",
+      "HIGH_TEMPERATURES": "Drick vatten och ta det lugnt i värmen.",
+      "FLOODING": "Undvik översvämmade gator och följ personalens anvisningar."
+    }
+  },
+  "settings": {
+    "button": "Inställningar",
+    "title": "Inställningar",
+    "game": "Spelet",
+    "language": "Språk",
+    "look": "Titta",
+    "sensitivity": "Muskänslighet",
+    "fov": "Synfält",
+    "volume": "Ljudvolym",
+    "master": "Allt ljud",
+    "announcements": "Utrop",
+    "ambience": "Omgivning",
+    "trains": "Tåg",
+    "keys": "Tangenter",
+    "press": "Tryck en tangent …",
+    "reset": "Återställ tangenter",
+    "back": "Tillbaka",
+    "gamepad": "Handkontroll: vänster spak går, höger spak tittar, A hoppar, X använder, B sätter dig, LB eller vänster spak intryckt springer, Y visar kartan, Start pausar.",
+    "gamepadOn": "Handkontroll ansluten",
+    "gamepadOff": "Handkontrollen kopplades bort",
+    "actions": {
+      "forward": "Framåt",
+      "back": "Bakåt",
+      "left": "Vänster",
+      "right": "Höger",
+      "run": "Spring",
+      "jump": "Hoppa",
+      "sit": "Sätt dig / res dig",
+      "use": "Använd",
+      "punch": "Slå",
+      "drive": "Förarläge",
+      "map": "Karta",
+      "help": "Hjälp",
+      "mute": "Ljud av/på",
+      "passengers": "Resenärer",
+      "motion": "Vagnsgungning",
+      "pixels": "Pixelläge",
+      "ghosts": "Andra spelare",
+      "screensaver": "Skärmsläckare"
+    }
+  },
+  "hints": {
+    "use": "{key} · använd det du står vid. Leta efter tipset under siktet.",
+    "sit": "{key} · sätt dig på en ledig plats när du är ombord.",
+    "pause": "{key} · meny, inställningar och upptäcktsboken.",
+    "padPause": "Start · meny, inställningar och upptäcktsboken.",
+    "touchPause": "Paus · meny, inställningar och upptäcktsboken."
+  },
+  "continued": "Tillbaka där du var: {station}.",
+  "power": {
+    "out": "Strömmen gick. Allt blev mörkt.",
+    "torch": "Du tände mobillampan.",
+    "torchTouch": "Du tände mobillampan.",
+    "announcement": "Vi har ett strömavbrott i tunnelbanan. Tågen står still tills strömmen kommer tillbaka. Stanna där du är och håll dig borta från spåret.",
+    "back": "Strömmen är tillbaka."
+  },
+  "regulars": {
+    "names": {
+      "walker": "Kvinnan med rollatorn",
+      "guitar": "Killen med gitarrfodralet",
+      "book": "Mannen med pocketboken",
+      "briefcase": "Kvinnan med portföljen",
+      "nurse": "Sjuksköterskan",
+      "builder": "Byggjobbaren",
+      "flowers": "Mannen med blommorna",
+      "expecting": "Kvinnan i den gröna jackan",
+      "laptop": "Mannen med datorryggsäcken",
+      "student": "Studenten",
+      "coffee": "Mannen med kaffet",
+      "phone": "Kvinnan med telefonen"
+    },
+    "people": {
+      "walker": "Kvinnan med rollatorn. Hon står här varje vardag, strax före kvart i åtta.",
+      "guitar": "Killen med gitarrfodralet. Han kliver på här varje morgon, på väg in mot stan.",
+      "book": "Mannen med pocketboken. Han läser på perrongen och läser vidare ombord.",
+      "briefcase": "Kvinnan med portföljen. Hon åker hem härifrån varje eftermiddag.",
+      "nurse": "Sjuksköterskan, på väg till morgonpasset. Samma tid varje vardag.",
+      "builder": "Byggjobbaren i varselvästen. Han tar första tåget in, nästan.",
+      "flowers": "Mannen med blommorna. Ingen vet vem de är till.",
+      "expecting": "Kvinnan i den gröna jackan. Hon väntar alltid vid samma pelare.",
+      "laptop": "Mannen med datorryggsäcken, på väg hem från kontoret i Kista.",
+      "student": "Studenten, på väg hem från föreläsningarna.",
+      "coffee": "Mannen med kaffet. Muggen är alltid full när han kommer.",
+      "phone": "Kvinnan med telefonen. Hon pratar hela vägen till tåget."
+    },
+    "someone": "Någon du har sett här förut",
+    "nod": "{name} nickar igenkännande åt dig.",
+    "greets": "{name}: ”{line}”",
+    "morning": "God morron!",
+    "hello": "Hej hej!"
+  }
+}

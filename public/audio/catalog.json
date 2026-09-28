@@ -1,0 +1,658 @@
+{
+  "abrahamsberg.mp3": {
+    "duration": 1.150023,
+    "sha256": "ecc83f00bf9a864cb776dceb8cd55672351bfab02826a55bf2d0d9d19f04c53f"
+  },
+  "akalla.mp3": {
+    "duration": 0.849977,
+    "sha256": "f5b9227b76b15d492ede70813077809593d5657db2cce94732210ed0099d7c7b"
+  },
+  "akersberga.mp3": {
+    "duration": 0.978685,
+    "sha256": "f37f55af2d1adbaf35ec69b762cd42c0987ae25d45216b74c215382d2f7dfd59"
+  },
+  "akeshov.mp3": {
+    "duration": 0.950023,
+    "sha256": "7ba64dbb20a856ac636aad698412152821aea43c51f34bf38b38404a24e0a01f"
+  },
+  "alby.mp3": {
+    "duration": 0.649977,
+    "sha256": "b2d956f6d1e7b3d5f2003f57697f100b25837b07f303e0dda04ffb0d4e411321"
+  },
+  "alvik.mp3": {
+    "duration": 0.955465,
+    "sha256": "06cd65a9271ad1bffedd626171d3f329af8b8adecc7ceebba2a0bd5994dffee0"
+  },
+  "alvsjo.mp3": {
+    "duration": 0.733243,
+    "sha256": "b7173b2d6d4849d1778b18d0bffdd08e79c39cb9da1b43c61494bc3f74ade799"
+  },
+  "angbyplan.mp3": {
+    "duration": 0.950023,
+    "sha256": "c3964a6a10e12b1d1a49b2c3021ac8f85ed81725c55ec49f0a1cb5f15f338d71"
+  },
+  "anslutningtill.mp3": {
+    "duration": 1.26322,
+    "sha256": "8dd170b97ddd32fc35ce7bae7f005942bc7647776bf93fc17c5e3c5a5854b261"
+  },
+  "anslutningttbana.mp3": {
+    "duration": 2.721179,
+    "sha256": "f01ddc860cfa110aa9ee0f3211280501077a6b1dc3110f0aed98d69265da1c52"
+  },
+  "arsta.mp3": {
+    "duration": 0.618503,
+    "sha256": "f48a6bb87abbd1b718108b7f09102b707308c7f3bb1fad93edd159ea1d95e23a"
+  },
+  "aspudden.mp3": {
+    "duration": 0.950023,
+    "sha256": "0e1815dbe7bf34d5981752a6d20db8abbf28ed464e4eb1f5d51fd3c0770da48e"
+  },
+  "avstandet.mp3": {
+    "duration": 4.350023,
+    "sha256": "362b0a99911dacb8404dfbbca5602053b8b45b66cb679e251fe84d828a1d592e"
+  },
+  "axelsberg.mp3": {
+    "duration": 1.049977,
+    "sha256": "d42773a92ac38f692aa354ee982970684bdf4a94855c5eec68790d9408aaf42a"
+  },
+  "bagarmossen.mp3": {
+    "duration": 1.049977,
+    "sha256": "3a320d5b3b18eb077cafaf2279e8cd32e05d67530975a78238807b84d19ea887"
+  },
+  "balsta.mp3": {
+    "duration": 0.781497,
+    "sha256": "03bc7579d96ccacfa2663577f8d5adcda610512a5e782e2bc2503093a4fc09c9"
+  },
+  "bandhagen.mp3": {
+    "duration": 1.049977,
+    "sha256": "858cdb6e5516f357675480582117afe1da76941af5ba9900de19acf9cac24b7e"
+  },
+  "bergshamra.mp3": {
+    "duration": 1.049977,
+    "sha256": "b3d03a1662fd9a2feb31024a6cc55dac7332a7bd7db1e321c3c3f37268da6e4f"
+  },
+  "bjorkhagen.mp3": {
+    "duration": 1.049977,
+    "sha256": "2694f18402e9a14e5df36e8853a5f8cf6816226506e543d9ad799505b7c37b42"
+  },
+  "blackeberg.mp3": {
+    "duration": 1.049977,
+    "sha256": "e84d2d67647d9acab1fa117ceecf8cc39d9f2f5698c54b81f1e5382c9a271eb4"
+  },
+  "blasut.mp3": {
+    "duration": 1.049977,
+    "sha256": "f17657d227807296c92a9c6d6a357a953cb36cd682da140c6d01b278da9552f0"
+  },
+  "bredang.mp3": {
+    "duration": 0.950023,
+    "sha256": "ae061e340a7eca23df07f960793ecaa29e2d2dcf064f0fa691d3498a51ced263"
+  },
+  "bromma.mp3": {
+    "duration": 0.659864,
+    "sha256": "e58459f5331db0649032691b1111bf6ddcea0cd5c47136242b33ec1922eb1362"
+  },
+  "brommaplan.mp3": {
+    "duration": 1.150023,
+    "sha256": "94b1ad73c4b643f681f922e90d7a09b97980f0e507141ad0bc19e81759a46e6f"
+  },
+  "buzz.mp3": {
+    "duration": 6.077823,
+    "sha256": "e6753cf9ab14c51c47b1b22deca5b2951201a254b2e1ba34af6687b4d62647db"
+  },
+  "bytetill.mp3": {
+    "duration": 0.804989,
+    "sha256": "7299deb953d3f5edb398fe842ffbfb5973fb381387fa5eae1cc683cc284bc258"
+  },
+  "bytetillbussar.mp3": {
+    "duration": 1.694875,
+    "sha256": "67eafab6f1d9e6b8e3b11730f1cf0f4fa76120ebdbfc559fdb10b703e588c8db"
+  },
+  "bytetillpendeltag.mp3": {
+    "duration": 2.145578,
+    "sha256": "e392297c55553b132800b7ac691db52eb140b5f55d2d2203d2b337856e9ae896"
+  },
+  "bytetilltunnelbana.mp3": {
+    "duration": 2.207528,
+    "sha256": "5bd4f58260651143e0aee6633b4cd22c2f58a94f8a7894209d51680d5acc93c1"
+  },
+  "centralstationen.mp3": {
+    "duration": 1.291247,
+    "sha256": "5fc9aff8cae774ef45fa7daa30f188f8c43bfcb271118a6db230686923a4a19f"
+  },
+  "danderyd.mp3": {
+    "duration": 0.853878,
+    "sha256": "96535f2b61e15b04c489171d01be41fa0787fc19e1f0aa62d577b595367990a8"
+  },
+  "danderydssjukhus.mp3": {
+    "duration": 1.649977,
+    "sha256": "ce0c11fa118e909962910b73303bf97212ffdb9fdeecfa395361b4f1e55ca02b"
+  },
+  "delay_500.mp3": {
+    "duration": 0.5,
+    "sha256": "149a0e57d6065f2c108cc938f656a3fc0ac988408e949aaaa109a4daa17d2b98"
+  },
+  "ding.mp3": {
+    "duration": 0.800816,
+    "sha256": "db94d05b1893512f10668170b8da032a9c218756c15374ddc614adc1c56a8ac9"
+  },
+  "duvbo.mp3": {
+    "duration": 0.750023,
+    "sha256": "9d92987da9024bf84e7b41adfd08618a218cc2ee159959ab4f7e2ca3e18e72d7"
+  },
+  "edsberg.mp3": {
+    "duration": 0.817143,
+    "sha256": "f528c38099efe6e49bdeb710111758753010132035e5e734c69075a0d2cd7e5e"
+  },
+  "enskedegard.mp3": {
+    "duration": 1.150023,
+    "sha256": "63527c81ee6aa42dc9541a7cba8bc1cf81b40a559ab7804b77c2a7930622281c"
+  },
+  "farsta.mp3": {
+    "duration": 0.750023,
+    "sha256": "216667ed068cab170c89334f9501a28469a9e07fb37f5b61862a7b212bd8e0f7"
+  },
+  "farstastrand.mp3": {
+    "duration": 1.168707,
+    "sha256": "ee7145ac70cefb1c50e83a848564d638cfe1f139ed0243323771cab3f2a8a21e"
+  },
+  "fittja.mp3": {
+    "duration": 0.849977,
+    "sha256": "20826d519dde75e41e8e4b41768415a9e6a0383145efa255c3176286090026bc"
+  },
+  "flemingsberg.mp3": {
+    "duration": 0.990204,
+    "sha256": "674cc5a8697a144cd980a91498f0499a9eec66a2bd203a0538f3faf5e923f908"
+  },
+  "fridhemsplan.mp3": {
+    "duration": 1.249977,
+    "sha256": "538e7d580f195d77cabc43a6c8dbdfe6998c082b3809ea0c733675d33a94130f"
+  },
+  "fruangen.mp3": {
+    "duration": 1.150023,
+    "sha256": "fd23d45b82e8af6644caa340ce2d565a33bffa7a85e4a0babe05099ddcfcdbfa"
+  },
+  "gamlastan.mp3": {
+    "duration": 1.10195,
+    "sha256": "80344a5b90c2131db2b82d03b9fd33c1c1ada2fb6b32d5c21c5d42ff5dd8c509"
+  },
+  "gardet.mp3": {
+    "duration": 0.904943,
+    "sha256": "0df6826231f68b81d624e21bfb9b3538070005290560716d9375f2087ad26822"
+  },
+  "gartill.mp3": {
+    "duration": 2.043084,
+    "sha256": "6bf6d8804593216e2734d811766e8eefc266e4d6dc8f42318087751724b3c873"
+  },
+  "globen.mp3": {
+    "duration": 0.867302,
+    "sha256": "49d4e59c04b0a94758f35b0a4e4c9dbb4092f499296c1119a53e0993120a5d67"
+  },
+  "gubbangen.mp3": {
+    "duration": 1,
+    "sha256": "615b37f084f899e69458c59bc8f7d29f6ecc8559986e56c1104c4c63b9233fa2"
+  },
+  "gullmarsplan.mp3": {
+    "duration": 1.150023,
+    "sha256": "8589a79f84d02e0719b26363df90982c68717ab982741b8265af0e985fd15613"
+  },
+  "hagerstensasen.mp3": {
+    "duration": 1.449977,
+    "sha256": "a8cff328921ddbdd425157554898420cbb366fcc9248b853bac26045f4201a64"
+  },
+  "hagsatra.mp3": {
+    "duration": 1.049977,
+    "sha256": "2f68b726973e19e80f4245e887e3d1e82028fcde709645e512ae820728184d6c"
+  },
+  "hallonbergen.mp3": {
+    "duration": 1.150023,
+    "sha256": "d06f85ab3d339fd025aeac0b553023eee05911e39c63219a119649b9dc3b291e"
+  },
+  "hallunda.mp3": {
+    "duration": 0.849977,
+    "sha256": "18c26c5953c26e967e3a43ffeb53c771e465aa25fe024febf347739e53132b9b"
+  },
+  "hammarbyhojden.mp3": {
+    "duration": 1.150023,
+    "sha256": "2c3071b6637c3c83216624f666e216df192eb5e2695e9978cce5cd1c4e250fa1"
+  },
+  "haninge.mp3": {
+    "duration": 0.700499,
+    "sha256": "920788a9dd107aa579e20d9a627a8de8be382e690b3c08898c286d9a9dde0092"
+  },
+  "hasselby.mp3": {
+    "duration": 0.900862,
+    "sha256": "90cfb434c8af2a52706eb57646cee74027f7c343c7d41d47443a15f850870580"
+  },
+  "hasselbygard.mp3": {
+    "duration": 1.049977,
+    "sha256": "7519646e81ec51b08434b47f3b65fb97b5e3510dd89777580c56adbf220ea856"
+  },
+  "hasselbystrand.mp3": {
+    "duration": 1.249977,
+    "sha256": "8252f8faf2bf8128871488b444d1e64f2f6f0b4d8348833b22705445fd2fe5a7"
+  },
+  "hjulsta.mp3": {
+    "duration": 0.950023,
+    "sha256": "990cd7e87756e5a88fb36692cf9beb1865d03b9515c404628fcc886c4c572a16"
+  },
+  "hogdalen.mp3": {
+    "duration": 1.150023,
+    "sha256": "f4ec0d3adf3fedf00b87819a17ee4a5c903ff328b975336f32aff8c69e67bac2"
+  },
+  "hokarangen.mp3": {
+    "duration": 1.156825,
+    "sha256": "6056d5da79d8d21fc88671ab0e50236a4f41226f0e315893059332f9e79508b8"
+  },
+  "hornstull.mp3": {
+    "duration": 0.849977,
+    "sha256": "a5e034621e54ffbd5ff3756abf4ca264955b154e8af4d44b321e7f947c9acf46"
+  },
+  "hotorget.mp3": {
+    "duration": 1.079637,
+    "sha256": "f127eb96f80747ac410aa9f170e74fa8b19be5edeb8ef8beebe1552fda30746d"
+  },
+  "huddinge.mp3": {
+    "duration": 0.695873,
+    "sha256": "6cf4a0befb6b548e6b1f40b4be120cc766a1438da15cdebcd910404835cc5388"
+  },
+  "husby.mp3": {
+    "duration": 0.750023,
+    "sha256": "63a44f3afefbe05a1ecd60d02994ad8fd4659df5c5fd81ad01bb6fe9386ae6e9"
+  },
+  "huvudsta.mp3": {
+    "duration": 0.849977,
+    "sha256": "7b8cd456484044e74a76e83d3f9aa02f6140c82db31be710fd6ac3a6a0d97b44"
+  },
+  "islandstorget.mp3": {
+    "duration": 1.4,
+    "sha256": "26937eddfadcf07b7abcc8849839907db3e875a82589779cf8c3a30e0f21fbb3"
+  },
+  "jakobsberg.mp3": {
+    "duration": 0.890703,
+    "sha256": "fcda0eb4e3edbabba2354bcca2b494891cc8045a8496eb1b490c9590fd82cfaf"
+  },
+  "jarva.mp3": {
+    "duration": 0.675465,
+    "sha256": "1b928c1331fa38bcff8e03e59391d7181c1cd821e509ae5b4f6d03f6b42421a8"
+  },
+  "johannelund.mp3": {
+    "duration": 1.049977,
+    "sha256": "3d2892dd0e0107b29bd5672be1c1acbe2afc8da4d5a7358b6a8d742376e3ffcb"
+  },
+  "karlaplan.mp3": {
+    "duration": 0.950023,
+    "sha256": "98ebbe5a6d9f86e45683490b015304602343ff7781254b49f0c3665bad691337"
+  },
+  "karrtorp.mp3": {
+    "duration": 1,
+    "sha256": "4dab9216c4d99159060a81de420bef05bff61bb4e77c1f8755c193e475fa3888"
+  },
+  "kista.mp3": {
+    "duration": 0.849977,
+    "sha256": "4d47f11b5b1245f61593fc6dc71938f40eb9ed552334030e110fa4169ba58225"
+  },
+  "kristineberg.mp3": {
+    "duration": 1.049977,
+    "sha256": "f23223732a716d51849562857e55f30113d1195bb67d0fd6cdb3dfa517074b6f"
+  },
+  "kungenskurva.mp3": {
+    "duration": 1.025125,
+    "sha256": "8996cca4724885d9a781ad18fb7658c24ee86822eef8f57395393be73346e9dd"
+  },
+  "kungsangen.mp3": {
+    "duration": 0.940317,
+    "sha256": "f3695ff5c8d31183e967d84a2949d207f5a0ef1daaffdf403cfdb234942a013e"
+  },
+  "kungstradgarden.mp3": {
+    "duration": 1.150023,
+    "sha256": "648240727652505b4bd7a585bd66c0fe55ba9f2235d383c556000d319732d86e"
+  },
+  "lidingo.mp3": {
+    "duration": 0.759456,
+    "sha256": "f998781ac00dbb9e40d3fa3b84854bdb4e930a3289c7ce4a818bcfda25cc4e0e"
+  },
+  "lidingobanan.mp3": {
+    "duration": 1.107846,
+    "sha256": "674c5d932c5a3ef1605075d51b96b05b28eba8aca0497a459ab023430edba844"
+  },
+  "liljeholmen.mp3": {
+    "duration": 1.2,
+    "sha256": "24e935bf600015b5eb29f311525e59f5b952af9e95081a905f1eabc2ddb0379a"
+  },
+  "malarhojden.mp3": {
+    "duration": 1.150023,
+    "sha256": "3eeca6a1e83be9d7e0fc6cbd740027a8800bba0153130a8ebc1cb8c581195d4d"
+  },
+  "malaroarna.mp3": {
+    "duration": 0.975692,
+    "sha256": "0af5acc818874bf3375bd0cd06cc63776ea2cd5d58efec1ed42c4c7f0e01b233"
+  },
+  "mariatorget.mp3": {
+    "duration": 1.248163,
+    "sha256": "2c278e53fd921ec434c7690d3be96cdb14acb5161580c5ad4ee9d5de71e22ae5"
+  },
+  "masmo.mp3": {
+    "duration": 0.849977,
+    "sha256": "dbb72b9396833de17d9e5cfe3ecd8a496090a84c05e6cb9360f85cb66e9418c8"
+  },
+  "medborgarplatsen.mp3": {
+    "duration": 1.350023,
+    "sha256": "89b9432b5112438b4c115a640dd70892e843664111f6423f12efc521d463b3b0"
+  },
+  "midsommarkransen.mp3": {
+    "duration": 1.350023,
+    "sha256": "80bcbea01926d8cd217587a31a9f88d2faa520eb79123b12c128cdd8e8922f42"
+  },
+  "morby.mp3": {
+    "duration": 0.702222,
+    "sha256": "c4c07bc43187df6fe5129b33c24adc6904c10a0a27c66bfc972761a81a858988"
+  },
+  "morbycentrum.mp3": {
+    "duration": 1.249977,
+    "sha256": "1ede9a4f5e4a2153f79883d65b35882ad586be2edc020ecc0ec260fb44ccd568"
+  },
+  "nacka.mp3": {
+    "duration": 0.645805,
+    "sha256": "cb4b83a0282371b601ef2806f55f9dfb02920f23f64d7e9d9c9e1c1539894502"
+  },
+  "nackrosen.mp3": {
+    "duration": 1.154104,
+    "sha256": "dbc0099674e7ce8a20df9f43f4931e9d4b0e945f25c0f187b771248540c86fc5"
+  },
+  "nasta.mp3": {
+    "duration": 1.750839,
+    "sha256": "990ecad5ce7679e76403870254756f70af9948c1dfb157a58590d3c2bb6d482a"
+  },
+  "nockeby.mp3": {
+    "duration": 1.049977,
+    "sha256": "eb810ac431df30df3906218836851a27c9b39b2645238e1bb1770693e81e66e3"
+  },
+  "nockebybanan.mp3": {
+    "duration": 1.165624,
+    "sha256": "82bf55071cb14c9d583af94297c66989924bf9d33c246f9a17c916e2f0cec6c5"
+  },
+  "norrtalje.mp3": {
+    "duration": 0.877188,
+    "sha256": "1f1706e23fc46cc65dc5f73298b7a6bc0a7d3deb885151ddfab2dcdc25d5dd53"
+  },
+  "norsborg.mp3": {
+    "duration": 0.950023,
+    "sha256": "71ef77c418fe07d53ad25ef0d58e99eeb8ec93b0251e6deda86f9653632166e1"
+  },
+  "nynashamn.mp3": {
+    "duration": 0.976236,
+    "sha256": "fceb2837e0d6165addb31b120a488310bb0d62eebe326e82be3669a11a232b1b"
+  },
+  "och.mp3": {
+    "duration": 0.412336,
+    "sha256": "3b13972f07cab1b818b75e1dc7355fb2a84d477a5ba5579b4877d18a5694e21c"
+  },
+  "ochbussarmot.mp3": {
+    "duration": 1.120816,
+    "sha256": "3e6e290b55d44d534d59d46eddc697f0809acbda463d397d1a5ea0cda4568429"
+  },
+  "ochihogtrafik.mp3": {
+    "duration": 1.266213,
+    "sha256": "0c47516eed2907a00586b817e9340a5cee2e84299d65d26893a42d75e8ca8686"
+  },
+  "odenplan.mp3": {
+    "duration": 0.950023,
+    "sha256": "9599d2e3d92aef2f5b912a8fa9d0341716978283a82c9439f4479f155ed06078"
+  },
+  "ornsberg.mp3": {
+    "duration": 0.950476,
+    "sha256": "b9cb767df7f2b29e5794450ff74734376b0ad9bd6dd48af5b59101a3a6e1b4f1"
+  },
+  "ostermalmstorg.mp3": {
+    "duration": 1.249977,
+    "sha256": "527910a01c60c2dfbf309da5bee71497e0019dbc83b0b3a253b90f0cbb1bb0ce"
+  },
+  "ovrigatunnelbana.mp3": {
+    "duration": 1.660862,
+    "sha256": "b475b55e6fccb1cebacf8360f52d33f5c159857af2c04c262b0910fc541f6264"
+  },
+  "pendeltag.mp3": {
+    "duration": 0.883719,
+    "sha256": "42d2e22c2c901c7b608199df2f7a24ce9398ed759c8811411a52bbe911c4fd69"
+  },
+  "racksta.mp3": {
+    "duration": 0.849977,
+    "sha256": "eaf48526f2114318d49e2365f86510afd596de1a9242f3eea4e761b638fb241f"
+  },
+  "radhuset.mp3": {
+    "duration": 1.114558,
+    "sha256": "75f18c51fbaade0221274791d6951a119cb29fd36a8b80418208c6c3954ded21"
+  },
+  "radmansgatan.mp3": {
+    "duration": 1.350023,
+    "sha256": "342f58758302ddfe0a6291fb6ad1267ad2977d685b48f768c2fcfefb02b7a6fb"
+  },
+  "ragsved.mp3": {
+    "duration": 0.952018,
+    "sha256": "4cd259e5055062dbd21cc714533d888ff5f29155ed002f373b0565af975b0b8a"
+  },
+  "rinkeby.mp3": {
+    "duration": 1.049977,
+    "sha256": "d4e4ec1cbe180883a2f5ec4a927b9ae84764359e138a2212a3f4eea263bb1058"
+  },
+  "rissne.mp3": {
+    "duration": 0.849977,
+    "sha256": "c72a6ef6d1752d307f4313f1758079bf18c75ec839fe3dc935779f9affc04d3d"
+  },
+  "ropsten.mp3": {
+    "duration": 1.049977,
+    "sha256": "780e02e1306990b50f47f5b2fa4d844be08ce721b38c651a7896f2bad7a8e255"
+  },
+  "roslagen.mp3": {
+    "duration": 0.871565,
+    "sha256": "c8a06cb46d25cba826c855453e46882774006b58073375ddf43a94bae82266d8"
+  },
+  "roslagsbanan.mp3": {
+    "duration": 1.13941,
+    "sha256": "a8f2a4ed0b119ca6b53a665893295081fc7f0947cf52955375cfbe4b6f0a013a"
+  },
+  "saltsjobanan.mp3": {
+    "duration": 1.144127,
+    "sha256": "d6f6308db42d9ac2712e286e082b2d9c2f799bc543004bea9e907c5adbef31ce"
+  },
+  "samtbytetill.mp3": {
+    "duration": 1.132517,
+    "sha256": "d736b1996c9d27b487d8adf65ce6a77eeffdf606fdf393acc3d0e506f9cba9fc"
+  },
+  "samttill.mp3": {
+    "duration": 0.998458,
+    "sha256": "22fdb6507a473ba23899d203ba837d0527aaa345e1f1fb748a451ff6a27897bc"
+  },
+  "sandsborg.mp3": {
+    "duration": 1.021678,
+    "sha256": "69cd93701d6f0de2e0997e9b1df995dc3dd5cc8ef57bb72fa1994e66feb8c14e"
+  },
+  "sankteriksplan.mp3": {
+    "duration": 1.288707,
+    "sha256": "60b07cf28c3f761e96659174102976dc65acf8c7540ce5fc3e77d84062e18de3"
+  },
+  "satra.mp3": {
+    "duration": 0.849977,
+    "sha256": "a1e9ca408ac0608f4042042dabefe482810f4459205f93a88a49df5c286d8151"
+  },
+  "skanstull.mp3": {
+    "duration": 0.950023,
+    "sha256": "6c43713c47e2944981e75c28e460898f78dc19279a0096e4f96cd26fcd3edaf7"
+  },
+  "skarholmen.mp3": {
+    "duration": 0.950023,
+    "sha256": "005da6288c927df72d9d99c7016fe0c7a0237ba0961e49245ca69212036c1acc"
+  },
+  "skarmarbrink.mp3": {
+    "duration": 1.137778,
+    "sha256": "e48dc95e106c3904a15445a6634ea3545a8fab36d03091d98252f49ad35c1ec5"
+  },
+  "skarpnack.mp3": {
+    "duration": 0.998458,
+    "sha256": "6f6d78d27273ee6b82cbc100a34bf4729f43fe6eb93d92aa3a09afa1e07eba6e"
+  },
+  "skogskyrkogarden.mp3": {
+    "duration": 1.350023,
+    "sha256": "920b9feeab5b24edcbdb75940ce44af2becc348dc71e867acac237f9ae21115a"
+  },
+  "slussen.mp3": {
+    "duration": 0.928798,
+    "sha256": "34c6b0206996f1ae78a2587234d4207b4040421701934708cf69d70a435be894"
+  },
+  "slutstation.mp3": {
+    "duration": 4.699955,
+    "sha256": "a8e8acb9e994aae0c93ea7938d615ee37046c6870d9a2842d070dbd90abc9c31"
+  },
+  "sockenplan.mp3": {
+    "duration": 1.049977,
+    "sha256": "9460dd1c1ad6ed540cfdb6b1fc4c4f082e28ecfdcbca7bb9d4e5b4c9e8fb3a79"
+  },
+  "sodermanland.mp3": {
+    "duration": 0.987574,
+    "sha256": "eb0fdb457e78aa0eae7bf02b3f4823b46220af280ec88966942b49d9b07cd31f"
+  },
+  "soderort.mp3": {
+    "duration": 0.871837,
+    "sha256": "4f75f4391c842e0517282f3cb81e93db9797590c614e8392984c83986ccce9d6"
+  },
+  "sodertalje.mp3": {
+    "duration": 0.998458,
+    "sha256": "ac3b5c239a41d698d4cdc8d64f9b546a13292241d2fba1959db03e05b96cf3a8"
+  },
+  "sollentuna.mp3": {
+    "duration": 1.03102,
+    "sha256": "4f6f42a3281751e82f208d66a7f9b39722f6d7c2774087414d2687cf3b32d016"
+  },
+  "solnabussarna.mp3": {
+    "duration": 1.094966,
+    "sha256": "30678ea328d37da285407b79e538be80661fe5bb357627f1efa5bf46f70ef25c"
+  },
+  "solnacentrum.mp3": {
+    "duration": 1.350023,
+    "sha256": "539be59751a82b8898d410c7bbbed3210e241c412bffd0a932ce29ded7cf2cd6"
+  },
+  "sparvagn.mp3": {
+    "duration": 0.772063,
+    "sha256": "42f2286e7e2b79d174e60f3f74b3e944e2ea5e482eae3063472c28b40e99174f"
+  },
+  "sparvagnmot.mp3": {
+    "duration": 1.16771,
+    "sha256": "3152a3a0c379fe8b7ff797a2513658955276c5dd81b9b19e27666f3f949a805d"
+  },
+  "stadion.mp3": {
+    "duration": 0.946213,
+    "sha256": "b9260e0a77a1ae74186bd4b8d9245dcdb374dc555fd5719f324d8614bd90aa0e"
+  },
+  "stadshagen.mp3": {
+    "duration": 1.150023,
+    "sha256": "11a4265a8e7e8807725a3263595dd267a9999ca96913ccdc672eb64a0d0edf42"
+  },
+  "storamossen.mp3": {
+    "duration": 1.150023,
+    "sha256": "53db3283179e0a3bc6ded7d398988781e0977b1f814f2a42752171d5af718c9a"
+  },
+  "stureby.mp3": {
+    "duration": 1.049977,
+    "sha256": "0142f819545b0de67e4f6b3d87e9aa8582dccfb35fd3bef76869fd175fef589a"
+  },
+  "stuvsta.mp3": {
+    "duration": 0.913651,
+    "sha256": "17debfd113f8cde3907a49ca60c8bf1734a2a9488d84bf636652a6a97e28c4a1"
+  },
+  "sundbybergscentrum.mp3": {
+    "duration": 1.550023,
+    "sha256": "da2d5a7220625b3a7c25cc93c082102468a7a131cb2ca52fa6ec00a49c31db72"
+  },
+  "svedmyra.mp3": {
+    "duration": 1.049977,
+    "sha256": "6de40f0c37e32dde94798a7ee3c220eb5c589daf3dc05a57155177fc14a2d42d"
+  },
+  "taby.mp3": {
+    "duration": 0.634286,
+    "sha256": "07f3ef09cd15ca23fbcfb7478f6a7b7078820c06802ed880be483362e51662cc"
+  },
+  "tallkrogen.mp3": {
+    "duration": 1.150023,
+    "sha256": "e701c580d9de2bc08851069a205ab1de2782a5dc1df0af8487e20d1574d6d94f"
+  },
+  "tcentralen.mp3": {
+    "duration": 1.150023,
+    "sha256": "9bb5ec9b0648e7dece0102b4185b27e5a6e789be61aff4818c81a01b943d86b2"
+  },
+  "tekniskahogskolan.mp3": {
+    "duration": 1.550023,
+    "sha256": "caf80d5434c39a1779d17a62c588b1a34e855dce1d472b6fef2b51bebc0f1ee0"
+  },
+  "telefonplan.mp3": {
+    "duration": 1.049977,
+    "sha256": "97bf0353f89baede3f66b4bf21066c1dd10cc5abb5a660c765029a9cbd0549d9"
+  },
+  "tensta.mp3": {
+    "duration": 0.750023,
+    "sha256": "a26df5348fe401286bda9cea05dc2959e766b156b972a411bbb9080ec99aad46"
+  },
+  "thorildsplan.mp3": {
+    "duration": 1.049977,
+    "sha256": "fd69a61af98a4d4a6936821de47cb7009ccc77d19450999edddc7434f74d7c6d"
+  },
+  "tumba.mp3": {
+    "duration": 0.653243,
+    "sha256": "2ffae8fdbc038bc4daaa2205be627cb3276917223a999a5664fa799b4de6e83d"
+  },
+  "tvarbanan.mp3": {
+    "duration": 0.949932,
+    "sha256": "13b59341185f2ada33dc20499bf4841043f34ddec6d29e57da6602aa94430cc6"
+  },
+  "tyreso.mp3": {
+    "duration": 0.699048,
+    "sha256": "5906791a7cabb1efc3ccfa16d88bb6934a717866ddc1dc7202e84dd110a1fe6f"
+  },
+  "universitetet.mp3": {
+    "duration": 1.249977,
+    "sha256": "03e043ba4c55580d18bdcb4c5946e8dc0674a09270693a4376c1c53890a93c47"
+  },
+  "vallentuna.mp3": {
+    "duration": 0.97542,
+    "sha256": "6efc3b6beafe548b9b0cd7e000e194a1bc83f630f6e33f54d897864d7f7373f0"
+  },
+  "vallingby.mp3": {
+    "duration": 0.849977,
+    "sha256": "82803272e05d17601124919d123db3bbf7f0ce7963b8292b6472b8d740198ace"
+  },
+  "varberg.mp3": {
+    "duration": 0.849977,
+    "sha256": "85b34ac9eb1d676ad0876b81ac4fd4d9641e981066e6d5e87f16a203fcc52518"
+  },
+  "varbygard.mp3": {
+    "duration": 0.950023,
+    "sha256": "33fe4347ab063504f8c9e79b540390661a69cf69be6a97469fe84ec15f8c28f5"
+  },
+  "varmdo.mp3": {
+    "duration": 0.643356,
+    "sha256": "1e8614a8cec3703c543b0bb7b3b0501669a46c524d9e742d288ceed2537ad6d0"
+  },
+  "vasterhaninge.mp3": {
+    "duration": 1.07483,
+    "sha256": "a92d2ba0b744e4835df6bfd9d6c808ba3bd1cbb845c4b155968014a71ad646d6"
+  },
+  "vastertorp.mp3": {
+    "duration": 1.150023,
+    "sha256": "36fb3a536d51bb98fd114ffea94f248cb2bfc6831b838b87853f39d31c79e976"
+  },
+  "vastraskogen.mp3": {
+    "duration": 1.249977,
+    "sha256": "da57486502fa4c4d25a7eaff527473885593d4814a2c32e30b0bf5cf64de3824"
+  },
+  "vaxholm.mp3": {
+    "duration": 0.823855,
+    "sha256": "dd637bba78c584213da335a8662b80161d8c07a609627b7b1d3e1553dfaef01a"
+  },
+  "vreten.mp3": {
+    "duration": 0.849977,
+    "sha256": "ee455a63246ce90460ae49e1223128bbbc1b93529cfe0efaafb0af18ebdac9ec"
+  },
+  "zinkensdamm.mp3": {
+    "duration": 1.150023,
+    "sha256": "2f9692ace9973f0dcce0fb39a050472299a6bb841bb3780b328f902867fdaab9"
+  }
+}

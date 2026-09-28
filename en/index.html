@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Under Stockholm | Ride the Stockholm metro in your browser</title>
+    <meta name="description" content="A free browser game: walk the platforms and ride the trains of a stylized Stockholm metro. Blue, red and green lines, 100 stations and the same trains for all." />
+    <link rel="canonical" href="%SITE_URL%en/" />
+    <link rel="alternate" hreflang="sv" href="%SITE_URL%" />
+    <link rel="alternate" hreflang="en" href="%SITE_URL%en/" />
+    <link rel="alternate" hreflang="x-default" href="%SITE_URL%" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Under Stockholm" />
+    <meta property="og:title" content="Under Stockholm | Ride the Stockholm metro in your browser" />
+    <meta property="og:description" content="Walk the platforms and ride the trains of a stylized Stockholm metro. The whole network, 100 stations, the same trains for everyone playing." />
+    <meta property="og:url" content="%SITE_URL%en/" />
+    <meta property="og:locale" content="en_GB" />
+    <meta property="og:locale:alternate" content="sv_SE" />
+    <meta property="og:image" content="%SITE_URL%og-en.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Under Stockholm: ride the Stockholm metro in your browser. The platform at T-Centralen, blue vines painted on the rock and a train with its doors open." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Under Stockholm | Ride the Stockholm metro in your browser" />
+    <meta name="twitter:description" content="Walk the platforms and ride the trains of a stylized Stockholm metro. The whole network, 100 stations, the same trains for everyone playing." />
+    <meta name="twitter:image" content="%SITE_URL%og-en.jpg" />
+    <meta name="twitter:image:alt" content="Under Stockholm: ride the Stockholm metro in your browser. The platform at T-Centralen, blue vines painted on the rock and a train with its doors open." />
+    <meta name="theme-color" content="#050608" />
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="../apple-touch-icon.png" />
+    <link rel="manifest" href="../manifest.webmanifest" />
+    <link rel="stylesheet" href="../src/style.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "%SITE_URL%#website",
+            "url": "%SITE_URL%",
+            "name": "Under Stockholm",
+            "inLanguage": ["sv", "en"],
+            "publisher": { "@id": "%SITE_URL%#publisher" }
+          },
+          {
+            "@type": "Organization",
+            "@id": "%SITE_URL%#publisher",
+            "name": "Hägvall Labs",
+            "legalName": "Hägvall Labs AB",
+            "taxID": "559598-0110",
+            "address": { "@type": "PostalAddress", "addressLocality": "Stockholm", "addressCountry": "SE" },
+            "url": "https://hagvall-labs.com/",
+            "founder": { "@id": "%SITE_URL%#author" }
+          },
+          {
+            "@type": "Person",
+            "@id": "%SITE_URL%#author",
+            "name": "Joel Hägvall",
+            "url": "https://joelhagvall.com/",
+            "worksFor": { "@id": "%SITE_URL%#publisher" }
+          },
+          {
+            "@type": "VideoGame",
+            "@id": "%SITE_URL%#game",
+            "name": "Under Stockholm",
+            "url": "%SITE_URL%en/",
+            "description": "A free first-person browser game where you walk the platforms and ride the trains of a stylized Stockholm metro: the blue, red and green lines, 100 stations.",
+            "image": "%SITE_URL%og.jpg",
+            "inLanguage": ["sv", "en"],
+            "genre": ["Simulation", "Exploration"],
+            "gamePlatform": "Web browser",
+            "applicationCategory": "GameApplication",
+            "operatingSystem": "Any, with a modern web browser",
+            "playMode": "SinglePlayer",
+            "isAccessibleForFree": true,
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "SEK" },
+            "author": { "@id": "%SITE_URL%#author" },
+            "publisher": { "@id": "%SITE_URL%#publisher" },
+            "isPartOf": { "@id": "%SITE_URL%#website" }
+          }
+        ]
+      }
+    </script>
+    <noscript><style>.menu-board.is-pending { color: var(--amber); text-shadow: 0 0 10px rgba(255, 180, 68, 0.55); }</style></noscript>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <main class="menu" id="menu">
+      <a class="menu-lang" href="../" hreflang="sv" lang="sv" data-lang="sv">Svenska</a>
+      <div class="menu-inner">
+        <div class="menu-roundel" aria-hidden="true"><span>T</span></div>
+        <div class="menu-pole" aria-hidden="true"></div>
+        <div class="menu-ground" aria-hidden="true"></div>
+        <div class="menu-sign">
+          <h1 translate="no">Under Stockholm</h1>
+        </div>
+        <p class="menu-board is-pending" id="departures" translate="no" lang="sv"><span class="menu-board-row"><span>10</span> <span>Hjulsta</span> <span></span></span> <span class="menu-board-row"><span>11</span> <span>Akalla</span> <span></span></span></p>
+        <p class="menu-lead" id="main-content" tabindex="-1">Walk the platforms, ride the escalators and take the metro through hand-painted caves in the rock and out to the suburbs.</p>
+        <!-- game -->
+        <div class="menu-actions" data-soon="The game opens soon. Until then, follow the trains on the line below.">
+          <button type="button" class="menu-start" id="start">Go down to the metro</button>
+          <button type="button" class="menu-continue" id="continue" hidden>Continue where you were<small></small></button>
+        </div>
+        <ul class="menu-more">
+          <li><button type="button" id="tour"><span>Take a tour</span><small>The game shows you around until you take over</small></button></li>
+          <li><button type="button" id="network"><span>See the whole network</span><small>Every train under the city right now</small></button></li>
+          <li><a id="life" href="?liv"><span>A life on the blue line</span><small>1975 to 2050 in three minutes</small></a></li>
+        </ul>
+        <!-- /game -->
+        <p class="menu-status" id="status" role="status" aria-live="polite" data-loading="Loading the metro…" data-error="The game could not start. Reload the page and try again, or try another browser if WebGL does not work in this one."></p>
+        <img class="menu-shot" src="../og.jpg" width="1200" height="630" loading="lazy" decoding="async" alt="The platform at T-Centralen in the game, blue vines painted on the rock and a train with its doors open." />
+        <section class="line-now" id="line-now" data-line="blue" aria-labelledby="line-now-heading">
+          <h2 id="line-now-heading">On the line right now</h2>
+          <div class="line-now-lines" role="group" aria-label="Which line is shown">
+            <button type="button" data-line="0" aria-pressed="true">Blue</button>
+            <button type="button" data-line="1" aria-pressed="false">Red</button>
+            <button type="button" data-line="2" aria-pressed="false">Green</button>
+          </div>
+          <div class="line-map" aria-hidden="true" translate="no"></div>
+          <ul class="line-trains"></ul>
+          <p class="line-note" role="status" aria-live="polite"></p>
+        </section>
+        <section class="menu-section menu-controls" aria-labelledby="controls-heading">
+          <h2 id="controls-heading">Controls</h2>
+          <p class="touch-instructions">Walk with the left thumbstick. Drag across the view to look around. The buttons on screen let you run, jump, sit down and climb up onto the platform. Open the pause menu for sound and settings. Landscape gives a wider view.</p>
+          <dl class="desktop-controls">
+            <div><dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>Walk</dd></div>
+            <div><dt>Mouse</dt><dd>Look around</dd></div>
+            <div><dt><kbd>Shift</kbd></dt><dd>Run</dd></div>
+            <div><dt><kbd>Space</kbd></dt><dd>Jump</dd></div>
+            <div><dt><kbd>E</kbd></dt><dd>Climb up onto the platform</dd></div>
+            <div><dt><kbd>M</kbd></dt><dd>Sound on and off</dd></div>
+            <div><dt><kbd>P</kbd></dt><dd>Pixel mode</dd></div>
+          </dl>
+        </section>
+        <section class="menu-section menu-about" aria-labelledby="about-heading">
+          <h2 id="about-heading">About the game</h2>
+          <p><span translate="no">Under Stockholm</span> is a free browser game where you walk around a stylized Stockholm metro. The whole network is there: the blue, red and green lines, seven routes and 100 stations out to Akalla, Hjulsta, Norsborg, Fruängen, Mörby centrum, Ropsten, Hässelby strand, Skarpnäck, Farsta strand and Hagsätra. You change lines at <span class="nobr">T-Centralen</span>, Gamla stan, Slussen and Fridhemsplan, and in the suburbs the trains run in the open air.</p>
+          <h3>Things to find</h3>
+          <ul>
+            <li>Drive a practice train from the cab and try to stop at the stop sign.</li>
+            <li>Find the staff corridors, the shelter under Rådhuset, Kymlinge and Silverpilen.</li>
+            <li>Travel back to 1975 with the time machine and fill the book of discoveries.</li>
+          </ul>
+          <p>Menus and help are in English. Signs and announcements stay in Swedish, as in the real metro. No account needed, and added to your home screen the game opens full screen.</p>
+          <details class="menu-details">
+            <summary>More about the game</summary>
+            <h3>The stations</h3>
+            <p>Every station is built from data and has its own painted look: blue vines on the rock at <span class="nobr">T-Centralen</span>, terracotta at Rådhuset, terrazzo and classical fragments at Kungsträdgården, Stadion’s rainbow and Skarpnäck’s red ceiling. Between <span class="nobr">T-Centralen</span> and Slussen the red and green lines cross Riddarfjärden, with Gamla stan, Riddarholmen’s church and the City Hall’s three crowns outside the window. Every station has escalators, ticket gates, clocks showing the right time and amber departure boards, and behind a gate at the far end of the platform the staff corridors begin. All of it is interpreted in the game’s own style, not copied exactly.</p>
+            <h3>Stockholm, right now</h3>
+            <p>The game’s clock is Stockholm’s clock. The trains are SL’s own on all three lines, with the same departure times as on the real platforms, and Silverpilen still slips in between them. Turn real trains off in the pause menu and the game’s own timetable runs: everyone playing meets the same trains in the same places, rush hour comes in the morning and on weeknights the service stops between one and five. The weather at the exits follows the real weather, and when SL reports an escalator out of order it stands still in the game too. The year shows: a Christmas tree through advent, a Lucia procession on 13 December, students singing in the carriages in June and cinnamon bun bags on 4 October.</p>
+            <h3>Life in the metro</h3>
+            <p>People stand on the right of the escalator and walk on the left, and whoever stands in the wrong lane hears about it. A saxophonist plays in Kungsträdgården’s ticket hall, an accordion player in the passage at <span class="nobr">T-Centralen</span>, and at rush hour hundreds of commuters crowd the City passage. Pigeons peck by the doors, a rat runs along the track when the rails start to sing, and at the kiosk you can buy coffee and a bun and carry the steaming cup with you. Inspectors board now and then, so tap your card at the gates.</p>
+          </details>
+        </section>
+        <p class="menu-note">The game is a prototype and not affiliated with SL.</p>
+        <p class="menu-credit">A <a href="https://hagvall-labs.com/" translate="no">Hägvall Labs</a> game by <a href="https://joelhagvall.com/" rel="author" translate="no">Joel Hägvall</a></p>
+        <p class="menu-credit">Enjoying the game? <a href="https://buymeacoffee.com/joelhagvall">Buy Joel a single ticket</a></p>
+        <p class="menu-credit">Found a bug or have an idea? <a href="mailto:work@joelhagvall.com?subject=Under%20Stockholm">Email Joel</a></p>
+      </div>
+    </main>
+    <div class="game" id="game" hidden></div>
+    <script type="module" src="../src/main.ts"></script>
+  </body>
+</html>

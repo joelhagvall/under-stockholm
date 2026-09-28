@@ -1,0 +1,63 @@
+.touch-controls { position: absolute; inset: 0; pointer-events: none; }
+.touch-controls button, .touch-stick { pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.touch-controls button, .pause-option, .pause-resume {
+  min-height: 48px; padding: 10px 16px; border: 1px solid #b9cedf80; border-radius: 8px;
+  background: #10202deb; color: #fff; font: 600 14px/1.3 system-ui, sans-serif; cursor: pointer;
+}
+.touch-controls button[aria-pressed='true'] { background: #1765b3; border-color: #a2d0ff; }
+/* The tap highlight is off (style.css), so a press shows here instead. */
+.touch-controls button:active { background: #1f4f80; border-color: #d8ecff; }
+.touch-controls button:focus-visible, .pause-option:focus-visible, .pause-resume:focus-visible { outline: 3px solid #ffb444; outline-offset: 2px; }
+.touch-toolbar { position: absolute; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); display: flex; gap: 8px; }
+.touch-stick {
+  position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: max(30px, calc(env(safe-area-inset-bottom) + 14px));
+  width: 132px; height: 132px; border: 2px solid #ffffff70; border-radius: 50%; background: #10202d80;
+  display: grid; place-items: center;
+}
+.touch-knob { width: 54px; height: 54px; border-radius: 50%; background: #eff6ffb3; border: 2px solid #fff; pointer-events: none; }
+.touch-stick-label { position: absolute; bottom: -23px; font-size: 12px; color: #fff; text-shadow: 0 1px 4px #000; }
+.touch-actions { position: absolute; right: max(16px, env(safe-area-inset-right)); bottom: max(20px, calc(env(safe-area-inset-bottom) + 12px)); display: grid; grid-template-columns: repeat(2, minmax(64px, 1fr)); gap: 10px; max-width: 190px; }
+.game.is-touch { touch-action: none; -webkit-user-select: none; }
+.is-touch .game-canvas { cursor: default; touch-action: none; }
+.is-touch .hud > .hud-crowd, .is-touch .hud-interaction, .is-touch .hud-cross, .is-touch kbd { display: none; }
+.is-touch .hud-status { top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); min-width: 0; max-width: calc(100% - 180px); padding: 10px 12px; }
+.is-touch .hud-status::before { display: none; }
+.is-touch .hud-title { font-size: 15px; overflow-wrap: anywhere; }
+.is-touch .hud-line { font-size: 8px; }
+.is-touch .hud-sub { font-size: 11px; }
+.is-touch .hud-map { display: none; left: 50%; transform: translateX(-50%); top: max(118px, calc(env(safe-area-inset-top) + 106px)); bottom: auto; width: min(440px, calc(100% - 24px)); }
+.is-touch .hud-map.is-open { display: block; }
+.is-touch .hud-help { display: none; }
+.is-touch .hud-caption { bottom: calc(190px + env(safe-area-inset-bottom)); width: max-content; max-width: calc(100% - 24px); font-size: 14px; line-height: 1.4; }
+.is-touch .hud-warning { top: max(118px, calc(env(safe-area-inset-top) + 106px)); width: max-content; max-width: calc(100% - 24px); font-size: 13px; }
+.pause { z-index: 5; overflow-y: auto; overscroll-behavior: contain; padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); cursor: default; }
+.pause-card { width: min(520px, 100%); max-height: 100%; overflow-y: auto; overscroll-behavior: contain; }
+.pause-option { background: #edf2f7; color: #24394e; }
+.pause-option[aria-pressed='true'] { border-color: #5b9cf0; }
+/* The pause menu: back to the ride first, then the discovery book and the settings, then the other ways to play. */
+.pause-resume { margin-top: 16px; background: #ffb444; color: #10202d; width: 100%; }
+.pause-loop { width: 100%; margin-top: 10px; }
+.pause-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.pause-modes { margin-top: 20px; padding-top: 14px; border-top: 1px solid #ffffff14; }
+.pause-modes h3 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; color: #9fc3ea; }
+.pause-mode-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.pause-mode-list .pause-option { min-height: 44px; padding: 8px 14px; border-color: #ffffff38; background: transparent; color: #fff; font-weight: 500; }
+.pause-mode-list .pause-option[aria-pressed='true'] { border-color: #5b9cf0; background: #1765b333; }
+.pause-mode-list .pause-option strong { color: #9fc3ea; }
+.pause-touch-help { font-size: 14px; color: #d0d9e5; }
+@media (max-height: 500px) {
+  .is-touch .hud-status { padding: 6px 10px; max-width: calc(100% - 200px); }
+  .is-touch .hud-line { display: none; }
+  .is-touch .hud-caption { bottom: calc(24px + env(safe-area-inset-bottom)); max-width: calc(100% - 400px); font-size: 12px; padding: 6px 10px; }
+  .is-touch .hud-map { top: max(76px, calc(env(safe-area-inset-top) + 64px)); width: 280px; }
+  .is-touch .hud-warning { top: max(72px, calc(env(safe-area-inset-top) + 60px)); }
+  .touch-stick { width: 112px; height: 112px; bottom: max(28px, calc(env(safe-area-inset-bottom) + 12px)); }
+  .pause-card { padding: 16px; }
+  .panel-head { --pad-y: 16px; --pad-x: 16px; }
+}
+@media (max-width: 360px) and (min-height: 501px) {
+  .touch-stick { width: 112px; height: 112px; left: 14px; }
+  .touch-actions { right: 12px; gap: 8px; }
+  .touch-controls button { padding: 10px 12px; }
+}
+.touch-controls [hidden] { display: none !important; }

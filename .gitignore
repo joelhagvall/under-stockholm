@@ -1,0 +1,21 @@
+node_modules
+dist
+*.log
+.DS_Store
+.env*
+server/notes.json
+server/gtfs-timetable.json
+video/
+.heap/
+perf/.run/
+perf/last-run.json
+perf/history.jsonl
+perf/nightly.log
+server/perf.jsonl
+server/errors.jsonl
+.wrangler/
+LAUNCH.md
+TODO.md
+# The recorded C20 announcements stay on the developer's machine (public/audio/README.md)
+public/audio/*.mp3
+.omo/

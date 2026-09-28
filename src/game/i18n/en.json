@@ -1,0 +1,269 @@
+{
+  "walk": "walk",
+  "run": "run",
+  "jump": "jump",
+  "climb": "climb up",
+  "mute": "sound",
+  "pixels": "pixel mode",
+  "help": "help",
+  "pause": "pause",
+  "look": "look around",
+  "mouse": "Mouse",
+  "resume": "Click to continue the journey.",
+  "passengers": "Passengers",
+  "passengersOn": "Passengers on",
+  "passengersOff": "Passengers off",
+  "on": "On",
+  "off": "Off",
+  "sit": "sit / stand",
+  "seatHint": "F · Sit down in a free seat",
+  "standHint": "F · Stand up",
+  "seated": "You are sitting down. Press F to stand up.",
+  "trackWarning": "Track area! Press E to climb up.",
+  "motion": "Carriage sway",
+  "motionOn": "Carriage sway on",
+  "motionOff": "Carriage sway off",
+  "soundOff": "Sound off",
+  "soundOn": "Sound on",
+  "language": "Svenska",
+  "languageCode": "sv",
+  "touch": {
+    "move": "Walk",
+    "look": "Drag to look around",
+    "run": "Run",
+    "jump": "Jump",
+    "sit": "Sit",
+    "stand": "Stand up",
+    "climb": "Climb up",
+    "pause": "Pause",
+    "resume": "Continue the journey",
+    "map": "Map",
+    "sound": "Sound",
+    "pixels": "Pixel mode",
+    "help": "Walk with the left thumbstick. Drag across the view to look around. Use the buttons to run, jump and sit down. You can walk and look at the same time.",
+    "seatHint": "Tap Sit to sit down.",
+    "standHint": "Tap Stand up to get up.",
+    "seated": "You are sitting down. Tap Stand up to get up.",
+    "trackWarning": "Track area! Tap Climb up to get back onto the platform.",
+    "use": "Use",
+    "driverHelp": "Drive: + and − move the controller."
+  },
+  "loading": {
+    "title": "Building the metro…",
+    "note": "Blasting the rock, casting the platforms and fitting the escalators."
+  },
+  "driver": {
+    "title": "Driver mode",
+    "start": "Driver mode",
+    "exit": "Leave driver mode",
+    "intro": "A practice train on its own track. W/S move the controller, E opens and closes the doors, Q ends. Stop with the front at the stop sign.",
+    "introTouch": "A practice train on its own track. Use + and − for the controller and Doors to open and close. Stop with the front at the stop sign.",
+    "notHere": "Driver mode starts from a platform.",
+    "next": "Next",
+    "toStop": "to stop",
+    "notch": "Controller",
+    "brake": "Brake",
+    "power": "Power",
+    "neutral": "Neutral",
+    "emergency": "Emergency brake",
+    "atc": "ATC intervention! Too fast.",
+    "perfect": "Perfect stop! {error} cm from the sign.",
+    "good": "Good stop, {error} cm from the sign.",
+    "ok": "Passed, {error} m from the sign.",
+    "short": "Too short, {error} m left to the sign.",
+    "long": "You ran {error} m past the sign.",
+    "doorsFirst": "Stop at the platform before you open the doors.",
+    "doorsOpen": "Close the doors before you drive.",
+    "done": "End of practice. {count} stops, {score} points of {max}.",
+    "overrun": "You ran past the platform. Practice stopped.",
+    "doors": "Doors"
+  },
+  "ghosts": {
+    "toggle": "Other players",
+    "on": "Other players shown",
+    "off": "Other players hidden",
+    "count": "{count} others underground right now",
+    "one": "One other underground right now"
+  },
+  "voices": {
+    "toggle": "Voices around you",
+    "hint": "People around you speak their lines aloud in the browser’s Swedish voice. The captions show either way."
+  },
+  "real": {
+    "toggle": "Real trains (SL)",
+    "hint": "The trains follow SL’s service live. A line SL sends no data for runs on the game’s own timetable.",
+    "loading": "Fetching SL’s metro live…",
+    "on": "The trains now follow SL live.",
+    "off": "The trains follow the game’s own timetable.",
+    "failed": "SL is not answering right now. The game’s own timetable is used meanwhile.",
+    "moved": "The service changes over. You are on the platform."
+  },
+  "use": "use / climb up",
+  "saver": {
+    "start": "Screensaver"
+  },
+  "loop": {
+    "badge": "Time loop",
+    "wakeButton": "Wake up in the present"
+  },
+  "era": {
+    "toggle": "Time machine",
+    "now": "Now",
+    "to1975": "It is 1975. The green trains roll, the signs click and nobody looks at a phone.",
+    "toNow": "Back in the present."
+  },
+  "lost": {
+    "items": {
+      "mitten": ["a blue mitten", "the mitten"],
+      "keys": ["a bunch of keys", "the keys"],
+      "umbrella": ["a folded umbrella", "the umbrella"],
+      "teddy": ["a teddy bear", "the teddy bear"],
+      "book": ["a dog-eared paperback", "the book"],
+      "sunglasses": ["a pair of sunglasses", "the sunglasses"],
+      "scarf": ["a striped scarf", "the scarf"],
+      "hat": ["a green beanie", "the beanie"],
+      "lunchbox": ["a lunch box", "the lunch box"]
+    },
+    "phoneName": "a mobile phone",
+    "collection": "Lost property",
+    "about": {
+      "mitten": "A blue mitten with a white cuff. The other one is surely still at some nursery school.",
+      "keys": "A bunch of keys with a door fob. Someone is standing outside going through their pockets right now.",
+      "umbrella": "Folded and dry. It was probably raining when its owner went down, but not when they came up.",
+      "teddy": "A teddy bear with one ear more worn than the other. Someone misses it more than anything.",
+      "book": "A dog-eared paperback. The bookmark is three chapters from the end.",
+      "sunglasses": "A pair of sunglasses, dropped by someone who did not need them underground.",
+      "scarf": "A striped scarf, knitted by hand. The fringe is cut unevenly.",
+      "hat": "A green beanie with a bobble. It smells faintly of rain.",
+      "lunchbox": "A lunch box with yesterday's pasta. Someone is eating out today.",
+      "phone": "A mobile phone that rang on a bench. Its owner was so glad you answered."
+    },
+    "pick": "Choose a thing to read about it.",
+    "hint": "Not found yet. People leave things on the benches, by the pillars and in the ticket halls, a few a day at every station.",
+    "phoneHint": "Not found yet. Once a day a phone rings on a bench somewhere in the metro.",
+    "tally": "Lost property: {count}"
+  },
+  "discover": {
+    "title": "Discoveries",
+    "button": "Discoveries",
+    "progress": "{count} of {total}",
+    "intro": "Everything that can happen down here. What you have not seen yet shows as a clue. Much depends on the time, the day and the weather, so come back another time. The clues are in Swedish.",
+    "found": "Discovered",
+    "toast": "{title} · {count} of {total}",
+    "unknown": "Not discovered yet",
+    "back": "Back"
+  },
+  "life": "A life on the blue line",
+  "network": "See the whole network",
+  "modes": "Something else",
+  "support": "Enjoying the game? Buy Joel a single ticket",
+  "feedback": "Found a bug or have an idea? Email Joel",
+  "crash": {
+    "title": "Something went wrong",
+    "note": "The game stopped. Reload and you will be back where you stood.",
+    "reload": "Reload",
+    "home": "Back to the start page",
+    "mail": "Email Joel about what happened",
+    "subject": "Under Stockholm: the game stopped",
+    "body": "What were you doing when it happened?"
+  },
+  "show": {
+    "button": "Take a tour",
+    "hint": "Press a key or click to take over",
+    "hintTouch": "Tap the screen to take over",
+    "scenes": {
+      "now": [
+        "The blue line",
+        "Right now · the same trains for everyone playing"
+      ],
+      "rush": [
+        "Rush hour",
+        "The City passage on a weekday morning"
+      ],
+      "snow": [
+        "Snow and a Christmas tree",
+        "A December evening in the ticket hall"
+      ],
+      "lucia": [
+        "Lucia morning",
+        "13 December, on the platform"
+      ],
+      "era": [
+        "1975",
+        "The time machine · the green trains"
+      ],
+      "silver": [
+        "Silverpilen",
+        "Once an hour, at a minute nobody can predict"
+      ],
+      "trackWork": [
+        "Night in the tunnel",
+        "Track work while the trains rest"
+      ],
+      "kymlinge": [
+        "Kymlinge",
+        "The station that never opened"
+      ]
+    }
+  },
+  "intro": {
+    "aboard": "You are on the blue line, pulling into {station}. Press F to stand up and E to use things.",
+    "aboardTouch": "You are on the blue line, pulling into {station}. Tap Stand up to get up.",
+    "dive": "You are on {line}, pulling into {station}.",
+    "platform": "You are at {station}."
+  },
+  "notes": {
+    "ask": "Write a short greeting to everyone passing by (80 characters at most). No links, numbers or meanness.",
+    "send": "Put it up",
+    "cancel": "Cancel"
+  },
+  "settings": {
+    "button": "Settings",
+    "title": "Settings",
+    "game": "Game",
+    "language": "Language",
+    "look": "Look",
+    "sensitivity": "Mouse sensitivity",
+    "fov": "Field of view",
+    "volume": "Volume",
+    "master": "All sound",
+    "announcements": "Announcements",
+    "ambience": "Ambience",
+    "trains": "Trains",
+    "keys": "Keys",
+    "press": "Press a key…",
+    "reset": "Reset keys",
+    "back": "Back",
+    "gamepad": "Gamepad: left stick walks, right stick looks, A jumps, X uses, B sits, LB or pressing the left stick runs, Y shows the map, Start pauses.",
+    "gamepadOn": "Gamepad connected",
+    "gamepadOff": "Gamepad disconnected",
+    "actions": {
+      "forward": "Forward",
+      "back": "Back",
+      "left": "Left",
+      "right": "Right",
+      "run": "Run",
+      "jump": "Jump",
+      "sit": "Sit / stand",
+      "use": "Use",
+      "punch": "Punch",
+      "drive": "Driver mode",
+      "map": "Map",
+      "help": "Help",
+      "mute": "Sound on/off",
+      "passengers": "Passengers",
+      "motion": "Carriage sway",
+      "pixels": "Pixel mode",
+      "ghosts": "Other players",
+      "screensaver": "Screensaver"
+    }
+  },
+  "hints": {
+    "use": "{key} · use what you are standing by. Look for the tip under the crosshair.",
+    "sit": "{key} · sit down in a free seat when you are aboard.",
+    "pause": "{key} · menu, settings and the discovery book.",
+    "padPause": "Start · menu, settings and the discovery book.",
+    "touchPause": "Pause · menu, settings and the discovery book."
+  },
+  "continued": "Back where you were: {station}."
+}

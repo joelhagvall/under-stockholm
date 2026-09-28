@@ -1,0 +1,188 @@
+{
+  "at": "2026-09-28T08:03:49.318Z",
+  "commit": "8bc5708",
+  "fps": {
+    "desktop": {
+      "T-Centralen, platform": {
+        "fps": 60,
+        "p95": 16.7,
+        "slow": 0,
+        "worst": 17,
+        "hitches": 0,
+        "pixelRatio": 2,
+        "calls": 115,
+        "triangles": 430462
+      },
+      "Slussen, open air": {
+        "fps": 60,
+        "p95": 16.7,
+        "slow": 0,
+        "worst": 17,
+        "hitches": 0,
+        "pixelRatio": 2,
+        "calls": 166,
+        "triangles": 792122
+      },
+      "Gamla stan, over the water": {
+        "fps": 60,
+        "p95": 16.7,
+        "slow": 0,
+        "worst": 17,
+        "hitches": 0,
+        "pixelRatio": 2,
+        "calls": 179,
+        "triangles": 992715
+      },
+      "City passage, rush hour": {
+        "fps": 60,
+        "p95": 16.8,
+        "slow": 0,
+        "worst": 17,
+        "hitches": 0,
+        "pixelRatio": 2,
+        "calls": 59,
+        "triangles": 631349
+      },
+      "Kista": {
+        "fps": 60,
+        "p95": 16.7,
+        "slow": 0,
+        "worst": 17,
+        "hitches": 0,
+        "pixelRatio": 2,
+        "calls": 77,
+        "triangles": 334225
+      },
+      "A minute aboard": {
+        "fps": 60,
+        "p95": 16.7,
+        "slow": 0,
+        "worst": 17,
+        "hitches": 0,
+        "pixelRatio": 2,
+        "calls": 142,
+        "triangles": 901838
+      },
+      "Riding out to Akalla": {
+        "fps": 60,
+        "p95": 16.7,
+        "slow": 0,
+        "worst": 17,
+        "hitches": 0,
+        "pixelRatio": 2,
+        "calls": 29,
+        "triangles": 238232
+      },
+      "Riding out to Hässelby": {
+        "fps": 60,
+        "p95": 16.7,
+        "slow": 0,
+        "worst": 17,
+        "hitches": 0,
+        "pixelRatio": 2,
+        "calls": 144,
+        "triangles": 605469
+      }
+    },
+    "phone": {
+      "T-Centralen, platform": {
+        "fps": 60,
+        "p95": 16.7,
+        "slow": 0,
+        "worst": 17,
+        "hitches": 0,
+        "pixelRatio": 1.5,
+        "calls": 98,
+        "triangles": 430368
+      },
+      "Slussen, open air": {
+        "fps": 60,
+        "p95": 16.7,
+        "slow": 0,
+        "worst": 17,
+        "hitches": 0,
+        "pixelRatio": 1.5,
+        "calls": 145,
+        "triangles": 791960
+      },
+      "Gamla stan, over the water": {
+        "fps": 59,
+        "p95": 16.8,
+        "slow": 1,
+        "worst": 33,
+        "hitches": 0,
+        "pixelRatio": 1.5,
+        "calls": 142,
+        "triangles": 990397
+      },
+      "City passage, rush hour": {
+        "fps": 60,
+        "p95": 16.7,
+        "slow": 0,
+        "worst": 17,
+        "hitches": 0,
+        "pixelRatio": 1.5,
+        "calls": 57,
+        "triangles": 625899
+      },
+      "Kista": {
+        "fps": 60,
+        "p95": 16.7,
+        "slow": 0,
+        "worst": 17,
+        "hitches": 0,
+        "pixelRatio": 1.5,
+        "calls": 73,
+        "triangles": 333963
+      },
+      "A minute aboard": {
+        "fps": 60,
+        "p95": 16.8,
+        "slow": 1,
+        "worst": 33,
+        "hitches": 0,
+        "pixelRatio": 1.5,
+        "calls": 134,
+        "triangles": 901740
+      },
+      "Riding out to Akalla": {
+        "fps": 60,
+        "p95": 16.8,
+        "slow": 0,
+        "worst": 33,
+        "hitches": 0,
+        "pixelRatio": 1.5,
+        "calls": 27,
+        "triangles": 238228
+      },
+      "Riding out to Hässelby": {
+        "fps": 60,
+        "p95": 16.7,
+        "slow": 1,
+        "worst": 33,
+        "hitches": 0,
+        "pixelRatio": 1.5,
+        "calls": 144,
+        "triangles": 605469
+      }
+    }
+  },
+  "load": {
+    "desktop": {
+      "downloadS": 0.16889999997615815,
+      "bytes": 1019265,
+      "wasmBytes": 652517,
+      "wasmDoneS": 0.16889999997615815,
+      "compileS": 0.06909999996423721,
+      "readyS": 1.585199999988079
+    },
+    "phone": {
+      "downloadS": 5.061,
+      "bytes": 1019265,
+      "wasmBytes": 652517,
+      "wasmDoneS": 5.061,
+      "compileS": 4.198599999964237,
+      "readyS": 8.23580000001192
+    }
+  }
+}

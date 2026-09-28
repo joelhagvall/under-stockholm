@@ -1,0 +1,33 @@
+#!/bin/sh
+# The quality gate before a push (scripts/check.ts), kept to a minute or two so it is never worth skipping: the quick
+# gates always, and the smoke level (one leak scenario, the two heaviest scenes as a phone) when the game changed.
+# When the last check already passed at that level on exactly the tree being pushed (scripts/tested.ts), the push goes
+# straight through. Everything else runs before every deploy (`bun run deploy`). Installed by
+# `bun install` (the `prepare` script points core.hooksPath here). Skip once with `git push --no-verify` or
+# SKIP_CHECK=1.
+[ -n "$SKIP_CHECK" ] && exit 0
+zero=0000000000000000000000000000000000000000
+changed=""
+pushed=""
+while read -r local_ref local_sha remote_ref remote_sha; do
+  # A deleted branch pushes nothing.
+  [ "$local_sha" = "$zero" ] && continue
+  pushed="$pushed $local_sha"
+  if [ "$remote_sha" = "$zero" ]; then
+    # A new branch: everything since it left main, or since the beginning.
+    base=$(git merge-base "$local_sha" origin/main 2>/dev/null || git rev-list --max-parents=0 "$local_sha" | tail -1)
+  else
+    base=$remote_sha
+  fi
+  changed="$changed
+$(git diff --name-only "$base" "$local_sha")"
+done
+flags="--quick"
+echo "$changed" | grep -Eq '^(src/game/|src/network/|vite\.config\.ts|package\.json|bun\.lock)' && flags="--smoke"
+[ -z "$pushed" ] && exit 0
+if bun scripts/tested.ts "${flags#--}" $pushed; then
+  echo "pre-push: the last check ($flags or more) passed on exactly this tree"
+  exit 0
+fi
+echo "pre-push: bun scripts/check.ts $flags"
+exec bun scripts/check.ts $flags

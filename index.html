@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Under Stockholm | Åk Stockholms tunnelbana i webbläsaren</title>
+    <meta name="description" content="Gratis webbläsarspel: gå på perrongerna och åk tåg i en stiliserad Stockholms tunnelbana. Blå, röda och gröna linjen, 100 stationer och samma tåg för alla." />
+    <link rel="canonical" href="%SITE_URL%" />
+    <link rel="alternate" hreflang="sv" href="%SITE_URL%" />
+    <link rel="alternate" hreflang="en" href="%SITE_URL%en/" />
+    <link rel="alternate" hreflang="x-default" href="%SITE_URL%" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Under Stockholm" />
+    <meta property="og:title" content="Under Stockholm | Åk Stockholms tunnelbana i webbläsaren" />
+    <meta property="og:description" content="Gå på perrongerna och åk tåg i en stiliserad Stockholms tunnelbana. Hela nätet, 100 stationer, samma tåg för alla som spelar." />
+    <meta property="og:url" content="%SITE_URL%" />
+    <meta property="og:locale" content="sv_SE" />
+    <meta property="og:locale:alternate" content="en_GB" />
+    <meta property="og:image" content="%SITE_URL%og-sv.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Under Stockholm: åk Stockholms tunnelbana i webbläsaren. Perrongen på T-Centralen med blå rankor i berget och ett tåg med öppna dörrar." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Under Stockholm | Åk Stockholms tunnelbana i webbläsaren" />
+    <meta name="twitter:description" content="Gå på perrongerna och åk tåg i en stiliserad Stockholms tunnelbana. Hela nätet, 100 stationer, samma tåg för alla som spelar." />
+    <meta name="twitter:image" content="%SITE_URL%og-sv.jpg" />
+    <meta name="twitter:image:alt" content="Under Stockholm: åk Stockholms tunnelbana i webbläsaren. Perrongen på T-Centralen med blå rankor i berget och ett tåg med öppna dörrar." />
+    <meta name="theme-color" content="#050608" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="stylesheet" href="./src/style.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "%SITE_URL%#website",
+            "url": "%SITE_URL%",
+            "name": "Under Stockholm",
+            "inLanguage": ["sv", "en"],
+            "publisher": { "@id": "%SITE_URL%#publisher" }
+          },
+          {
+            "@type": "Organization",
+            "@id": "%SITE_URL%#publisher",
+            "name": "Hägvall Labs",
+            "legalName": "Hägvall Labs AB",
+            "taxID": "559598-0110",
+            "address": { "@type": "PostalAddress", "addressLocality": "Stockholm", "addressCountry": "SE" },
+            "url": "https://hagvall-labs.com/",
+            "founder": { "@id": "%SITE_URL%#author" }
+          },
+          {
+            "@type": "Person",
+            "@id": "%SITE_URL%#author",
+            "name": "Joel Hägvall",
+            "url": "https://joelhagvall.com/",
+            "worksFor": { "@id": "%SITE_URL%#publisher" }
+          },
+          {
+            "@type": "VideoGame",
+            "@id": "%SITE_URL%#game",
+            "name": "Under Stockholm",
+            "url": "%SITE_URL%",
+            "description": "Ett gratis webbläsarspel i förstapersonsvy där du går på perrongerna och åker tåg i en stiliserad Stockholms tunnelbana: blå, röda och gröna linjen, 100 stationer.",
+            "image": "%SITE_URL%og.jpg",
+            "inLanguage": ["sv", "en"],
+            "genre": ["Simulering", "Utforskning"],
+            "gamePlatform": "Webbläsare",
+            "applicationCategory": "GameApplication",
+            "operatingSystem": "Alla med en modern webbläsare",
+            "playMode": "SinglePlayer",
+            "isAccessibleForFree": true,
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "SEK" },
+            "author": { "@id": "%SITE_URL%#author" },
+            "publisher": { "@id": "%SITE_URL%#publisher" },
+            "isPartOf": { "@id": "%SITE_URL%#website" }
+          }
+        ]
+      }
+    </script>
+    <noscript><style>.menu-board.is-pending { color: var(--amber); text-shadow: 0 0 10px rgba(255, 180, 68, 0.55); }</style></noscript>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Hoppa till innehållet</a>
+    <main class="menu" id="menu">
+      <a class="menu-lang" href="./en/" hreflang="en" lang="en" data-lang="en">English</a>
+      <div class="menu-inner">
+        <div class="menu-roundel" aria-hidden="true"><span>T</span></div>
+        <div class="menu-pole" aria-hidden="true"></div>
+        <div class="menu-ground" aria-hidden="true"></div>
+        <div class="menu-sign">
+          <h1 translate="no">Under Stockholm</h1>
+        </div>
+        <p class="menu-board is-pending" id="departures" translate="no"><span class="menu-board-row"><span>10</span> <span>Hjulsta</span> <span></span></span> <span class="menu-board-row"><span>11</span> <span>Akalla</span> <span></span></span></p>
+        <p class="menu-lead" id="main-content" tabindex="-1">Gå på perrongerna, åk rulltrapporna och ta tunnelbanan genom handmålade grottor i berget och ut i förorterna.</p>
+        <!-- game -->
+        <div class="menu-actions" data-soon="Spelet öppnar snart. Tills dess kan du följa tågen på linjen här nedanför.">
+          <button type="button" class="menu-start" id="start">Gå ner i tunnelbanan</button>
+          <button type="button" class="menu-continue" id="continue" hidden>Fortsätt där du var<small></small></button>
+        </div>
+        <ul class="menu-more">
+          <li><button type="button" id="tour"><span>Se en tur</span><small>Spelet visar runt tills du tar över</small></button></li>
+          <li><button type="button" id="network"><span>Se hela nätet</span><small>Varje tåg under staden just nu</small></button></li>
+          <li><a id="life" href="?liv"><span>Ett liv på blå linjen</span><small>1975 till 2050 på tre minuter</small></a></li>
+        </ul>
+        <!-- /game -->
+        <p class="menu-status" id="status" role="status" aria-live="polite" data-loading="Laddar tunnelbanan…" data-error="Spelet kunde inte starta. Ladda om sidan och försök igen, eller prova en annan webbläsare om WebGL inte fungerar i den här."></p>
+        <img class="menu-shot" src="./og.jpg" width="1200" height="630" loading="lazy" decoding="async" alt="Perrongen på T-Centralen i spelet, med blå rankor i berget och ett tåg med öppna dörrar." />
+        <section class="line-now" id="line-now" data-line="blue" aria-labelledby="line-now-heading">
+          <h2 id="line-now-heading">På linjen just nu</h2>
+          <div class="line-now-lines" role="group" aria-label="Vilken linje som visas">
+            <button type="button" data-line="0" aria-pressed="true">Blå</button>
+            <button type="button" data-line="1" aria-pressed="false">Röd</button>
+            <button type="button" data-line="2" aria-pressed="false">Grön</button>
+          </div>
+          <div class="line-map" aria-hidden="true" translate="no"></div>
+          <ul class="line-trains"></ul>
+          <p class="line-note" role="status" aria-live="polite"></p>
+        </section>
+        <section class="menu-section menu-controls" aria-labelledby="controls-heading">
+          <h2 id="controls-heading">Kontroller</h2>
+          <p class="touch-instructions">Gå med vänster styrspak. Dra i bilden för att se dig omkring. Knapparna på skärmen låter dig springa, hoppa, sätta dig och klättra upp på perrongen. Öppna pausmenyn för ljud och inställningar. Liggande läge ger en bredare vy.</p>
+          <dl class="desktop-controls">
+            <div><dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>Gå</dd></div>
+            <div><dt>Musen</dt><dd>Se dig omkring</dd></div>
+            <div><dt><kbd>Shift</kbd></dt><dd>Spring</dd></div>
+            <div><dt><kbd>Mellanslag</kbd></dt><dd>Hoppa</dd></div>
+            <div><dt><kbd>E</kbd></dt><dd>Klättra upp på perrongen</dd></div>
+            <div><dt><kbd>M</kbd></dt><dd>Ljud av och på</dd></div>
+            <div><dt><kbd>P</kbd></dt><dd>Pixelläge</dd></div>
+          </dl>
+        </section>
+        <section class="menu-section menu-about" aria-labelledby="about-heading">
+          <h2 id="about-heading">Om spelet</h2>
+          <p><span translate="no">Under Stockholm</span> är ett gratis spel i webbläsaren där du går omkring i en stiliserad Stockholms tunnelbana. Hela nätet finns med: blå, röda och gröna linjen, sju linjer och 100 stationer ut till Akalla, Hjulsta, Norsborg, Fruängen, Mörby centrum, Ropsten, Hässelby strand, Skarpnäck, Farsta strand och Hagsätra. Du byter linje på <span class="nobr">T-Centralen</span>, Gamla stan, Slussen och Fridhemsplan, och i förorterna går tågen ute i det fria.</p>
+          <h3>Saker att hitta</h3>
+          <ul>
+            <li>Kör ett övningståg från förarhytten och försök stanna vid stopptavlan.</li>
+            <li>Hitta personalgångarna, skyddsrummet under Rådhuset, Kymlinge och Silverpilen.</li>
+            <li>Res tillbaka till 1975 med tidsmaskinen och fyll boken med upptäckter.</li>
+          </ul>
+          <p>Du behöver inget konto och inget att installera: spelet går i webbläsaren på dator, mobil och surfplatta. Lägg det på hemskärmen så startar det i helskärm.</p>
+          <details class="menu-details">
+            <summary>Mer om spelet</summary>
+            <h3>Stationerna</h3>
+            <p>Varje station byggs av data och har sin egen målning: blå rankor i berget på <span class="nobr">T-Centralen</span>, terrakotta på Rådhuset, terrazzo och klassiska fragment på Kungsträdgården, Stadions regnbåge och Skarpnäcks röda tak. Mellan <span class="nobr">T-Centralen</span> och Slussen åker röda och gröna linjen över Riddarfjärden med Gamla stan, Riddarholmskyrkan och Stadshusets tre kronor utanför fönstret. Varje station har rulltrappor, spärrar, klockor som visar rätt tid och bärnstensgula avgångsskyltar, och bakom en grind längst ut på perrongen börjar personalgångarna. Allt är tolkningar i spelets egen stil, inte exakta kopior.</p>
+            <h3>Stockholm just nu</h3>
+            <p>Spelets klocka är Stockholms klocka. Tågen är SL:s egna på alla tre linjerna, med samma avgångstider som på perrongerna i verkligheten, och Silverpilen smyger fortfarande fram mellan dem. Stänger du av riktiga tåg i pausmenyn kör spelets egen tidtabell: alla som spelar möter samma tåg på samma plats, rusningen kommer på morgonen och vardagsnätter stannar trafiken mellan ett och fem. Vädret vid uppgångarna följer det riktiga vädret, och när SL rapporterar en trasig rulltrappa står den still i spelet också. Året märks: julgran i advent, luciatåg den 13 december, studenter som sjunger i vagnarna i juni och kanelbullepåsar den 4 oktober.</p>
+            <h3>Livet i tunnelbanan</h3>
+            <p>Folk står till höger i rulltrappan och går till vänster, och den som står still i fel fil får höra om det. En saxofonist spelar i Kungsträdgårdens biljetthall, en dragspelare i gången vid <span class="nobr">T-Centralen</span>, och i City-passagen trängs hundratals pendlare i rusningen. Duvor pickar vid dörrarna, en råtta springer längs spåret när rälsen börjar sjunga och i kiosken kan du köpa kaffe och bulle och bära med dig den ångande muggen. Kontrollanter kliver på ibland, så blippa kortet i spärren.</p>
+          </details>
+        </section>
+        <p class="menu-note">Spelet är en prototyp och inte kopplat till SL.</p>
+        <p class="menu-credit">Ett spel från <a href="https://hagvall-labs.com/" translate="no">Hägvall Labs</a>, av <a href="https://joelhagvall.com/" rel="author" translate="no">Joel Hägvall</a></p>
+        <p class="menu-credit">Gillar du spelet? <a href="https://buymeacoffee.com/joelhagvall">Bjud Joel på en enkelbiljett</a></p>
+        <p class="menu-credit">Hittat en bugg eller har en idé? <a href="mailto:work@joelhagvall.com?subject=Under%20Stockholm">Mejla Joel</a></p>
+      </div>
+    </main>
+    <div class="game" id="game" hidden></div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

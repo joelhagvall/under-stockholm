@@ -1,0 +1,35 @@
+{
+  "name": "under-stockholm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun scripts/dev.ts",
+    "build": "tsc --noEmit && vite build && bun scripts/check-budgets.ts",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview",
+    "serve:prod": "bun scripts/serve.ts",
+    "ghosts": "bun server/ghosts.ts",
+    "fps": "bun scripts/fps.ts",
+    "mem": "bun scripts/mem.ts",
+    "load": "bun scripts/load.ts",
+    "check": "bun scripts/check.ts",
+    "release": "bun scripts/check.ts",
+    "deploy": "bun scripts/deploy.ts",
+    "nightly": "bun scripts/nightly.ts",
+    "prepare": "git config core.hooksPath scripts/hooks || true"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d": "0.20.0",
+    "three": "^0.186.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/three": "^0.186.0",
+    "puppeteer-core": "^25.12.0",
+    "spectorjs": "^0.9.33",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "wrangler": "^4.141.0"
+  }
+}
