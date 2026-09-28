@@ -1199,6 +1199,16 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     const destination = serviceDestination(net, svc.route, stop.track);
     return `${destination.number} ${destination.name}`;
   };
+  /**
+   * What a train's own signs say: the destination alone outside and "Mot ..." inside, without the route number, which
+   * SL shows on the platforms' boards but the C20's signs cannot.
+   */
+  const trainSigns = (st: TrainState, svc: Service): [string, string] => {
+    const stop = svc.timetable.stops[st.phase === 'moving' ? st.next : st.stop];
+    if (stop.kind === 'turnback') return ['Ej i trafik', 'Ej i trafik'];
+    const name = svc.journey ? svc.journey.destination : serviceDestination(net, svc.route, stop.track).name;
+    return [name, `Mot ${name}`];
+  };
   const infoText = (st: TrainState, svc: Service): string => {
     const tt = svc.timetable;
     if (st.phase === 'moving') {
@@ -1549,7 +1559,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
       const stop = svc.timetable.stops[st.phase === 'moving' ? st.next : st.stop];
       tr.setHeading(stop.track === 1 ? 1 : -1);
       tr.setDoors(st.doors, doorSide(svc.timetable.stops[st.stop], st.z));
-      tr.setDestination(destinationText(st, svc));
+      tr.setDestination(...trainSigns(st, svc));
       tr.setInfo(infoText(st, svc));
       if (allowChime && changed && prev !== null && st.phase === 'closing' && listening && !document.hidden) {
         const location = world.locate(player.feet);

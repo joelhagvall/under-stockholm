@@ -80,6 +80,19 @@ function variantMaterials(variant: TrainVariant) {
   };
 }
 
+/** Amber dot-matrix text on black, as on the C20's signs. */
+function drawDestination(sign: CanvasSign, text: string): void {
+  redraw(sign, (ctx, w, h) => {
+    ctx.fillStyle = '#050607';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#ffb444';
+    fitText(ctx, text, w - 24, 700, 50, MONO);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, w / 2, h / 2 + 2);
+  });
+}
+
 const displays = new Map<Stock['id'], BufferGeometry>();
 
 /** The dot-matrix displays over every gangway and every cab door, facing into the sections: one mesh per stock. */
@@ -142,9 +155,12 @@ export class Train {
   /** Loose things inside (the rolling can, the newspaper): drawn with the inside, near to. */
   readonly aboard = new Group();
   private readonly destSign: CanvasSign;
+  /** The displays inside, which say where the train goes ("Mot Hjulsta") rather than repeat the sign outside. */
+  private readonly insideSign: CanvasSign;
   private readonly infoSign: CanvasSign;
   private readonly logoSign: CanvasSign;
   private destText = '';
+  private insideText = '';
   private infoText = '';
   private doorOpen = -1;
   private doorSide: -1 | 1 = -1;
@@ -207,6 +223,7 @@ export class Train {
     }
 
     this.destSign = createCanvasSign(512, 80);
+    this.insideSign = createCanvasSign(512, 80);
     this.infoSign = createCanvasSign(512, 96);
     // The car number, on a transparent plate for the nose and the sides. No operator's logo: the game is not SL's.
     this.logoSign = createCanvasSign(256, 96, (ctx, w, h) => {
@@ -250,7 +267,7 @@ export class Train {
     }
     this.group.add(this.signs, this.aboard);
     // Inside, the destination also shows over every gangway and cab door.
-    this.displays = new Mesh(displayGeometry(this.stock), this.destSign.material);
+    this.displays = new Mesh(displayGeometry(this.stock), this.insideSign.material);
     this.displays.visible = !classicStyle(seatStyle(variant));
     this.group.add(this.displays);
 
@@ -474,18 +491,16 @@ export class Train {
     this.tails[0].visible = dir > 0;
   }
 
-  setDestination(text: string): void {
-    if (text === this.destText) return;
-    this.destText = text;
-    redraw(this.destSign, (ctx, w, h) => {
-      ctx.fillStyle = '#050607';
-      ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = '#ffb444';
-      fitText(ctx, text, w - 24, 700, 50, MONO);
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(text, w / 2, h / 2 + 2);
-    });
+  /** The sign outside, and the displays inside (the same unless given). */
+  setDestination(text: string, inside = text): void {
+    if (text !== this.destText) {
+      this.destText = text;
+      drawDestination(this.destSign, text);
+    }
+    if (inside !== this.insideText) {
+      this.insideText = inside;
+      drawDestination(this.insideSign, inside);
+    }
   }
 
   setInfo(text: string): void {
