@@ -376,6 +376,17 @@ export const COMMUTER_LAYOUT = {
   stagger: 0.2,
 };
 
+/**
+ * The wall down the middle of a split island (`look.split`): two platform tunnels, one per track, joined by a middle
+ * vault and cross passages. The openings stand where the island's middle carries benches, pillars, clocks, signs and
+ * displays, so nothing moves; `end` is where the wall stops toward each platform end.
+ */
+export const SPLIT = {
+  half: 0.6,
+  openings: [[-20, 20], [-53, -37], [37, 53]] as ReadonlyArray<readonly [number, number]>,
+  end: 60,
+};
+
 /** An open-air platform's roof (`world/canopy.ts`): its height, reach and posts. */
 export const CANOPY = {
   /** The roof's underside, just over the lamp rail. */

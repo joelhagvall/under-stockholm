@@ -20,6 +20,7 @@ import {
   CAVE_HALF_L,
   CAVE_HALF_W,
   CANOPY,
+  SPLIT,
   VIADUCT,
   CAVE_TOP,
   CAVE_WALL_H,
@@ -974,6 +975,30 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
       }
     }
   } else stationArchitecture(s, physics, def, cx, e);
+  // Two platform tunnels joined by a middle vault: a wall down the island between its openings, up into the ceiling.
+  if (def.look?.split && !outdoor && !twin) {
+    // Well into the rock over a cave's rough crown, or through a tiled ceiling, flat or vaulted: its top is never seen.
+    const top = tiled ? Math.max(VAULT_TOP, TILED_TOP) + 1.5 : CAVE_TOP + 3;
+    const cuts = [...SPLIT.openings.map(([a, b]) => [cx + a, cx + b] as const)].sort((p, q) => p[0] - q[0]);
+    let from = cx - SPLIT.end;
+    for (const [a, b] of [...cuts, [cx + SPLIT.end, Infinity] as const]) {
+      // In runs round a way up from along the platform, where the island stays clear.
+      let run: number | null = null;
+      for (let x = from; x <= a; x += 1) {
+        const clear = x < a && free(Math.min(a, x + 0.5), 0.5);
+        if (clear && run === null) run = x;
+        if ((!clear || x + 1 > a) && run !== null) {
+          const x2 = clear ? a : x;
+          for (const zi of islands) {
+            s.lit.box({ x: run, y: PLATFORM_Y, z: zi - SPLIT.half }, { x: x2, y: top, z: zi + SPLIT.half }, theme.paint, [], 1.5);
+            physics.box({ x: run, y: PLATFORM_Y, z: zi - SPLIT.half }, { x: x2, y: top, z: zi + SPLIT.half });
+          }
+          run = null;
+        }
+      }
+      from = b;
+    }
+  }
   yield;
   // The station's own sculptures, showcases and fittings (`details/`), a stage of their own.
   stationOwnDetails(line.id, { s, physics, def, cx, exitDir: e, islands, outdoor, tiled, free });

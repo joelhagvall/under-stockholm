@@ -127,25 +127,25 @@ export const RED_LINE: LineDef = {
       look: { ceiling: 'flat', floor: 0xe9cf86, columns: 'square', columnColor: 0x3a3a3c },
       theme: sluice },
     // Mariatorget: a pale vault and walls of golden-brown ceramic rods.
-    { name: 'Mariatorget', map: [0.475, 0.58], sl: 9297, riders: 12000, rise: 12, architecture: 'tiles', exits: 'Hornsgatan · Swedenborgsgatan', halls: [{ end: 'inbound', incline: true, exits: 'Wollmar Yxkullsgatan' }, { end: 'outbound', corridor: 30, incline: true, exits: 'Torkel Knutssonsgatan' }], look: { ceiling: 'vault', floor: 0xc8c6c0, columns: 'none' },
+    { name: 'Mariatorget', map: [0.475, 0.58], sl: 9297, riders: 12000, rise: 12, architecture: 'tiles', exits: 'Hornsgatan · Swedenborgsgatan', halls: [{ end: 'inbound', incline: true, exits: 'Wollmar Yxkullsgatan' }, { end: 'outbound', corridor: 30, incline: true, exits: 'Torkel Knutssonsgatan' }], look: { ceiling: 'vault', floor: 0xc8c6c0, columns: 'none', split: true },
       theme: rods },
     // Zinkensdamm: a pale vault over wine-red tiles on grey, and a brick-red floor.
     { name: 'Zinkensdamm', map: [0.44, 0.59], sl: 9296, riders: 8000, rise: 11, architecture: 'tiles', exits: 'Ringvägen · Hornsgatan', halls: [{ end: 'inbound', from: -10, incline: true, exits: 'Ringvägen' }], look: { ceiling: 'vault', floor: 0x8a4a38, columns: 'none' },
       theme: wine },
     // Hornstull: a pale vault over red glazed brick with white cave-painting animals.
-    { name: 'Hornstull', map: [0.405, 0.6], sl: 9295, riders: 12000, rise: 7, architecture: 'tiles', exits: 'Långholmsgatan · Hornstull', halls: [{ end: 'outbound', corridor: 60, incline: true, exits: 'Långholmsgatan' }, { end: 'inbound', exits: 'Hornsbruksgatan' }], look: { ceiling: 'vault', floor: 0x5a5a5c, columns: 'none' },
+    { name: 'Hornstull', map: [0.405, 0.6], sl: 9295, riders: 12000, rise: 7, architecture: 'tiles', exits: 'Långholmsgatan · Hornstull', halls: [{ end: 'outbound', corridor: 60, incline: true, exits: 'Långholmsgatan' }, { end: 'inbound', exits: 'Hornsbruksgatan' }], look: { ceiling: 'vault', floor: 0x5a5a5c, columns: 'none', split: true },
       theme: altamira },
     // Liljeholmen: covered, under a building deck: a dark ceiling on maroon beams, concrete reliefs, glowing pillars, a green floor.
     { name: 'Liljeholmen', map: [0.375, 0.635], sl: 9294, riders: 18000, rise: 7, architecture: 'tiles', exits: 'Liljeholmstorget', halls: [{ end: 'outbound' }, { end: 'inbound', exits: 'Liljeholmsvägen' }], gap: 800, transfer: text.announcements.tvarbanaTransfer, look: { ceiling: 'flat', floor: 0x7a9a86, columns: 'none' },
       theme: reliefs },
     // Route 13 toward Norsborg.
     // Aspudden: a white vault, teal checker tiles on one wall, enamel leaves on white tiles on the other, a bronze penguin.
-    { name: 'Aspudden', map: [0.345, 0.665], sl: 9293, riders: 5000, rise: 11, architecture: 'tiles', exits: 'Aspudden', halls: [{ end: 'outbound', exits: 'Schlytersvägen' }], branch: '13', gap: JUNCTION_RUN, look: { ceiling: 'vault', floor: 0xb8b6b0, columns: 'none' },
+    { name: 'Aspudden', map: [0.345, 0.665], sl: 9293, riders: 5000, rise: 11, architecture: 'tiles', exits: 'Aspudden', halls: [{ end: 'outbound', exits: 'Schlytersvägen' }], branch: '13', gap: JUNCTION_RUN, look: { ceiling: 'vault', floor: 0xb8b6b0, columns: 'none', split: true },
       theme: leaves },
     { name: 'Örnsberg', map: [0.315, 0.685], sl: 9292, riders: 3000, architecture: 'rock', exits: 'Örnsberg', halls: [{ end: 'inbound' }], branch: '13', open: true, theme: rock(0x484848, coolLamp, 0x606468, 0xa0a4a8, 99) },
     { name: 'Axelsberg', map: [0.285, 0.705], sl: 9291, riders: 3000, architecture: 'rock', exits: 'Axelsberg', halls: [{ end: 'inbound' }], branch: '13', open: true, theme: rock(0x4a4640, warmLamp, 0x7a6048, 0xb09878, 100) },
     // Mälarhöjden, deep in the rock: a white barrel vault, the blue enamel frieze along the tracks, a brick-red floor.
-    { name: 'Mälarhöjden', map: [0.255, 0.725], sl: 9290, riders: 3000, rise: 24, architecture: 'tiles', exits: 'Mälarhöjden', halls: [{ end: 'inbound', exits: 'Hägerstensvägen · Slättgårdsvägen' }], branch: '13', look: { ceiling: 'vault', floor: 0x7a4232, columns: 'none' }, theme: tide },
+    { name: 'Mälarhöjden', map: [0.255, 0.725], sl: 9290, riders: 3000, rise: 24, architecture: 'tiles', exits: 'Mälarhöjden', halls: [{ end: 'inbound', exits: 'Hägerstensvägen · Slättgårdsvägen' }], branch: '13', look: { ceiling: 'vault', floor: 0x7a4232, columns: 'none', split: true }, theme: tide },
     { name: 'Bredäng', map: [0.225, 0.745], sl: 9289, riders: 7000, architecture: 'rock', exits: 'Bredängs centrum', halls: [{ end: 'inbound', from: 60, down: true }], branch: '13', open: true, theme: rock(0x484640, warmLamp, 0x6a6a5a, 0xaaa890, 102) },
     { name: 'Sätra', map: [0.195, 0.765], sl: 9288, riders: 4500, architecture: 'rock', exits: 'Sätra centrum', halls: [{ end: 'outbound' }], branch: '13', open: true, theme: rock(0x46443f, warmLamp, 0x746650, 0xb2a288, 103) },
     // Skärholmen, under the centre: a flat concrete ceiling, white tiles with black bands, desert paintings, a brick-red floor.
@@ -163,7 +163,7 @@ export const RED_LINE: LineDef = {
     { name: 'Norsborg', map: [0.03, 0.96], sl: 9280, riders: 4500, architecture: 'rock', exits: 'Norsborg', halls: [{ end: 'inbound' }], branch: '13', open: true, theme: rock(0x46464a, coolLamp, 0x5a5e66, 0x9aa0a8, 109) },
     // Route 14 toward Fruängen.
     // Midsommarkransen: shiny beige tiles under a low vault and a dark floor; a midsummer wreath hangs over the platform.
-    { name: 'Midsommarkransen', map: [0.37, 0.69], sl: 9264, riders: 6000, rise: 12, architecture: 'tiles', exits: 'Tellusborgsvägen · Midsommarkransen', halls: [{ end: 'inbound', from: -5, exits: 'Tegelbruksvägen' }], branch: '14', gap: JUNCTION_RUN, look: { ceiling: 'vault', floor: 0x4a4a4e, columns: 'none' },
+    { name: 'Midsommarkransen', map: [0.37, 0.69], sl: 9264, riders: 6000, rise: 12, architecture: 'tiles', exits: 'Tellusborgsvägen · Midsommarkransen', halls: [{ end: 'inbound', from: -5, exits: 'Tegelbruksvägen' }], branch: '14', gap: JUNCTION_RUN, look: { ceiling: 'vault', floor: 0x4a4a4e, columns: 'none', split: true },
       theme: wreath },
     { name: 'Telefonplan', map: [0.362, 0.73], sl: 9263, riders: 7000, architecture: 'rock', exits: 'Telefonplan · Konstfack', halls: [{ end: 'outbound' }], branch: '14', open: true, theme: morse },
     { name: 'Hägerstensåsen', map: [0.354, 0.77], sl: 9262, riders: 4500, architecture: 'rock', exits: 'Hägerstensåsen', halls: [{ end: 'inbound' }, { end: 'outbound' }], branch: '14', open: true, theme: rock(0x44463e, warmLamp, 0x606a48, 0xa0a878, 110) },
