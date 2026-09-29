@@ -27,6 +27,8 @@ import {
 import { ghostX, hallDir, isOutdoor, lineEnd, stationRise, type HallDef, type Network } from '../line';
 import { buildOpenTrack, buildOpenTurnback, buildTunnelMouth, OPEN } from './outdoor';
 import { OSM_HALF_X, OsmData, type OsmPatch } from './osm';
+import { streetKey } from './osmKey';
+import { StreetLayers, hasStreetFile } from './streetLayers';
 import { buildBridge, buildCity, cityAnchors } from './city';
 import type { Link } from '../routes';
 import { LOADING_SLICE_MS, nextFrame } from '../frames';
@@ -128,6 +130,9 @@ export class World {
   readonly openRanges: Array<[number, number]> = [];
   /** The real buildings round the stations in the open (see `osm.ts`), fetched a line at a time. */
   private readonly osm = new OsmData();
+  /** The real city round each street (see `streetLayers.ts`), and each built one's group, by station and hall. */
+  private streets: StreetLayers | null = null;
+  private readonly streetCity = new Map<string, Object3D>();
   /** The stations in the open outside the city, where real buildings may stand. */
   private readonly osmSites: Array<{ line: string; name: string; x: number }>;
   /** False at night, when the escalators stand still. */
@@ -224,6 +229,7 @@ export class World {
 
   /** Lays out the whole network and builds the blue trunk, yielding the fraction done after each part. */
   private *build(physics: Physics): Generator<number | void, void> {
+    this.streets = new StreetLayers(physics);
     const net = this.net;
     const xs = this.stationX;
     // The blue trunk is built behind the loading screen; everything else when the player comes near.
@@ -285,12 +291,14 @@ export class World {
         this.group.add(wing.group);
         if (wing.update) this.updaters.push(wing.update);
         add(info, wing);
+        this.streetCities(info);
         yield part(WEIGHT.wing);
         continue;
       }
       const { info } = withoutSigns(() => buildStation(physics, net, i, xs[i], ends, service, true));
       const wing = shared ? noWing : withoutSigns(() => buildServiceWing(physics, i, xs[i], -wingDir as 1 | -1, kind, true, clue, side));
       add(info, wing);
+      this.streetCities(info);
       // What the dry pass handed the station, to go back to when the built one is taken down, so its meshes can go.
       const dry: StationInfo = { ...info, halls: info.halls.map((h) => ({ ...h, exit: { ...h.exit } })), inclines: [] };
       const open = isOutdoor(net, i) && !def.city;
@@ -539,10 +547,46 @@ export class World {
     const near = station === null ? null : this.hallNear(station, x);
     // Every frame, as a street built on the way comes in hidden.
     for (const s of this.stations) {
-      for (const hall of s.halls) {
+      for (const [k, hall] of s.halls.entries()) {
         const group = hall.exit.street?.group;
         if (group) group.visible = hall === near;
+        const city = this.streetCity.get(`${s.index}:${k}`);
+        if (city) city.visible = hall === near;
       }
+    }
+  }
+
+  /**
+   * The real city round each of a station's streets that OpenStreetMap has: built when the player comes near, its
+   * walls' colliders laid then and taken away again with it, and shown with the street (`showStreet`).
+   */
+  private streetCities(info: StationInfo): void {
+    const def = this.net.stations[info.index];
+    if (def.city) return;
+    const outdoor = isOutdoor(this.net, info.index);
+    for (const [k, hall] of info.halls.entries()) {
+      const street = hall.exit.street;
+      const key = streetKey(this.net.lines[def.line].id, def.name, outdoor ? null : hall.dir);
+      if (!street || !hasStreetFile(key)) continue;
+      const at = { hx: hall.x(0), hallY: hall.bounds.y, e: hall.dir, door: hall.exit.cut === 0 };
+      const name = `${info.index}:${k}`;
+      let release: (() => void) | null = null;
+      this.later(street.x0, street.x1, function* (this: World) {
+        // The lit windows fade in with the square's own, on whichever street is built now.
+        const built = yield* this.streets!.build(key, info.cx, at, info.index * 7 + k, () => this.stations[info.index].halls[k]?.exit.street?.windows ?? null);
+        if (!built) return;
+        release = built.release;
+        built.group.visible = false;
+        this.streetCity.set(name, built.group);
+        // In a group of its own, which `show` hides when far away, as the street shows and hides the city within.
+        const holder = new Group();
+        holder.add(built.group);
+        yield* this.add(holder);
+      }.bind(this), () => {
+        release?.();
+        release = null;
+        this.streetCity.delete(name);
+      }, () => this.streets!.ready(key));
     }
   }
 
@@ -815,9 +859,10 @@ export class World {
       // Beyond an open-air station's fences, up the stairs from a hall under the tracks: the street.
       if (s.outdoor && Math.abs(p.x - s.cx) <= CAVE_HALF_L && Math.abs(p.z) > OPEN.fenceZ + 0.2 && p.y > -1 && p.y < 9) return { station: s.index, area: 'street' };
       for (const { exit, bounds, corridor } of s.halls) {
-        // Up on the street, or on the flight up to it out beyond the hall's end wall.
+        // Up on the street, or on the flight up to it out beyond the hall's end wall. Among the real city the streets reach
+        // far along x, so another station's up at a height of its own is not this one's.
         const street = exit.street;
-        if (street && p.x >= street.x0 && p.x <= street.x1 && p.y > bounds.y + 2 && (p.y > street.y - 1 || p.x < bounds.x0 || p.x > bounds.x1)) return { station: s.index, area: 'street' };
+        if (street && p.x >= street.x0 && p.x <= street.x1 && p.y > bounds.y + 2 && p.y < street.y + 25 && (p.y > street.y - 1 || p.x < bounds.x0 || p.x > bounds.x1)) return { station: s.index, area: 'street' };
         if (p.x >= bounds.x0 && p.x <= bounds.x1 && p.y > bounds.y - 1) return { station: s.index, area: 'hall' };
         if (corridor && p.x >= corridor.x0 && p.x <= corridor.x1 && Math.abs(p.z) < corridor.halfWidth + 0.5 && p.y > bounds.y - 1) return { station: s.index, area: 'hall' };
       }

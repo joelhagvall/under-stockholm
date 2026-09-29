@@ -10,15 +10,18 @@ import type { Section } from './section';
 import { place, textSign } from './signage';
 
 /**
- * Up on the street at a station: a paved square between plastered houses of
- * five and six storeys, a road with parked cars and a zebra crossing across its
- * far end, the houses beyond, and SL's T on a pole. Over an underground
- * station the exit stairs come up in a railed opening in the square; at one in
- * the open the hall stands over the tracks, and its door opens straight onto
- * the square, set in the front of the house behind it. It is shut in on every
- * side, so the view ends on house fronts and the sky. Built into a section of
- * its own in the open air, so the daylight reaches it (`setDaylight`), and shown
- * only while the player is up at that station (`World.showStreet`).
+ * Up on the street at a station: a paved square with SL's T on a pole, lamps,
+ * benches and planters. Over an underground station the exit stairs come up in
+ * a railed opening in the square; at one in the open the hall stands over the
+ * tracks, and its door opens straight onto the square, set in the front of the
+ * hall's own building. Where OpenStreetMap has the city round the exit (`osm`),
+ * the square stands in it (`streetOsm.ts`, built on its own when the player
+ * comes near) and one can walk out among the real houses within `walk`;
+ * elsewhere it is shut in by plastered houses of five and six storeys, with a
+ * road, parked cars and a zebra crossing across its far end, so the view ends
+ * on house fronts and the sky. Built into a section of its own in the open air,
+ * so the daylight reaches it (`setDaylight`), and shown only while the player
+ * is up at that station (`World.showStreet`).
  */
 
 /** The street over a station, in world x, and what was built of it. */
@@ -48,19 +51,49 @@ const TILE = 3.2;
 const GLASS = { u0: 1.05, u1: 2.15, v0: 0.75, v1: 2.65 };
 const WINDOW_LIGHT = [0xffd89a, 0xfff0c8, 0xffc574, 0xf4e6d0];
 
+/** A rectangle in world x and z. */
+export interface Rect { x0: number; x1: number; z0: number; z1: number }
+
+/** Where a street lies: the hall starts at `hx` and runs in `e`, its floor at `hallY`; `door` for a hall in the open. */
+export interface StreetAt {
+  hx: number;
+  hallY: number;
+  e: 1 | -1;
+  door: boolean;
+}
+
+/**
+ * The street's frame: its level, where `a` along the hall lies in world x, the square, the hall's own building out of a
+ * door, where one can walk among the real city (`osm`), and where the stairs come up (where its entrance goes).
+ */
+export function streetFrame({ hx, hallY, e, door }: StreetAt) {
+  const { square: SQ } = STREET;
+  // Measured along the hall, as underground; out of a door the square starts at the end wall's outer face.
+  const shift = door ? HALL_LEN + 0.5 - SQ.a0 : 0;
+  const X = (a: number) => hx + e * (a + shift);
+  const rect = (a0: number, a1: number, z0: number, z1: number): Rect => ({ x0: Math.min(X(a0), X(a1)), x1: Math.max(X(a0), X(a1)), z0, z1 });
+  return {
+    y: hallY + (door ? STREET.door : STREET.above),
+    X,
+    square: rect(SQ.a0, SQ.a1, -SQ.halfW, SQ.halfW),
+    hall: door ? rect(SQ.a0 - HALL_LEN - 1.5, SQ.a0 + 0.4, -SQ.halfW, SQ.halfW) : null,
+    walk: rect(door ? SQ.a0 - HALL_LEN - 25 : -40, SQ.a1 + 80, -85, 85),
+    stairs: X(STREET.stairTop - 4),
+  };
+}
+
 /**
  * Builds the street into `s` (an outdoor section) for the hall that starts at `hx` and runs in `e`, with its floor at
  * `hallY`, with colliders in `physics`, and a street sign naming the first of `exits`. Over an underground hall the
  * street lies `STREET.above` over it; with `door` (a hall in the open) it lies level with the landing at the top of the
  * hall's stairs, and the square starts at the hall's end wall, `door` naming the station over it. `hall` is 0 for a
- * station's main hall and 1 for its second.
+ * station's main hall and 1 for its second. With `osm` the real city stands round the square (see above).
  */
-export function buildStreet(s: Section, physics: Physics, index: number, exits: string, hx: number, hallY: number, e: 1 | -1, door: string | null = null, hall = 0): Street {
+export function buildStreet(s: Section, physics: Physics, index: number, exits: string, hx: number, hallY: number, e: 1 | -1, door: string | null = null, hall = 0, osm = false): Street {
   const { square: SQ, road: R } = STREET;
-  const G = hallY + (door !== null ? STREET.door : STREET.above);
-  // Measured along the hall, as underground; out of a door the square starts at the end wall's outer face.
-  const shift = door !== null ? HALL_LEN + 0.5 - SQ.a0 : 0;
-  const X = (a: number) => hx + e * (a + shift);
+  const frame = streetFrame({ hx, hallY, e, door: door !== null });
+  const G = frame.y;
+  const X = frame.X;
   // A station's second hall comes up among houses of its own.
   const r = (k: number) => hash01(index * 131 + hall * 7919 + k, 600);
   const box = (b: MeshBuilder, a0: number, a1: number, y0: number, y1: number, z0: number, z1: number, paint: Parameters<MeshBuilder['box']>[2], collide = false, skip: BoxFace[] = [], cell = 2.5) => {
@@ -87,14 +120,29 @@ export function buildStreet(s: Section, physics: Physics, index: number, exits: 
     for (const side of [-1, 1]) ground(s.floor, well.a0, well.a1, side * well.z, side * SQ.halfW, G, PAVING);
     ground(s.floor, well.a1, R.a0 - K, -SQ.halfW, SQ.halfW, G, PAVING);
   }
-  // Pavements along the road, a kerb above it.
-  for (const side of [-1, 1]) ground(s.floor, SQ.a1, R.a0 - K, side * SQ.halfW, side * R.halfLen, G, PAVING);
-  ground(s.floor, R.a1 + K, R.far, -R.halfLen, R.halfLen, G, PAVING);
-  for (const a of [R.a0, R.a1]) box(s.lit, a - K, a + K, G - 0.5, G, -R.halfLen, R.halfLen, rgb(0x9a968e), true, ['ny'], 6);
-  ground(s.lit, R.a0, R.a1, -R.halfLen, R.halfLen, G - 0.15, ASPHALT, 4);
-  // A dashed line down the middle, and a zebra crossing from the square.
-  for (let z = -R.halfLen + 2; z < R.halfLen - 3; z += 6) if (Math.abs(z + 1.5) > 4) box(s.lit, 53.9, 54.1, G - 0.15, G - 0.14, z, z + 3, rgb(0xd8d8d0), false, ['ny']);
-  for (let z = -2.25; z < 2.3; z += 1) box(s.lit, R.a0 + 0.3, R.a1 - 0.3, G - 0.15, G - 0.14, z, z + 0.5, rgb(0xe4e4dc), false, ['ny']);
+  if (!osm) {
+    // Pavements along the road, a kerb above it.
+    for (const side of [-1, 1]) ground(s.floor, SQ.a1, R.a0 - K, side * SQ.halfW, side * R.halfLen, G, PAVING);
+    ground(s.floor, R.a1 + K, R.far, -R.halfLen, R.halfLen, G, PAVING);
+    for (const a of [R.a0, R.a1]) box(s.lit, a - K, a + K, G - 0.5, G, -R.halfLen, R.halfLen, rgb(0x9a968e), true, ['ny'], 6);
+    ground(s.lit, R.a0, R.a1, -R.halfLen, R.halfLen, G - 0.15, ASPHALT, 4);
+    // A dashed line down the middle, and a zebra crossing from the square.
+    for (let z = -R.halfLen + 2; z < R.halfLen - 3; z += 6) if (Math.abs(z + 1.5) > 4) box(s.lit, 53.9, 54.1, G - 0.15, G - 0.14, z, z + 3, rgb(0xd8d8d0), false, ['ny']);
+    for (let z = -2.25; z < 2.3; z += 1) box(s.lit, R.a0 + 0.3, R.a1 - 0.3, G - 0.15, G - 0.14, z, z + 0.5, rgb(0xe4e4dc), false, ['ny']);
+  } else {
+    // Among the real city: ground to walk on round the square (the city's own lies a little under it, see
+    // `streetOsm.ts`), and an end to the walking out of sight of the square, where the city goes on.
+    const { square: q, walk: w } = frame;
+    const floor = (x0: number, x1: number, z0: number, z1: number) => { if (x1 > x0 && z1 > z0) physics.box({ x: x0, y: G - 0.5, z: z0 }, { x: x1, y: G, z: z1 }); };
+    floor(w.x0, w.x1, w.z0, q.z0);
+    floor(w.x0, w.x1, q.z1, w.z1);
+    floor(w.x0, q.x0, q.z0, q.z1);
+    floor(q.x1, w.x1, q.z0, q.z1);
+    physics.box({ x: w.x0 - 1, y: G - 1, z: w.z0 }, { x: w.x0, y: G + 12, z: w.z1 });
+    physics.box({ x: w.x1, y: G - 1, z: w.z0 }, { x: w.x1 + 1, y: G + 12, z: w.z1 });
+    physics.box({ x: w.x0, y: G - 1, z: w.z0 - 1 }, { x: w.x1, y: G + 12, z: w.z0 });
+    physics.box({ x: w.x0, y: G - 1, z: w.z1 }, { x: w.x1, y: G + 12, z: w.z1 + 1 });
+  }
 
   // A parapet and railing round the opening, open where the stairs come up.
   const rail = rgb(0x3a4a58);
@@ -200,8 +248,21 @@ export function buildStreet(s: Section, physics: Physics, index: number, exits: 
     // The station's name over the door, as on SL's entrances.
     const over = textSign(`T  ${door}`, 1024, 128, '#1e5ab4', '#ffffff');
     place(s, over, 4.6, 0.58, new Vector3(X(f1 + 0.03), top + 0.45, 0), new Vector3(e, 0, 0));
-  } else house(SQ.a0 - STREET.depth, SQ.a0, -SQ.halfW, SQ.halfW, ['a1']);
-  for (const side of [-1, 1]) {
+    // Among the real city the hall is a building of its own over the tracks: its sides and back plastered like its
+    // front, a tin roof over them, and the ground below it out of sight.
+    if (osm) {
+      const back = SQ.a0 - HALL_LEN - 1.5;
+      for (const side of [-1, 1]) {
+        const z = side * SQ.halfW;
+        box(facade, back, f0, G - 0.5, G + h, Math.min(z, z - side * 0.4), Math.max(z, z - side * 0.4), plaster, true, ['ny', 'py'], 3);
+        windowsOn(k, side > 0 ? 'z1' : 'z0', z, side * 0.04, back, f0, h);
+      }
+      box(facade, back - 0.4, back, G - 0.5, G + h, -SQ.halfW, SQ.halfW, plaster, true, ['ny', 'py'], 3);
+      box(s.lit, back - 0.4, f1, G + h, G + h + 0.4, -SQ.halfW, SQ.halfW, mix(plaster, rgb(0xf0ece2), 0.5), false, ['ny']);
+      box(s.lit, back + 1, f0 - 1, G + h + 0.45, G + h + 2.2, -SQ.halfW + 1, SQ.halfW - 1, rgb(0x5c6064), false, ['ny']);
+    }
+  } else if (!osm) house(SQ.a0 - STREET.depth, SQ.a0, -SQ.halfW, SQ.halfW, ['a1']);
+  if (!osm) for (const side of [-1, 1]) {
     const inner = side * SQ.halfW;
     const f = side > 0 ? 'z0' : 'z1';
     house(SQ.a0, 20, inner, side * (SQ.halfW + STREET.depth), [f]);
@@ -211,7 +272,7 @@ export function buildStreet(s: Section, physics: Physics, index: number, exits: 
     house(SQ.a1, R.far, side * R.halfLen, side * (R.halfLen + STREET.depth), [f]);
   }
   // The row across the road.
-  for (let z = -R.halfLen - STREET.depth; z < R.halfLen + STREET.depth; ) {
+  if (!osm) for (let z = -R.halfLen - STREET.depth; z < R.halfLen + STREET.depth; ) {
     const w = Math.min(R.halfLen + STREET.depth - z, 11 + r(40 + houseNo) * 7);
     house(R.far, R.far + STREET.depth, z, z + w, ['a0']);
     z += w;
@@ -225,7 +286,7 @@ export function buildStreet(s: Section, physics: Physics, index: number, exits: 
     box(s.unlit, ha - 0.25, ha + 0.25, G + 5.1, G + 5.3, z - 0.18, z + 0.18, LAMP);
     s.light(X(ha), G + 5, z, rgb(0xffdca8), 1.1, 13);
   };
-  for (let z = -R.halfLen + 8; z < R.halfLen; z += 16) {
+  if (!osm) for (let z = -R.halfLen + 8; z < R.halfLen; z += 16) {
     lamp(R.a0 - 1.2, z, 1);
     lamp(R.a1 + 1.2, z + 8, -1);
   }
@@ -250,7 +311,7 @@ export function buildStreet(s: Section, physics: Physics, index: number, exits: 
   spruce.dispose();
 
   // Cars parked along both kerbs, clear of the crossing.
-  for (const [lane, dir] of [[R.a0 + 1.2, 1], [R.a1 - 1.2, -1]] as const) {
+  if (!osm) for (const [lane, dir] of [[R.a0 + 1.2, 1], [R.a1 - 1.2, -1]] as const) {
     for (let z = -R.halfLen + 4; z < R.halfLen - 5; z += 5.5) {
       const n = Math.round(z * 3 + lane);
       if (Math.abs(z) < 7 || hash01(index * 7 + n, 620) < 0.35) continue;
@@ -261,11 +322,13 @@ export function buildStreet(s: Section, physics: Physics, index: number, exits: 
     }
   }
 
-  // The street's name on the corner house, in white on blue.
-  const name = exits.split('·')[0].trim();
-  const sign = textSign(name, 512, 96, '#1d3f8c', '#ffffff');
-  place(s, sign, 2.2, 0.42, new Vector3(X(SQ.a1 + 0.02), G + 3.4, SQ.halfW + 1.8), new Vector3(e, 0, 0));
-  place(s, sign, 2.2, 0.42, new Vector3(X(SQ.a1 + 0.02), G + 3.4, -SQ.halfW - 1.8), new Vector3(e, 0, 0));
+  // The street's name on the corner house, in white on blue (among the real city, the real streets' own, see `streetOsm.ts`).
+  if (!osm) {
+    const name = exits.split('·')[0].trim();
+    const sign = textSign(name, 512, 96, '#1d3f8c', '#ffffff');
+    place(s, sign, 2.2, 0.42, new Vector3(X(SQ.a1 + 0.02), G + 3.4, SQ.halfW + 1.8), new Vector3(e, 0, 0));
+    place(s, sign, 2.2, 0.42, new Vector3(X(SQ.a1 + 0.02), G + 3.4, -SQ.halfW - 1.8), new Vector3(e, 0, 0));
+  }
 
   // Snow on the ground, and slush on the road: its own mesh, so the weather can fade it (see `weather.ts`).
   let snow: Mesh | null = null;
@@ -284,9 +347,11 @@ export function buildStreet(s: Section, physics: Physics, index: number, exits: 
       for (const side of [-1, 1]) flat(well.a0, well.a1, side * well.z, side * SQ.halfW, lift, white);
       flat(well.a1, R.a0, -SQ.halfW, SQ.halfW, lift, white);
     }
-    for (const side of [-1, 1]) flat(SQ.a1, R.a0, side * SQ.halfW, side * R.halfLen, lift, white);
-    flat(R.a1, R.far, -R.halfLen, R.halfLen, lift, white);
-    flat(R.a0, R.a1, -R.halfLen, R.halfLen, G - 0.13, rgb(0x9aa0a6));
+    if (!osm) {
+      for (const side of [-1, 1]) flat(SQ.a1, R.a0, side * SQ.halfW, side * R.halfLen, lift, white);
+      flat(R.a1, R.far, -R.halfLen, R.halfLen, lift, white);
+      flat(R.a0, R.a1, -R.halfLen, R.halfLen, G - 0.13, rgb(0x9aa0a6));
+    }
     const geo = b.build();
     geo.deleteAttribute('normal');
     snow = new Mesh(geo, new MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0, depthWrite: false, side: DoubleSide }));
@@ -302,6 +367,6 @@ export function buildStreet(s: Section, physics: Physics, index: number, exits: 
     s.extras.add(windows);
   }
 
-  const ends = [X(door ? SQ.a0 : SQ.a0 - STREET.depth), X(R.far + STREET.depth)];
+  const ends = osm ? [frame.walk.x0, frame.walk.x1] : [X(door ? SQ.a0 : SQ.a0 - STREET.depth), X(R.far + STREET.depth)];
   return { x0: Math.min(...ends), x1: Math.max(...ends), y: G, group: null, snow, windows };
 }

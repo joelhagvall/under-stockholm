@@ -2151,6 +2151,14 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
           const s = world.stations[i];
           player.teleport(s.spawn, s.exitDir > 0 ? -Math.PI / 2 : Math.PI / 2);
         },
+        /** Up on the street out of a station's hall `k` (the station by name or index), at the top of its stairs or out of its door, facing out. */
+        street(station: number | string, k = 0) {
+          const s = typeof station === 'number' ? world.stations[station] : world.stations.find((t) => t.name === station);
+          const hall = s?.halls[k];
+          if (!hall?.exit.street) return;
+          const { exit } = hall;
+          player.teleport(new Vector3(exit.x + hall.dir * (exit.cut + (exit.cut ? 2 : 6)), exit.street!.y + 0.1, 0), hall.dir > 0 ? -Math.PI / 2 : Math.PI / 2);
+        },
         kymlinge() {
           player.teleport(world.kymlinge.spawn, -Math.PI / 2);
         },

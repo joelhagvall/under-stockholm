@@ -1,11 +1,11 @@
 {
-  "at": "2026-09-29T03:50:23.184Z",
-  "commit": "32414fc",
+  "at": "2026-09-29T07:10:42.363Z",
+  "commit": "68175fb",
   "fps": {
     "desktop": {
       "T-Centralen, platform": {
         "fps": 60,
-        "p95": 16.7,
+        "p95": 16.8,
         "slow": 0,
         "worst": 17,
         "hitches": 0,
@@ -15,7 +15,7 @@
       },
       "Slussen, open air": {
         "fps": 60,
-        "p95": 16.8,
+        "p95": 16.7,
         "slow": 0,
         "worst": 17,
         "hitches": 0,
@@ -40,18 +40,28 @@
         "worst": 17,
         "hitches": 0,
         "pixelRatio": 2,
-        "calls": 59,
-        "triangles": 631326
+        "calls": 57,
+        "triangles": 647417
       },
       "Kista": {
         "fps": 60,
-        "p95": 16.7,
+        "p95": 16.8,
         "slow": 0,
         "worst": 17,
         "hitches": 0,
         "pixelRatio": 2,
         "calls": 73,
         "triangles": 412659
+      },
+      "Odenplan, the street": {
+        "fps": 60,
+        "p95": 16.7,
+        "slow": 0,
+        "worst": 17,
+        "hitches": 0,
+        "pixelRatio": 2,
+        "calls": 105,
+        "triangles": 448930
       },
       "A minute aboard": {
         "fps": 60,
@@ -87,7 +97,7 @@
     "phone": {
       "T-Centralen, platform": {
         "fps": 60,
-        "p95": 16.7,
+        "p95": 16.8,
         "slow": 0,
         "worst": 17,
         "hitches": 0,
@@ -96,18 +106,18 @@
         "triangles": 474793
       },
       "Slussen, open air": {
-        "fps": 60,
-        "p95": 16.7,
-        "slow": 0,
-        "worst": 17,
+        "fps": 59,
+        "p95": 16.8,
+        "slow": 2,
+        "worst": 33,
         "hitches": 0,
         "pixelRatio": 1.5,
-        "calls": 151,
-        "triangles": 830568
+        "calls": 150,
+        "triangles": 830512
       },
       "Gamla stan, over the water": {
         "fps": 60,
-        "p95": 16.8,
+        "p95": 16.7,
         "slow": 0,
         "worst": 17,
         "hitches": 0,
@@ -117,23 +127,33 @@
       },
       "City passage, rush hour": {
         "fps": 60,
-        "p95": 16.8,
+        "p95": 16.7,
         "slow": 0,
         "worst": 17,
         "hitches": 0,
         "pixelRatio": 1.5,
-        "calls": 57,
-        "triangles": 645588
+        "calls": 54,
+        "triangles": 640173
       },
       "Kista": {
-        "fps": 60,
+        "fps": 59,
         "p95": 16.8,
-        "slow": 0,
-        "worst": 17,
+        "slow": 1,
+        "worst": 33,
         "hitches": 0,
         "pixelRatio": 1.5,
         "calls": 68,
         "triangles": 412589
+      },
+      "Odenplan, the street": {
+        "fps": 60,
+        "p95": 16.7,
+        "slow": 0,
+        "worst": 17,
+        "hitches": 0,
+        "pixelRatio": 1.5,
+        "calls": 103,
+        "triangles": 448926
       },
       "A minute aboard": {
         "fps": 60,
@@ -149,7 +169,7 @@
         "fps": 60,
         "p95": 16.7,
         "slow": 0,
-        "worst": 17,
+        "worst": 33,
         "hitches": 0,
         "pixelRatio": 1.5,
         "calls": 27,
@@ -157,32 +177,32 @@
       },
       "Riding out to Hässelby": {
         "fps": 60,
-        "p95": 16.8,
-        "slow": 0,
-        "worst": 33,
+        "p95": 16.7,
+        "slow": 1,
+        "worst": 50,
         "hitches": 0,
         "pixelRatio": 1.5,
-        "calls": 114,
-        "triangles": 565604
+        "calls": 113,
+        "triangles": 551268
       }
     }
   },
   "load": {
     "desktop": {
-      "downloadS": 0.14660000002384185,
-      "bytes": 1029471,
+      "downloadS": 0.14060000002384185,
+      "bytes": 1037512,
       "wasmBytes": 652517,
-      "wasmDoneS": 0.14660000002384185,
-      "compileS": 0.06960000002384185,
-      "readyS": 1.706699999988079
+      "wasmDoneS": 0.14060000002384185,
+      "compileS": 0.09619999998807907,
+      "readyS": 1.6655
     },
     "phone": {
-      "downloadS": 5.103400000035763,
-      "bytes": 1029471,
+      "downloadS": 5.155400000035763,
+      "bytes": 1037512,
       "wasmBytes": 652517,
-      "wasmDoneS": 5.103400000035763,
-      "compileS": 4.201800000011921,
-      "readyS": 8.6505
+      "wasmDoneS": 5.155400000035763,
+      "compileS": 4.249,
+      "readyS": 8.5835
     }
   }
 }

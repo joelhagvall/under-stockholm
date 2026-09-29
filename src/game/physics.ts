@@ -12,7 +12,8 @@ export async function loadRapier(): Promise<Rapier> {
 /** What the game does with a static collider once made: switch it on and off, or move it. */
 export type StaticCollider = Pick<RAPIER.Collider, 'setEnabled' | 'setTranslation'>;
 
-interface Shape { center: BoxLike; half: BoxLike; angleZ: number }
+/** A box, turned about the z axis (`angleZ`) or about the y axis (`angleY`). */
+interface Shape { center: BoxLike; half: BoxLike; angleZ: number; angleY?: number }
 
 /** A static collider asked for before Rapier is up: kept as a shape, and made for real in `Physics.attach`. */
 class PendingCollider implements StaticCollider {
@@ -86,6 +87,21 @@ export class Physics {
     return this.add({ center, half, angleZ });
   }
 
+  /** Static box turned about the y axis by `angleY`, its x half along the direction (cos, -sin) in x and z: a wall that runs at a slant. */
+  turnedBox(center: BoxLike, half: BoxLike, angleY: number): StaticCollider {
+    return this.add({ center, half, angleZ: 0, angleY });
+  }
+
+  /** Takes a static collider away again, for what a lazy build laid and its teardown lets go of. */
+  remove(collider: StaticCollider): void {
+    if (collider instanceof PendingCollider) {
+      if (collider.collider) this.world.removeCollider(collider.collider, false);
+      else this.pending.splice(this.pending.indexOf(collider), 1);
+      return;
+    }
+    this.world.removeCollider(collider as RAPIER.Collider, false);
+  }
+
   step(dt: number): void {
     this.world.timestep = dt;
     this.world.step();
@@ -93,14 +109,15 @@ export class Physics {
 
   private add(shape: Shape): StaticCollider {
     if (this.rapier) return this.make(shape);
-    const pending = new PendingCollider({ center: { ...shape.center }, half: { ...shape.half }, angleZ: shape.angleZ });
+    const pending = new PendingCollider({ center: { ...shape.center }, half: { ...shape.half }, angleZ: shape.angleZ, angleY: shape.angleY });
     this.pending.push(pending);
     return pending;
   }
 
-  private make({ center, half, angleZ }: Shape): RAPIER.Collider {
+  private make({ center, half, angleZ, angleY }: Shape): RAPIER.Collider {
     const desc = this.R.ColliderDesc.cuboid(half.x, half.y, half.z).setTranslation(center.x, center.y, center.z);
     if (angleZ) desc.setRotation({ x: 0, y: 0, z: Math.sin(angleZ / 2), w: Math.cos(angleZ / 2) });
+    else if (angleY) desc.setRotation({ x: 0, y: Math.sin(angleY / 2), z: 0, w: Math.cos(angleY / 2) });
     return this.world.createCollider(desc);
   }
 }

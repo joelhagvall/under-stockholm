@@ -61,6 +61,8 @@ import { TILED_WALL_H, TILED_TOP, VAULT_WALL_H, VAULT_TOP } from '../lines/theme
 import { archHole, archProfile, extrudeRockSteps, profileLength, rectHole, wallWithHoles, type ProfilePoint } from './shapes';
 import { place, textSign } from './signage';
 import { buildStreet, type Street } from './street';
+import { hasStreetFile } from './streetLayers';
+import { streetKey } from './osmKey';
 import { buildServiceAccess, SERVICE_DOOR } from './service';
 import { buildKiosk } from './kiosk';
 import { buildTravelators } from './travelator';
@@ -1158,7 +1160,9 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
       // Up the stairs from the hall, the street: a section of its own in the open air, shown only at the station. In
       // the open the hall's door opens straight onto it.
       const ss = new Section(`${def.name}-street${main ? '' : `-${k + 1}`}`, OPEN_AMBIENT, dry, true);
-      const street = buildStreet(ss, physics, index, way.exits, hx, hallY, d, outdoor ? def.name : null, k);
+      // Among the real city where OpenStreetMap has it (not by the water in the city, whose skyline is made by hand).
+      const osm = !def.city && hasStreetFile(streetKey(line.id, def.name, outdoor ? null : d));
+      const street = buildStreet(ss, physics, index, way.exits, hx, hallY, d, outdoor ? def.name : null, k, osm);
       yield;
       const streetGroup = yield* ss.finishSteps();
       streetGroup.visible = false;

@@ -35,15 +35,22 @@ async function brotliBytes(paths: Iterable<string>): Promise<number> {
 }
 const runtime: string[] = [];
 for await (const path of new Bun.Glob('assets/*.{js,wasm}').scan(root)) runtime.push(path);
-// OpenStreetMap's buildings round the stations in the open, a file per line, fetched only when the player comes near one.
+// OpenStreetMap's buildings along the open-air tracks (a file per line) and the city round each exit (a file per station
+// end): none of it is part of the download, each file is fetched when the player comes near its stretch or street, so
+// each has a limit of its own, and all of them one together.
 const mapData: string[] = [];
 for await (const path of new Bun.Glob('assets/*.json').scan(root)) mapData.push(path);
 const budgets = [
   { name: 'Landing JavaScript', files: [...landing].filter((p) => p.endsWith('.js')), limit: 6_000 },
   { name: 'Landing CSS', files: [...landing].filter((p) => p.endsWith('.css')), limit: 5_000 },
   { name: 'All JavaScript and WASM', files: runtime, limit: 1_300_000 },
-  { name: 'Map data, fetched near the open air', files: mapData, limit: 200_000 },
+  { name: 'Map data, each fetched on the way', files: mapData, limit: 1_600_000 },
 ];
+const MAP_FILE_LIMIT = 100_000;
+for (const path of mapData) {
+  const bytes = await compressedBytes([path]);
+  if (bytes > MAP_FILE_LIMIT) throw new Error(`Map data ${path}: ${bytes} gzip bytes exceeds the ${MAP_FILE_LIMIT} byte budget for one file`);
+}
 for (const { name, files, limit } of budgets) {
   const bytes = await compressedBytes(files);
   if (bytes > limit) throw new Error(`${name}: ${bytes} gzip bytes exceeds the ${limit} byte budget`);

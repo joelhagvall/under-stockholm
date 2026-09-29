@@ -39,6 +39,8 @@ export const SCENES: Scene[] = [
   { name: 'Gamla stan, over the water', set: '__us.goto(31)' },
   { name: 'City passage, rush hour', set: '__us.city()' },
   { name: 'Kista', set: '__us.goto(9)' },
+  // Up out of the exit among the real city (OpenStreetMap's houses and streets round the entrance).
+  { name: 'Odenplan, the street', set: "__us.street('Odenplan')" },
   // A minute aboard a real train, as a player rides: through stations, tunnels and, on route 10, the portal.
   { name: 'A minute aboard', set: '__us.goto(1); __us.ride()', seconds: 60 },
   // Out along a branch at train speed, where the stations are built as you come: the stutter test.
