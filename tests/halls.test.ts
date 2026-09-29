@@ -66,8 +66,6 @@ describe('halls from the stations\' plans', () => {
       for (const h of halls) {
         if (!underground) expect(h.corridor ?? h.incline).toBeUndefined();
         if (def.lines.length > 1) expect(h.corridor).toBeUndefined();
-        // Underground a way up through a tiled ceiling; in the open a way down to a hall under the tracks.
-        if (h.from !== undefined && !h.down) expect(underground && def.architecture === 'tiles').toBe(true);
         if (h.down) expect(!underground && def.lines.length === 1 && !def.city && h.from !== undefined).toBe(true);
       }
       // At most one hall at each end.

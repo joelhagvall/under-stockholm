@@ -151,13 +151,17 @@ function scenery(s: Section, x0: number, x1: number, seed: number, osm: readonly
 }
 
 /** Open track from `x0` to `x1`: ballast, both tracks, the fences and the ground beyond (see `openGround` for `osm`). */
-export function buildOpenTrack(s: Section, physics: Physics, x0: number, x1: number, seed: number, osm: readonly OsmPatch[] = [], ground: Ground = FLAT): void {
+/**
+ * @param clear squares beside the tracks where the stairs from a station's hall under them come up
+ * @param keep where such a hall stands under the tracks: no viaduct pier there
+ */
+export function buildOpenTrack(s: Section, physics: Physics, x0: number, x1: number, seed: number, osm: readonly OsmPatch[] = [], ground: Ground = FLAT, clear: readonly Clearing[] = [], keep: readonly Clearing[] = []): void {
   const F = OPEN.fenceZ;
   s.lit.box({ x: x0, y: -0.5, z: -F }, { x: x1, y: 0, z: F }, PAINT.ballast, ['ny'], 4);
   for (const zc of [-TRACK_Z, TRACK_Z]) addTrack(s, x0, x1, zc, true);
   physics.box({ x: x0, y: -1, z: -F }, { x: x1, y: -0.02, z: F });
-  openGround(s, physics, x0, x1, seed, true, osm, [], ground);
-  buildViaduct(s, physics, x0, x1, ground);
+  openGround(s, physics, x0, x1, seed, true, osm, clear, ground);
+  buildViaduct(s, physics, x0, x1, ground, [], keep);
 }
 
 /**
@@ -200,10 +204,10 @@ export function buildTunnelMouth(s: Section, physics: Physics, x: number, dir: 1
 
 
 /** Beyond a station at the end of the line in the open: the tracks run on to buffer stops, where trains turn. */
-export function buildOpenTurnback(s: Section, physics: Physics, wallX: number, dir: 1 | -1, length: number, seed: number, osm: readonly OsmPatch[] = [], ground: Ground = FLAT): void {
+export function buildOpenTurnback(s: Section, physics: Physics, wallX: number, dir: 1 | -1, length: number, seed: number, osm: readonly OsmPatch[] = [], ground: Ground = FLAT, clear: readonly Clearing[] = [], keep: readonly Clearing[] = []): void {
   const far = wallX + dir * length;
   const [x0, x1] = [Math.min(wallX, far), Math.max(wallX, far)];
-  buildOpenTrack(s, physics, x0, x1, seed, osm, ground);
+  buildOpenTrack(s, physics, x0, x1, seed, osm, ground, clear, keep);
   for (const zc of [-TRACK_Z, TRACK_Z]) {
     const bx = far - dir * 1.2;
     s.lit.box({ x: bx - 0.4, y: 0, z: zc - 1.2 }, { x: bx + 0.4, y: 1.4, z: zc + 1.2 }, PAINT.buffer);

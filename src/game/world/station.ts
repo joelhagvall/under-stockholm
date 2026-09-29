@@ -610,37 +610,34 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   const downRun = escalatorRun(UNDERPASS_DEPTH);
   const ways = plans.map((plan, k) => {
     const dir = hallDir(plan);
-    const inner = !outdoor && plan.from !== undefined;
+    // From along the platform: underground up through the ceiling, in the open up past the roof.
+    const inner = plan.from !== undefined && !plan.down;
     // In the open, down to a hall under the tracks, whose stairs come up at the side beyond the fences.
     const down = outdoor && !twin && !def.city && !!plan.down;
+    const under = down ? underHall(plan, k) : null;
     const foot = cx + dir * (inner || down ? plan.from! : CAVE_HALF_L);
     const corridor = outdoor || twin ? 0 : plan.corridor ?? 0;
-    // Up from the foot toward `dir` to a hall beyond the escalators; or from a hall under the tracks, back toward the
-    // middle of the platform, up to the foot.
-    const flight = down
-      ? { wx: foot - dir * downRun, rise: UNDERPASS_DEPTH, run: downRun, base: PLATFORM_Y - UNDERPASS_DEPTH }
+    // Up from the foot toward `dir` to a hall beyond the escalators; or from a hall under the tracks up to the foot.
+    const flight = under
+      ? { wx: cx + under.hx, rise: UNDERPASS_DEPTH, run: downRun, base: PLATFORM_Y - UNDERPASS_DEPTH }
       : { wx: foot, rise, run, base: PLATFORM_Y };
     return {
       dir, inner, down, foot, corridor, flight,
       /** Where the hall starts, which way it runs from there and its floor. */
-      hx: down ? flight.wx : foot + dir * (run + corridor),
-      hallDir: down ? -dir as 1 | -1 : dir,
-      hallY: down ? flight.base : hallY,
+      hx: under ? flight.wx : foot + dir * (run + corridor),
+      hallDir: under ? under.dir : dir,
+      hallY: under ? flight.base : hallY,
       incline: !outdoor && !!plan.incline,
       exits: plan.exits ?? def.exits,
-      /** The side a hall under the tracks has its stairs up on: the main one's +z, a second one's the other, unless its plan says. */
-      across: down ? (plan.beside === 2 ? -1 : plan.beside === 1 ? 1 : k === 0 ? 1 : -1) as 1 | -1 : undefined,
+      /** The side a hall under the tracks has its stairs up on (see `underHall`). */
+      across: under?.across,
+      square: under ? { ...under.square, x0: cx + under.square.x0, x1: cx + under.square.x1 } : undefined,
       // Under the ground a hall is lit as underground, not by the sky.
       section: down ? new Section(`${def.name}-under-${k + 1}`, theme.ambient, dry) : k === 0 ? s : new Section(`${def.name}-hall-${k + 1}`, outdoor ? OPEN_AMBIENT : theme.ambient, dry, outdoor),
     };
   });
   /** Where a hall under the tracks has its stairs come up: a square beside them, bare of grass and trees. */
-  const squares: Clearing[] = ways.filter((w) => w.down).map((w) => {
-    const x = w.hx + w.hallDir * (ACROSS.a0 + ACROSS.a1) / 2;
-    const out = HALL_HALF_W + 0.5 + SIDE_STAIRS_OUT + SQUARE.beyond;
-    const [z0, z1] = [w.across! * OPEN.fenceZ, w.across! * out].sort((p, q) => p - q);
-    return { x0: x - SQUARE.halfX, x1: x + SQUARE.halfX, z0, z1 };
-  });
+  const squares: Clearing[] = ways.flatMap((w) => (w.square ? [w.square] : []));
   /** Where escalators go down from the island to a hall under the tracks, the island and its trackbed open round them. */
   const openings = ways.filter((w) => w.down).map((w) => {
     const { wx, base } = w.flight;
@@ -719,7 +716,8 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   if (tiled && !outdoor) for (const side of [-1, 1]) physics.box({ x: xa, y: -1, z: Math.min(side * outer, side * halfW) }, { x: xb, y: 14, z: Math.max(side * outer, side * halfW) });
   // Where a way up from along the platform climbs through the ceiling: from where its tube's roof meets the ceiling to
   // where its floor has passed it, around the escalators (and a lift beside them). A collar closes the rest.
-  const ceilingY = vaulted ? VAULT_TOP : TILED_TOP;
+  // In a rock cave, through the crown of the vault.
+  const ceilingY = vaulted ? VAULT_TOP : tiled ? TILED_TOP : CAVE_TOP;
   const holes = ways.filter((w) => w.inner).flatMap((w) => islands.map((zi) => {
     const a0 = ESC_LANDING + (ceilingY - 0.2 - ESC_HEADROOM - PLATFORM_Y) / Math.tan(ESC_ANGLE);
     // Past where the truss under the flight has cleared the ceiling (see `escalatorSteps`).
@@ -1005,7 +1003,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
         physics.box({ x: x - 0.4, y: PLATFORM_Y, z: zi - 0.4 }, { x: x + 0.4, y: top, z: zi + 0.4 });
       }
     }
-  } else stationArchitecture(s, physics, def, cx, e);
+  } else stationArchitecture(s, physics, def, cx, e, free);
   // Two platform tunnels joined by a middle vault: a wall down the island between its openings, up into the ceiling.
   if (def.look?.split && !outdoor && !twin) {
     // Well into the rock over a cave's rough crown, or through a tiled ceiling, flat or vaulted: its top is never seen.
@@ -1367,8 +1365,10 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     if (way.section === s) continue;
     const g = yield* way.section.finishSteps();
     for (const c of wayGroups[k]) g.add(c);
-    // A hall under the tracks goes with the station, whose platform it opens from.
-    if (way.down) { group.add(g); continue; }
+    // A hall under the ground, and the flight down to it, is only drawn where one could see into it: out beyond the
+    // platform's end it lies in view along the tracks, where it could never really be seen (see `World.underSight`).
+    // Under a viaduct it stands on the ground in plain sight.
+    if (way.down && !viaduct) g.userData.under = { top: way.foot };
     // Up at an underground station's hall level it would float over a neighbour's open air (see `World.show`).
     if (!outdoor) g.userData.underground = true;
     extra.push(g);
@@ -1442,6 +1442,37 @@ function buildCorridor(s: Section, physics: Physics, x0: number, e: 1 | -1, leng
 
 /** The square the side stairs come up on: this far either side of them along x, and on past their top. */
 const SQUARE = { halfX: 10, beyond: 8 };
+
+/** A hall under the tracks as `underHall` places it, along x from the station's middle. */
+export interface UnderHall {
+  /** Where its escalators start down from the island. */
+  top: number;
+  /** Where the hall starts, at their foot, and which way it runs on from there. */
+  hx: number;
+  dir: 1 | -1;
+  /** The side of the tracks its stairs come up on, and the square there. */
+  across: 1 | -1;
+  square: Clearing;
+}
+
+/**
+ * A hall under the tracks at a station in the open (`HallDef.down`), the `k`th of its plan. Its escalators climb toward
+ * `end` from the hall to their top on the island, `from` meters from the middle: with `from` positive the hall lies
+ * under the platform toward its middle; negative, the flight runs down past the platform's other end to a hall
+ * beyond it, under the neighbouring stretch (see `World`). Its stairs come up on the main hall's +z, a second one's
+ * -z, unless its plan says (`beside`).
+ */
+export function underHall(plan: HallDef, k: number): UnderHall {
+  const up = hallDir(plan);
+  const top = up * plan.from!;
+  const hx = top - up * escalatorRun(UNDERPASS_DEPTH);
+  const dir = -up as 1 | -1;
+  const across = (plan.beside === 2 ? -1 : plan.beside === 1 ? 1 : k === 0 ? 1 : -1) as 1 | -1;
+  const x = hx + dir * (ACROSS.a0 + ACROSS.a1) / 2;
+  const out = HALL_HALF_W + 0.5 + SIDE_STAIRS_OUT + SQUARE.beyond;
+  const [z0, z1] = [across * OPEN.fenceZ, across * out].sort((p, q) => p - q);
+  return { top, hx, dir, across, square: { x0: x - SQUARE.halfX, x1: x + SQUARE.halfX, z0, z1 } };
+}
 
 /**
  * Round an opening in the island where escalators go down to a hall under the tracks: railings along it, from where

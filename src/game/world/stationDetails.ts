@@ -10,7 +10,8 @@ import type { Physics } from '../physics';
 import type { Section } from './section';
 
 /** Station-specific architecture stays in the baked layers, including all small details. */
-export function stationArchitecture(s: Section, physics: Physics, def: StationDef, cx: number, exitDir: 1 | -1 = 1): void {
+/** @param free whether the island is clear for something `half` long either side of `x`: no pier where a way up starts */
+export function stationArchitecture(s: Section, physics: Physics, def: StationDef, cx: number, exitDir: 1 | -1 = 1, free: (x: number, half?: number) => boolean = () => true): void {
   platformArt(s, physics, def, cx, exitDir);
   const stone = rgb(0xc9c5b8);
   const red = rgb(0xab4437);
@@ -19,6 +20,7 @@ export function stationArchitecture(s: Section, physics: Physics, def: StationDe
   // A cave whose look has no columns is one wide span.
   for (const dx of def.look?.columns === 'none' || def.look?.split ? [] : D.pierXs) {
     const x = cx + dx;
+    if (!free(x, 3)) continue;
     if (def.architecture === 'garden') {
       // Classical fragments and fluted columns recall the excavated palace garden.
       for (const [y, radius, height, color] of [

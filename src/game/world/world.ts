@@ -14,11 +14,11 @@ import {
   PLATFORM_HALF_L,
   PLATFORM_HALF_W,
   HALL_H,
+  HALL_HALF_W,
   STACK,
   VIADUCT,
   PLATFORM_Y,
   STREET,
-  UNDERPASS_DEPTH,
   TAIL_TUBE,
   CAVERN_LEN,
   TRACK_Z,
@@ -28,7 +28,7 @@ import {
   TUBE_WALL_H,
 } from '../layout';
 import { ghostX, hallDir, isOutdoor, lineEnd, stationRise, viaductAt, type HallDef, type Network } from '../line';
-import { buildOpenTrack, buildOpenTurnback, buildTunnelMouth, FLAT, OPEN, type Ground } from './outdoor';
+import { buildOpenTrack, buildOpenTurnback, buildTunnelMouth, FLAT, OPEN, type Clearing, type Ground } from './outdoor';
 import { OSM_HALF_X, OsmData, type OsmPatch } from './osm';
 import { streetKey } from './osmKey';
 import { StreetLayers, hasStreetFile } from './streetLayers';
@@ -41,7 +41,7 @@ import { buildGraffiti } from './graffiti';
 import { Section, sharedMaterials } from './section';
 import { shifted } from './shifted';
 import { Walkway } from './walkway';
-import { buildStation, stationSteps, type HallInfo, type ServiceDoor, type StationInfo } from './station';
+import { buildStation, stationSteps, underHall, type HallInfo, type ServiceDoor, type StationInfo } from './station';
 import { buildServiceWing, SERVICE_DOOR, type ServiceWing } from './service';
 import { buildKymlinge, kymlingeSteps, type KymlingeBuild } from './kymlinge';
 import { beltVelocity, setTravelatorTime } from './travelator';
@@ -131,6 +131,8 @@ export class World {
   readonly walkways: Walkway[] = [];
   /** Where the line runs in the open air, as ranges of x. */
   readonly openRanges: Array<[number, number]> = [];
+  /** Halls under the tracks out beyond a station's end, and the squares their stairs come up on (see `hallProblems`). */
+  private readonly underOut: Array<{ square: Clearing; hall: Clearing }> = [];
   /** The real buildings round the stations in the open (see `osm.ts`), fetched a line at a time. */
   private readonly osm = new OsmData();
   /** The real city round each street (see `streetLayers.ts`), and each built one's group, by station and hall. */
@@ -265,6 +267,21 @@ export class World {
     // Every station's halls are checked before any is built, so a mistake in the data names all it breaks at once.
     const problems = net.stations.flatMap((_, i) => hallProblems(net, i, openBeyond));
     if (problems.length) throw new Error(`Halls that do not fit: ${problems.join('; ')}`);
+    // Halls under the tracks out beyond a station's end, under the open track on from it: the track there leaves room
+    // for the square their stairs come up on, and no viaduct pier stands in them.
+    for (const [i, def] of net.stations.entries()) {
+      if (!isOutdoor(net, i) || def.lines.length > 1 || def.city) continue;
+      for (const [k, h] of (def.halls ?? []).entries()) {
+        if (!h.down) continue;
+        const u = underHall(h, k);
+        const [h0, h1] = [u.hx, u.hx + u.dir * HALL_LEN].sort((p, q) => p - q);
+        if (h0 >= -CAVE_HALF_L && h1 <= CAVE_HALF_L) continue;
+        this.underOut.push({
+          square: { ...u.square, x0: xs[i] + u.square.x0, x1: xs[i] + u.square.x1 },
+          hall: { x0: xs[i] + h0 - 1, x1: xs[i] + h1 + 1, z0: -HALL_HALF_W - 1, z1: HALL_HALF_W + 1 },
+        });
+      }
+    }
     for (const [i, def] of net.stations.entries()) {
       const end = lineEnd(net, i);
       const kind = end !== 0 ? 'cavern' : def.service ?? 'staff';
@@ -429,10 +446,11 @@ export class World {
       if (isOutdoor(net, i)) {
         const far = wall + dir * (TAIL_TUBE + CAVERN_LEN);
         const [t0, t1] = [Math.min(wall, far), Math.max(wall, far)];
+        const clear = this.underIn(t0, t1);
         const make = function* (dry: boolean, osm: OsmPatch[] = []): Generator<void, Group> {
           const s = new Section(`turnback-${i}`, OPEN_AMBIENT, dry, true);
           // Beyond a station up on a viaduct the tracks run on to their buffers in mid-air.
-          buildOpenTurnback(s, dry ? physics : NO_PHYSICS, wall, dir, TAIL_TUBE + CAVERN_LEN, 200 + i * 11, osm, viaductAt(net, i) ? () => -VIADUCT.drop : FLAT);
+          buildOpenTurnback(s, dry ? physics : NO_PHYSICS, wall, dir, TAIL_TUBE + CAVERN_LEN, 200 + i * 11, osm, viaductAt(net, i) ? () => -VIADUCT.drop : FLAT, clear.map((u) => u.square), clear.map((u) => u.hall));
           yield;
           return yield* s.finishSteps();
         };
@@ -524,8 +542,13 @@ export class World {
     const reachA = on(a) && first?.open && first.from === x0 ? Math.min(VIADUCT.ramp, first.to - x0) : 0;
     const reachB = on(b) && last?.open && last.to === x1 ? Math.min(VIADUCT.ramp, x1 - last.from) : 0;
     if (!reachA && !reachB) return FLAT;
-    const fall = (d: number, reach: number) => (reach > 0 ? -VIADUCT.drop * Math.max(0, 1 - d / reach) : 0);
-    return (x) => Math.min(fall(x - x0, reachA), fall(x1 - x, reachB));
+    // Level on past a hall under the tracks beyond the station's end, and its square, before it rises.
+    const mid = (x0 + x1) / 2;
+    const out = this.underIn(x0, x1).map((u) => [Math.min(u.hall.x0, u.square.x0), Math.max(u.hall.x1, u.square.x1)]);
+    const flatA = Math.max(0, ...out.filter(([p, q]) => p + q < 2 * mid).map(([, q]) => q - x0));
+    const flatB = Math.max(0, ...out.filter(([p, q]) => p + q >= 2 * mid).map(([p]) => x1 - p));
+    const fall = (d: number, reach: number, flat: number) => (reach > 0 ? -VIADUCT.drop * Math.max(0, Math.min(1, 1 - (d - flat) / Math.max(1, reach - flat))) : 0);
+    return (x) => Math.min(fall(x - x0, reachA, flatA), fall(x1 - x, reachB, flatB));
   }
 
   private openStretch(physics: Physics, x0: number, x1: number, mouths: Array<[number, 1 | -1]>, seed: number, dx = 0, city: { wide: boolean } | null = null, ground: Ground = FLAT): void {
@@ -533,6 +556,7 @@ export class World {
     const halfW = city?.wide ? CAVE_HALF_W + LANE + 0.5 : OPEN.fenceZ;
     // Built in stages with a bake per layer, so a stretch built on the way costs a frame per stage, not all at once.
     const net = this.net;
+    const clear = this.underIn(x0, x1);
     const make = function* (dry: boolean, osm: OsmPatch[] = []): Generator<void, Group> {
       const s = new Section(`open-${Math.round(x0)}`, OPEN_AMBIENT, dry, true);
       const p = dry ? shifted(physics, dx) : NO_PHYSICS;
@@ -540,7 +564,7 @@ export class World {
         buildBridge(s, p, x0, x1, halfW, city.wide ? [-TRACK_Z, TRACK_Z] : tracks);
         yield;
         buildCity(s, x0, x1, halfW, cityAnchors(net));
-      } else buildOpenTrack(s, p, x0, x1, seed, osm, ground);
+      } else buildOpenTrack(s, p, x0, x1, seed, osm, ground, clear.map((u) => u.square), clear.map((u) => u.hall));
       yield;
       for (const [x, dir] of mouths) buildTunnelMouth(s, p, x, dir, tracks, halfW + 1, !!city);
       yield;
@@ -551,6 +575,11 @@ export class World {
     drain(make(true));
     this.openRanges.push([x0 + dx, x1 + dx]);
     this.later(x0 + dx, x1 + dx, function* (this: World) { yield* this.add(yield* make(false, city ? [] : this.osmAt(x0, x1, dx))); }.bind(this), undefined, city ? undefined : this.osmReady(x0, x1, dx));
+  }
+
+  /** The halls under the tracks beyond stations' ends (`underOut`) that reach into `x0`..`x1`. */
+  private underIn(x0: number, x1: number): Array<{ square: Clearing; hall: Clearing }> {
+    return this.underOut.filter((u) => Math.max(u.square.x1, u.hall.x1) > x0 && Math.min(u.square.x0, u.hall.x0) < x1);
   }
 
   /** The second line's rails where both lines cross the open air on one wide bridge. */
@@ -590,6 +619,21 @@ export class World {
     // Out of a door in the open, the street is open all over.
     if (e.cut === 0) return 1;
     return Math.min(1, Math.max(0.4, 0.4 + (0.6 * (p.y - e.sillY)) / (e.top - e.sillY)));
+  }
+
+  /**
+   * Shows the halls under the tracks at stations in the open only where someone at `p` could see into them: down in
+   * the ground, near the top of the flight down, or up beside the tracks where their stairs come up. Out past a
+   * platform's end one lies in plain view along the tracks, and nothing hides what is under the ground.
+   */
+  underSight(p: Vector3): void {
+    // Down in the ground, not on the trackbed.
+    const below = p.y < -2;
+    const beside = Math.abs(p.z) > OPEN.fenceZ;
+    for (const child of this.group.children) {
+      const under = child.userData.under as { top: number } | undefined;
+      if (under) child.visible = !!child.userData.shown && (below || beside || Math.abs(p.x - under.top) < UNDER_NEAR);
+    }
   }
 
   /** Shows the street over `station` (null for none) nearest `x` and hides the rest: only the one you are at is ever in view. */
@@ -877,7 +921,10 @@ export class World {
       }
       // An underground station's second hall stands high over the tunnels: from the open air it would show over the
       // hill at the tunnel mouth, where nothing of it could really be seen.
-      child.visible = x > extent[0] - SHOW_REACH && x < extent[1] + SHOW_REACH && !(child.userData.underground && open);
+      const shown = x > extent[0] - SHOW_REACH && x < extent[1] + SHOW_REACH && !(child.userData.underground && open);
+      // A hall under the tracks also needs to be in sight (`underSight`).
+      if (child.userData.under) child.userData.shown = shown;
+      else child.visible = shown;
     }
   }
 
@@ -907,7 +954,7 @@ export class World {
       }
       for (const lift of s.inclines) if (lift.contains(p)) return { station: s.index, area: 'escalator' };
       // Beyond an open-air station's fences, up the stairs from a hall under the tracks: the street.
-      if (s.outdoor && Math.abs(p.x - s.cx) <= CAVE_HALF_L && Math.abs(p.z) > OPEN.fenceZ + 0.2 && p.y > s.ground - 1 && p.y < 9) return { station: s.index, area: 'street' };
+      if (s.outdoor && Math.abs(p.x - s.cx) <= CAVE_HALF_L + UNDER_BEYOND && Math.abs(p.z) > OPEN.fenceZ + 0.2 && p.y > s.ground - 1 && p.y < 9) return { station: s.index, area: 'street' };
       for (const { exit, bounds, corridor } of s.halls) {
         // Up on the street, or on the flight up to it out beyond the hall's end wall. Among the real city the streets reach
         // far along x, so another station's up at a height of its own is not this one's.
@@ -1090,18 +1137,29 @@ function hallProblems(net: Network, i: number, openBeyond: ReadonlySet<string>):
   const ends = def.halls.filter((h) => h.from === undefined).map((h) => hallDir(h));
   if (new Set(ends).size < ends.length) problems.push(`${def.name}: two halls at one end`);
   const downs = def.halls.filter((h) => h.down);
-  if (def.halls.some((h) => h.from !== undefined && !h.down) && (!underground || def.architecture !== 'tiles')) problems.push(`${def.name}: a way up from along the platform needs a tiled ceiling to climb through`);
   if (downs.length && (underground || def.lines.length > 1 || def.city)) problems.push(`${def.name}: a hall under the tracks is for a line's own station in the open`);
   if (downs.some((h) => h.from === undefined || Math.abs(h.from) > PLATFORM_HALF_L - 4)) problems.push(`${def.name}: a hall under the tracks needs its escalators' top on the platform`);
   // Every hall and its street stand at one height: their stretches along x must not overlap; nor may two halls under
   // the tracks, nor stand beyond the station's own ground.
   const overlap = (spans: Array<[number, number]>) => spans.sort((p, q) => p[0] - q[0]).some((sp, k) => k > 0 && sp[0] < spans[k - 1][1]);
   if (overlap(def.halls.filter((h) => !h.down).map((h) => hallSpan(net, i, h)))) problems.push(`${def.name}: two halls over each other`);
-  const under = downs.map((h) => underSpan(h));
-  if (overlap(under)) problems.push(`${def.name}: two halls under the tracks over each other`);
-  if (under.some(([a, b]) => a < -CAVE_HALF_L || b > CAVE_HALF_L)) problems.push(`${def.name}: a hall under the tracks beyond the station`);
+  const under = def.halls.flatMap((h, k) => (h.down ? [underSpan(h, k)] : []));
+  if (overlap(under.map((u) => u.span))) problems.push(`${def.name}: two halls under the tracks over each other`);
+  // Out beyond the platform's end a hall lies under the open track to the next station, or to the buffers.
+  for (const e of [-1, 1] as const) {
+    const out = Math.max(0, ...under.map((u) => u.reach * e - CAVE_HALF_L));
+    if (!out) continue;
+    if (out > UNDER_BEYOND) problems.push(`${def.name}: a hall under the tracks too far beyond the station (${at(e)})`);
+    else if (lineEnd(net, i) !== e && !openBeyond.has(`${i}:${e}`)) problems.push(`${def.name}: a hall under the tracks beyond the station, where no open track runs on (${at(e)})`);
+  }
   return problems;
 }
+
+/** How near the top of the flight down to a hall under the tracks the hall comes into sight (see `underSight`). */
+const UNDER_NEAR = 45;
+
+/** How far past a station's end a hall under the tracks may reach, with the square its stairs come up on. */
+export const UNDER_BEYOND = 70;
 
 /** Where a hall and the street over it stand along x, from the station's middle, as meters from its center. */
 function hallSpan(net: Network, i: number, hall: HallDef): [number, number] {
@@ -1111,11 +1169,15 @@ function hallSpan(net: Network, i: number, hall: HallDef): [number, number] {
   return [Math.min(start - d * STREET.square.a0, end), Math.max(start - d * STREET.square.a0, end)];
 }
 
-/** Where a hall under the tracks lies along x, from the station's middle: from the foot of its escalators, the hall under the platform. */
-function underSpan(hall: HallDef): [number, number] {
-  const d = hallDir(hall);
-  const mouth = d * (hall.from! - escalatorRun(UNDERPASS_DEPTH));
-  return [Math.min(mouth, mouth - d * HALL_LEN), Math.max(mouth, mouth - d * HALL_LEN)];
+/**
+ * Where a hall under the tracks lies along x, from the station's middle (the `k`th hall of its plan): from the foot of
+ * its escalators on, and how far out it and the square its stairs come up on reach, signed toward that end.
+ */
+function underSpan(hall: HallDef, k: number): { span: [number, number]; reach: number } {
+  const u = underHall(hall, k);
+  const end = u.hx + u.dir * HALL_LEN;
+  const far = [u.hx, end, u.square.x0, u.square.x1];
+  return { span: [Math.min(u.hx, end), Math.max(u.hx, end)], reach: u.dir > 0 ? Math.max(...far) : Math.min(...far) };
 }
 
 /**

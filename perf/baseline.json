@@ -1,17 +1,17 @@
 {
-  "at": "2026-09-29T07:10:42.363Z",
-  "commit": "68175fb",
+  "at": "2026-09-29T22:27:33.730Z",
+  "commit": "160b4ea",
   "fps": {
     "desktop": {
       "T-Centralen, platform": {
         "fps": 60,
-        "p95": 16.8,
+        "p95": 16.7,
         "slow": 0,
         "worst": 17,
         "hitches": 0,
         "pixelRatio": 2,
-        "calls": 117,
-        "triangles": 474887
+        "calls": 116,
+        "triangles": 472887
       },
       "Slussen, open air": {
         "fps": 60,
@@ -20,8 +20,8 @@
         "worst": 17,
         "hitches": 0,
         "pixelRatio": 2,
-        "calls": 172,
-        "triangles": 830730
+        "calls": 166,
+        "triangles": 830456
       },
       "Gamla stan, over the water": {
         "fps": 60,
@@ -30,18 +30,18 @@
         "worst": 17,
         "hitches": 0,
         "pixelRatio": 2,
-        "calls": 189,
-        "triangles": 1000821
+        "calls": 193,
+        "triangles": 1005061
       },
       "City passage, rush hour": {
         "fps": 60,
-        "p95": 16.7,
+        "p95": 16.8,
         "slow": 0,
         "worst": 17,
         "hitches": 0,
         "pixelRatio": 2,
         "calls": 57,
-        "triangles": 647417
+        "triangles": 643241
       },
       "Kista": {
         "fps": 60,
@@ -50,8 +50,8 @@
         "worst": 17,
         "hitches": 0,
         "pixelRatio": 2,
-        "calls": 73,
-        "triangles": 412659
+        "calls": 87,
+        "triangles": 377635
       },
       "Odenplan, the street": {
         "fps": 60,
@@ -61,7 +61,7 @@
         "hitches": 0,
         "pixelRatio": 2,
         "calls": 105,
-        "triangles": 448930
+        "triangles": 448344
       },
       "A minute aboard": {
         "fps": 60,
@@ -70,8 +70,8 @@
         "worst": 17,
         "hitches": 0,
         "pixelRatio": 2,
-        "calls": 144,
-        "triangles": 1018035
+        "calls": 150,
+        "triangles": 1017293
       },
       "Riding out to Akalla": {
         "fps": 60,
@@ -90,40 +90,40 @@
         "worst": 17,
         "hitches": 0,
         "pixelRatio": 2,
-        "calls": 113,
-        "triangles": 551268
+        "calls": 139,
+        "triangles": 552937
       }
     },
     "phone": {
       "T-Centralen, platform": {
         "fps": 60,
-        "p95": 16.8,
+        "p95": 16.7,
         "slow": 0,
-        "worst": 17,
+        "worst": 33,
         "hitches": 0,
         "pixelRatio": 1.5,
-        "calls": 100,
-        "triangles": 474793
+        "calls": 99,
+        "triangles": 472793
       },
       "Slussen, open air": {
         "fps": 59,
         "p95": 16.8,
-        "slow": 2,
+        "slow": 3,
         "worst": 33,
         "hitches": 0,
         "pixelRatio": 1.5,
-        "calls": 150,
-        "triangles": 830512
+        "calls": 132,
+        "triangles": 830114
       },
       "Gamla stan, over the water": {
         "fps": 60,
-        "p95": 16.7,
+        "p95": 16.8,
         "slow": 0,
         "worst": 17,
         "hitches": 0,
         "pixelRatio": 1.5,
-        "calls": 152,
-        "triangles": 998503
+        "calls": 163,
+        "triangles": 1003239
       },
       "City passage, rush hour": {
         "fps": 60,
@@ -133,37 +133,37 @@
         "hitches": 0,
         "pixelRatio": 1.5,
         "calls": 54,
-        "triangles": 640173
+        "triangles": 646749
       },
       "Kista": {
-        "fps": 59,
-        "p95": 16.8,
-        "slow": 1,
-        "worst": 33,
-        "hitches": 0,
-        "pixelRatio": 1.5,
-        "calls": 68,
-        "triangles": 412589
-      },
-      "Odenplan, the street": {
         "fps": 60,
         "p95": 16.7,
         "slow": 0,
         "worst": 17,
         "hitches": 0,
         "pixelRatio": 1.5,
-        "calls": 103,
-        "triangles": 448926
+        "calls": 84,
+        "triangles": 377569
       },
-      "A minute aboard": {
-        "fps": 60,
-        "p95": 16.7,
-        "slow": 0,
+      "Odenplan, the street": {
+        "fps": 59,
+        "p95": 16.8,
+        "slow": 2,
         "worst": 33,
         "hitches": 0,
         "pixelRatio": 1.5,
-        "calls": 136,
-        "triangles": 1017937
+        "calls": 103,
+        "triangles": 448340
+      },
+      "A minute aboard": {
+        "fps": 60,
+        "p95": 16.8,
+        "slow": 1,
+        "worst": 50,
+        "hitches": 1,
+        "pixelRatio": 1.5,
+        "calls": 142,
+        "triangles": 1017195
       },
       "Riding out to Akalla": {
         "fps": 60,
@@ -176,33 +176,33 @@
         "triangles": 238228
       },
       "Riding out to Hässelby": {
-        "fps": 60,
-        "p95": 16.7,
-        "slow": 1,
+        "fps": 59,
+        "p95": 16.8,
+        "slow": 2,
         "worst": 50,
-        "hitches": 0,
+        "hitches": 1,
         "pixelRatio": 1.5,
-        "calls": 113,
-        "triangles": 551268
+        "calls": 139,
+        "triangles": 552937
       }
     }
   },
   "load": {
     "desktop": {
-      "downloadS": 0.14060000002384185,
-      "bytes": 1037512,
+      "downloadS": 0.15990000009536742,
+      "bytes": 1076103,
       "wasmBytes": 652517,
-      "wasmDoneS": 0.14060000002384185,
-      "compileS": 0.09619999998807907,
-      "readyS": 1.6655
+      "wasmDoneS": 0.15990000009536742,
+      "compileS": 0.06889999997615814,
+      "readyS": 1.6763000000715256
     },
     "phone": {
-      "downloadS": 5.155400000035763,
-      "bytes": 1037512,
+      "downloadS": 5.341600000023842,
+      "bytes": 1076103,
       "wasmBytes": 652517,
-      "wasmDoneS": 5.155400000035763,
-      "compileS": 4.249,
-      "readyS": 8.5835
+      "wasmDoneS": 5.341600000023842,
+      "compileS": 4.4281999999284745,
+      "readyS": 9.081699999928475
     }
   }
 }

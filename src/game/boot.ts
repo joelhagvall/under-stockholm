@@ -2007,6 +2007,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     weather.update(dt, time, up === null ? null : { index: up, hall: upHall! }, out);
     // Out of a door in the open the street only shows through it, so from the escalators its houses never float in view.
     world.showStreet(up !== null && (here.area !== 'escalator' || upHall!.exit.cut > 0) ? up : null, player.feet.x);
+    world.underSight(player.feet);
     // Out in the open: the sky, daylight, a far horizon in the fog, and rain or snow. Up on a street too, and from its
     // hall the sky shows through the open top of the stairs.
     const street = here.area === 'street' ? upHall!.exit.street : null;
