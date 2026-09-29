@@ -5,13 +5,13 @@ import { brokenTube } from '../calendar';
 import { buildClutter, type StationClutter } from './clutter';
 import { escalatorSteps, type EscalatorZone } from './escalator';
 import { inclineSteps, type InclineZone } from './incline';
-import { escalatorRun } from '../escalatorMotion';
+import { escalatorHeight, escalatorRun } from '../escalatorMotion';
 import { foldedPhysics, shiftZ } from './shifted';
 import { buildWalkway, WALKWAY, walkwayZones, type WalkwayEnd } from './walkway';
 import { FLAT, OPEN, openGround, type Clearing, type Ground } from './outdoor';
 import type { OsmPatch } from './osm';
 import { buildCity, cityAnchors, cityHouse, railings } from './city';
-import type { BoxFace, MeshBuilder } from '../gfx/builder';
+import type { BoxFace, MeshBuilder, Paint } from '../gfx/builder';
 import { mix, rgb, type RGB } from '../gfx/color';
 import { createCanvasSign, drawBullet, fitText, FONT, MONO, redraw, SIGN_BG, SIGN_FG, type CanvasSign } from '../gfx/signs';
 import {
@@ -1249,6 +1249,9 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
       g.position.z = zi;
       wayGroups[k].push(g);
     }
+    // In a rock cave the flight from along the platform climbs out of the rock left between the platform tunnels: under
+    // it, from where its underside leaves the floor up into the crown, the rock stands solid.
+    if (way.inner && !tiled && !outdoor) for (const zi of upIslands) rockUnder(ws, physics, wx, way.dir, rise, zi, way.incline, theme.paint);
     for (const [n, zi] of (way.incline ? upIslands : []).entries()) {
       inclines.push(yield* inclineSteps(ws, physics, wx, way.dir, rise, hash01(index * 3 + k, 811 + n), way.corridor > 0 ? 0.5 : 0, zi, zi < 0 ? -1 : 1));
     }
@@ -1437,6 +1440,41 @@ function buildCorridor(s: Section, physics: Physics, x0: number, e: 1 | -1, leng
   for (let a = 3; a < length - 1; a += 6) {
     s.unlit.box({ x: X(a) - 1, y: Y + H - 0.06, z: -0.3 }, { x: X(a) + 1, y: Y + H, z: 0.3 }, PAINT.lampCool);
     s.light(X(a), Y + H - 0.7, 0, rgb(0xf4f6ff), 0.85, 10);
+  }
+}
+
+/**
+ * The rock under a flight that climbs from along a rock cave's platform (`HallDef.from`), beside the escalators and an
+ * inclined lift if there is one: two faces down each side and its colliders, from where the underside of the flight
+ * (its steps and the truss under them) leaves the floor to where it has gone up into the crown.
+ */
+function rockUnder(s: Section, physics: Physics, wx: number, e: 1 | -1, rise: number, zi: number, incline: boolean, paint: Paint): void {
+  const TRUSS = 0.9;
+  const under = (a: number) => escalatorHeight(a, rise) - ESC_DESIGN.stepDepth - TRUSS;
+  const run = escalatorRun(rise);
+  const side = ESC_HALF_W + ESC_DESIGN.railWidth;
+  const [z0, z1] = [zi - side, zi + (incline ? INCLINE.z1 : side)];
+  // Along the flight in steps, from its foot to where the underside is well into the rock.
+  const step = 1.5;
+  let a0 = 0;
+  while (a0 < run && under(a0) < PLATFORM_Y) a0 += 0.25;
+  /** A quad facing `facing`, whichever way the flight runs. */
+  const face = (a: Vector3, b: Vector3, c: Vector3, d: Vector3, facing: Vector3) => {
+    const n = new Vector3().subVectors(b, a).cross(new Vector3().subVectors(d, a));
+    if (n.dot(facing) < 0) s.lit.quad(a, d, c, b, paint);
+    else s.lit.quad(a, b, c, d, paint);
+  };
+  const DOWN = new Vector3(0, -1, 0);
+  for (let a = a0; a < run && under(a) < CAVE_TOP + 1.5; a += step) {
+    const b = Math.min(run, a + step);
+    const [xa, xb] = [wx + e * a, wx + e * b];
+    // Its sides, down to the floor, and its underside, a little under the truss's.
+    for (const z of [z0, z1]) {
+      face(new Vector3(xa, PLATFORM_Y, z), new Vector3(xb, PLATFORM_Y, z), new Vector3(xb, under(b), z), new Vector3(xa, under(a), z), new Vector3(0, 0, z === z0 ? -1 : 1));
+    }
+    const [ya, yb] = [under(a) - 0.03, under(b) - 0.03];
+    face(new Vector3(xa, ya, z0), new Vector3(xb, yb, z0), new Vector3(xb, yb, z1), new Vector3(xa, ya, z1), DOWN);
+    physics.box({ x: Math.min(xa, xb), y: PLATFORM_Y, z: z0 }, { x: Math.max(xa, xb), y: under(a), z: z1 });
   }
 }
 

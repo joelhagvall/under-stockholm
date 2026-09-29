@@ -1,8 +1,8 @@
 // The launch video (video/under-stockholm-launch.mp4, not committed): 41 seconds, 4:5 at 1080x1350 for a phone's
 // feed (LinkedIn), cut to the music's bars. A train into T-Centralen under the hook from the first frame, the real
-// ride aboard, Gamla stan in the open, rush hour and the sigh behind you on the escalator, then a quick run
-// through the weather, the cab, 1975 and Kymlinge, the power cut, a day on the whole network, a click on Stadion that
-// dives down into it, and the title with the address. Captions in Swedish, like the launch post (LAUNCH.md). Filmed
+// ride aboard, Gamla stan in the open, rush hour and the sigh behind you on the escalator, then a quick run up onto the
+// street in the snow, the cab out onto the viaduct at Kista, 1975 and Kymlinge, the power cut, a day on the whole
+// network, a click on Stadion that dives down into it, and the title with the address. Captions in Swedish, like the launch post (LAUNCH.md). Filmed
 // and scored in the page through `capture.ts` and `music.ts`.
 // Needs `bun run dev` running and ffmpeg. Options: --url http://localhost:5180/ (default), --wide (16:9 at 1080p, to
 // video/under-stockholm-launch-wide.mp4), --out <file> (another file than the default), --stills (one frame per
@@ -97,21 +97,28 @@ const SCENES: Scene[] = [
     captionAt: 0.15,
   },
   {
-    // Snow blowing in at the street doors on a winter evening.
-    name: 'Snow',
+    // Up out of the exit among the real city round it (OpenStreetMap's houses and streets), as the snow comes down on
+    // a winter evening.
+    name: 'Street',
     view: 'game',
-    place: `__clock(17, 40); __us.setWeather('snow'); { const s = __us.world.stations[1]; __stand(s.hall.x0 + 21, s.gates.y + 1.2, 0, -Math.PI / 2, 0.1); }`,
+    place: `__clock(17, 40); __us.setWeather('snow'); __us.goto(__station('Odenplan')); __us.step(2, 15); __us.street('Odenplan'); __us.player.pitch = 0.08;`,
+    each: `__us.player.yaw += 0.0015;`,
     seconds: BAR,
-    caption: ['Stockholms väder, just nu', 'Snöar det ute, snöar det in'],
+    caption: ['Upp på gatan', 'Riktiga kvarter runt varje uppgång, i vädret just nu'],
     captionAt: 0.15,
   },
   {
-    // In the cab, at speed in the tunnel.
+    // In the cab at speed in the tunnel past Kymlinge, and out of it into Kista up on its viaduct in daylight.
     name: 'Cab',
     view: 'game',
-    place: `__clock(13, 0); __us.setWeather('clear'); __us.goto(1); __us.drive();`,
-    start: `__us.driver.throttle(4); __us.step(22, 15);`,
+    // Placed once: `place` runs again before filming, and a second trip to Hallonbergen would leave the world shown
+    // round the platform there, far behind the cab.
+    place: `__clock(13, 0); __us.setWeather('clear'); if (!__us.player.driveEye) { __us.goto(__station('Hallonbergen')); __us.drive(); }`,
+    // Driven there a quarter second at a time, then what lies round the cab and Kista built, and drawn once, before the
+    // first frame.
+    start: `{ const k = __us.world.stationX[__station('Kista')]; __us.driver.throttle(4); for (let n = 0; n < 600 && __us.driver.train.position.x < k - 200; n++) __us.step(0.25, 15); __us.world.ensureBuilt(__us.player.feet.x); __us.world.ensureBuilt(k); __us.step(0.1, 30); }`,
     seconds: BAR,
+    speed: 2,
     caption: ['Kör själv', 'ATC, bromskurva och poäng för stoppet'],
     captionAt: 0.15,
   },
