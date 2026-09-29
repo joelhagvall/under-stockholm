@@ -16,7 +16,8 @@ export function stationArchitecture(s: Section, physics: Physics, def: StationDe
   const red = rgb(0xab4437);
   const green = rgb(0x355b49);
   const metal = rgb(0x707b80);
-  for (const dx of D.pierXs) {
+  // A cave whose look has no columns is one wide span.
+  for (const dx of def.look?.columns === 'none' ? [] : D.pierXs) {
     const x = cx + dx;
     if (def.architecture === 'garden') {
       // Classical fragments and fluted columns recall the excavated palace garden.

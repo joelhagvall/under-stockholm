@@ -11,6 +11,7 @@
     "serve:prod": "bun scripts/serve.ts",
     "ghosts": "bun server/ghosts.ts",
     "fps": "bun scripts/fps.ts",
+    "shots": "bun scripts/shots.ts",
     "mem": "bun scripts/mem.ts",
     "load": "bun scripts/load.ts",
     "check": "bun scripts/check.ts",

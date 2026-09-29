@@ -11,6 +11,8 @@ perf/.run/
 perf/last-run.json
 perf/history.jsonl
 perf/nightly.log
+# Pictures of the stations from `bun run shots`: never in the repository
+shots/
 server/perf.jsonl
 server/errors.jsonl
 .wrangler/

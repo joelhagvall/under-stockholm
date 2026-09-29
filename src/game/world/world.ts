@@ -13,6 +13,7 @@ import {
   HALL_LEN,
   PLATFORM_HALF_L,
   PLATFORM_HALF_W,
+  HALL_H,
   PLATFORM_Y,
   STREET,
   UNDERPASS_DEPTH,
@@ -863,7 +864,9 @@ export class World {
         // far along x, so another station's up at a height of its own is not this one's.
         const street = exit.street;
         if (street && p.x >= street.x0 && p.x <= street.x1 && p.y > bounds.y + 2 && p.y < street.y + 25 && (p.y > street.y - 1 || p.x < bounds.x0 || p.x > bounds.x1)) return { station: s.index, area: 'street' };
-        if (p.x >= bounds.x0 && p.x <= bounds.x1 && p.y > bounds.y - 1) return { station: s.index, area: 'hall' };
+        // A hall under the tracks ends at its ceiling: the platform over it is not in it.
+        const under = bounds.y < PLATFORM_Y - 1 && p.y > bounds.y + HALL_H;
+        if (p.x >= bounds.x0 && p.x <= bounds.x1 && p.y > bounds.y - 1 && !under) return { station: s.index, area: 'hall' };
         if (corridor && p.x >= corridor.x0 && p.x <= corridor.x1 && Math.abs(p.z) < corridor.halfWidth + 0.5 && p.y > bounds.y - 1) return { station: s.index, area: 'hall' };
       }
       if (Math.abs(p.x - s.cx) <= CAVE_HALF_L && p.y < 9) {

@@ -12,13 +12,14 @@ import { OPEN, openGround, type Clearing } from './outdoor';
 import type { OsmPatch } from './osm';
 import { buildCity, cityAnchors, cityHouse, railings } from './city';
 import type { BoxFace, MeshBuilder } from '../gfx/builder';
-import { rgb, type RGB } from '../gfx/color';
+import { mix, rgb, type RGB } from '../gfx/color';
 import { createCanvasSign, drawBullet, fitText, FONT, MONO, redraw, SIGN_BG, SIGN_FG, type CanvasSign } from '../gfx/signs';
 import {
   STATION_DESIGN,
   CAVE_BOTTOM,
   CAVE_HALF_L,
   CAVE_HALF_W,
+  CANOPY,
   CAVE_TOP,
   CAVE_WALL_H,
   ESC_ANGLE,
@@ -57,6 +58,8 @@ import { drawPoster } from '../gfx/posters';
 import { hash01 } from '../clock';
 import type { Interactable, Zone } from './zones';
 import { stationArchitecture } from './stationDetails';
+import { stationOwnDetails } from './details';
+import { buildCanopy, buildCutting, buildDeck, buildGlobe, buildLanterns, canopySpans, covered } from './canopy';
 import { TILED_WALL_H, TILED_TOP, VAULT_WALL_H, VAULT_TOP } from '../lines/theme';
 import { archHole, archProfile, extrudeRockSteps, profileLength, rectHole, wallWithHoles, type ProfilePoint } from './shapes';
 import { place, textSign } from './signage';
@@ -727,7 +730,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
       { z: zi - B.half, y: 0, nz: -1, ny: 0 }, { z: zi - B.half, y: B.top, nz: -1, ny: 0 },
       { z: zi + B.half, y: B.top, nz: 1, ny: 0 }, { z: zi + B.half, y: 0, nz: 1, ny: 0 },
     ];
-    wallWithHoles(s.lit, wx, front, [rectHole(zi - ESC_HALF_W, zi + ESC_HALF_W, PLATFORM_Y, PLATFORM_Y + ESC_HEADROOM)], rgb(0xb8b2a6));
+    wallWithHoles(s.lit, wx, front, [rectHole(zi - ESC_HALF_W, zi + ESC_HALF_W, PLATFORM_Y, PLATFORM_Y + ESC_HEADROOM)], rgb(def.canopy?.building ?? 0xb8b2a6));
     const xo0 = e > 0 ? wx : wx - 1;
     const xo1 = e > 0 ? wx + 1 : wx;
     physics.box({ x: xo0, y: -1, z: zi - B.half }, { x: xo1, y: B.top, z: zi - ESC_HALF_W });
@@ -778,7 +781,10 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     railings(s, physics, xa, xb, halfW);
     yield;
     buildCity(s, xa, xb, halfW, cityAnchors(net));
-  } else if (outdoor) openGround(s, physics, xa, xb, index * 17 + 5, true, osm ? [osm] : [], squares);
+  } else if (outdoor) {
+    openGround(s, physics, xa, xb, index * 17 + 5, true, osm ? [osm] : [], squares);
+    if (def.canopy?.cutting) buildCutting(s, physics, def.canopy.cutting, xa, xb, squares);
+  }
   yield;
   for (const zc of trackZs) addTrack(s, xa, xb, zc, true);
   yield;
@@ -807,7 +813,8 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     };
     // Stone slabs, or poured terrazzo in the station's colour.
     const slabs = def.look?.floor !== undefined ? s.artLayer(terrazzoTexture()) : s.floor;
-    const slab = def.look?.floor !== undefined ? rgb(def.look.floor) : SLAB;
+    // In the open a tint of the slabs' own grey: asphalt and concrete darker, a red tile floor red.
+    const slab = def.look?.floor !== undefined ? rgb(def.look.floor) : outdoor && def.canopy?.floor !== undefined ? mix(rgb(def.canopy.floor), SLAB, 0.45) : SLAB;
     top(def.architecture === 'garden' ? s.artLayer(gardenFloorTexture()) : slabs, 0, W - 1.1, slab);
     top(s.tactile, W - 1.1, W - 0.7, rgb(0xffffff));
     top(slabs, W - 0.7, W - 0.14, slab);
@@ -849,9 +856,15 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     if (steps && service!.dir === bare) for (const z of [-1.3, 1.3]) s.lit.box({ x: fx - 0.03, y: PLATFORM_Y + 1.1, z: z - 0.03 }, { x: fx + 0.03, y: PLATFORM_Y + 1.28, z: z + 0.03 }, rgb(0xd9b93b));
   }
 
-  // Paired continuous fluorescent troughs frame each boarding side.
+  // Paired continuous fluorescent troughs frame each boarding side. In the open they run only under the roof, and a
+  // bare rail carries the signs on beyond it, from lamp post to lamp post.
   const lampColor = theme.lamp;
   const RAIL = STATION_DESIGN.lightingY;
+  const ownRoof = outdoor && !twin && def.canopy?.deck === undefined;
+  const roofSpans = ownRoof ? canopySpans(def.canopy, p0 + 4, p1 - 4, ways[0].dir) : [[p0, p1] as const];
+  const roofed = (x: number, half = 0) => !ownRoof || covered(roofSpans, x, half);
+  /** Where the lamps' hangers end: the cave's roof, a roof in the open or a deck. */
+  const hangTop = !outdoor ? CAVE_TOP : def.canopy?.deck !== undefined ? CANOPY.deckY : CANOPY.y;
   const tubeXs: number[] = [];
   for (let x = p0 + 3; x < p1 - 2; x += 4.5) tubeXs.push(x);
   // An inclined lift beside a way up from along the platform takes the +z trough's place over it.
@@ -873,17 +886,22 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
         if (x0 > from) s.lit.box({ x: from, y: RAIL, z: z - 0.19 }, { x: Math.min(x0, p1), y: RAIL + 0.2, z: z + 0.19 }, rgb(0x555b5b));
         from = Math.max(from, x1);
       }
-      if (from < p1) s.lit.box({ x: from, y: RAIL, z: z - 0.19 }, { x: p1, y: RAIL + 0.2, z: z + 0.19 }, rgb(0x555b5b));
+      if (from < p1) {
+        if (ownRoof) {
+          s.lit.box({ x: from, y: RAIL + 0.08, z: z - 0.05 }, { x: p1, y: RAIL + 0.16, z: z + 0.05 }, rgb(0x555b5b));
+          for (const [a, b] of roofSpans) if (b > from) s.lit.box({ x: Math.max(from, a), y: RAIL, z: z - 0.19 }, { x: Math.min(p1, b), y: RAIL + 0.2, z: z + 0.19 }, rgb(0x555b5b));
+        } else s.lit.box({ x: from, y: RAIL, z: z - 0.19 }, { x: p1, y: RAIL + 0.2, z: z + 0.19 }, rgb(0x555b5b));
+      }
       for (const [k, x] of tubeXs.entries()) {
-        if (!lit(x, side, 2)) continue;
+        if (!lit(x, side, 2) || !roofed(x, 2)) continue;
         if (side > 0 && k === broken && k0 === islands.length - 1) { s.light(x, RAIL - 0.2, z, lampColor, 0.4, 8); continue; }
         s.unlit.box({ x: x - 1.95, y: RAIL - 0.045, z: z - 0.095 }, { x: x + 1.95, y: RAIL, z: z + 0.095 }, rgb(0xf2f5ee));
         s.light(x, RAIL - 0.2, z, lampColor, 0.62, 8);
         s.light(x, RAIL + 0.6, z, lampColor, 0.65, 10);
       }
       for (let x = p0 + 5; x < p1; x += 14) {
-        if (!lit(x, side, 0.2)) continue;
-        s.lit.box({ x: x - 0.025, y: RAIL + 0.2, z: z - 0.025 }, { x: x + 0.025, y: CAVE_TOP, z: z + 0.025 }, PAINT.fixture);
+        if (!lit(x, side, 0.2) || !roofed(x, 0.2)) continue;
+        s.lit.box({ x: x - 0.025, y: RAIL + 0.2, z: z - 0.025 }, { x: x + 0.025, y: hangTop, z: z + 0.025 }, PAINT.fixture);
         s.lit.box({ x: x - 0.15, y: RAIL - 0.28, z: z - 0.12 }, { x: x + 0.15, y: RAIL, z: z + 0.12 }, rgb(0x24282d));
       }
     }
@@ -906,18 +924,21 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
         }
       }
     }
-    for (const zi of islands) {
-      if (!twin) {
-        s.lit.box({ x: p0 + 4, y: roofY, z: zi - 4.3 }, { x: p1 - 4, y: roofY + 0.22, z: zi + 4.3 }, (_p, n) => (n.y < -0.5 ? rgb(0xd8d4cc) : rgb(0x5a5c5e)));
-        s.lit.box({ x: p0 + 4, y: roofY - 0.35, z: zi - 4.35 }, { x: p1 - 4, y: roofY + 0.22, z: zi - 4.25 }, rgb(0x2f3438));
-        s.lit.box({ x: p0 + 4, y: roofY - 0.35, z: zi + 4.25 }, { x: p1 - 4, y: roofY + 0.22, z: zi + 4.35 }, rgb(0x2f3438));
-      }
+    if (twin) for (const zi of islands) {
       for (const dx of STATION_DESIGN.pierXs.filter((d) => free(cx + d, 0.3))) {
         const geo = new CylinderGeometry(0.12, 0.12, roofY - PLATFORM_Y, 10);
         s.lit.geometry(geo, new Matrix4().setPosition(cx + dx, (roofY + PLATFORM_Y) / 2, zi), post);
         geo.dispose();
         physics.box({ x: cx + dx - 0.15, y: PLATFORM_Y, z: zi - 0.15 }, { x: cx + dx + 0.15, y: roofY, z: zi + 0.15 });
       }
+    }
+    // Elsewhere the station's own roof, over as much of the platform as the real one covers (`canopy.ts`), or a deck
+    // over it all.
+    else if (def.canopy?.deck !== undefined) buildDeck(s, physics, def.canopy, xa, xb, halfW, islands, free, lampColor);
+    else for (const zi of islands) {
+      if (zi === islands[0] && def.canopy?.globe) buildGlobe(s, cx, def.canopy.globe);
+      buildCanopy(s, physics, def.canopy, zi, cx, roofSpans, free);
+      buildLanterns(s, physics, def.canopy, zi, p0, p1, roofSpans, free, lampColor);
     }
   } else if (tiled) {
     // Columns down each island, up to the ceiling: square and tiled, round, or none.
@@ -937,6 +958,10 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
       }
     }
   } else stationArchitecture(s, physics, def, cx, e);
+  yield;
+  // The station's own sculptures, showcases and fittings (`details/`), a stage of their own.
+  stationOwnDetails(line.id, { s, physics, def, cx, exitDir: e, islands, outdoor, tiled, free });
+  yield;
   if (!outdoor) for (let x = p0 + 6; x < p1; x += 9) {
     for (const side of [-1, 1]) s.light(x, vaulted ? VAULT_WALL_H - 0.4 : STATION_DESIGN.corniceY, side * (halfW - 1.6), lampColor, 0.75, 8);
   }
@@ -1010,7 +1035,12 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
       const ring = new CylinderGeometry(0.37, 0.37, 0.12, 32);
       s.lit.geometry(ring, new Matrix4().makeRotationZ(Math.PI / 2).setPosition(x, 3.85, zi), rgb(0x2a2c30));
       ring.dispose();
-      s.lit.box({ x: x - 0.02, y: 4.2, z: zi - 0.02 }, { x: x + 0.02, y: RAIL, z: zi + 0.02 }, PAINT.fixture);
+      // Under a roof it hangs from it; in the open beyond the roof it stands on a pole.
+      if (roofed(x, 0.5)) s.lit.box({ x: x - 0.02, y: 4.2, z: zi - 0.02 }, { x: x + 0.02, y: ownRoof ? CANOPY.y : RAIL, z: zi + 0.02 }, PAINT.fixture);
+      else {
+        s.lit.box({ x: x - 0.05, y: PLATFORM_Y, z: zi - 0.05 }, { x: x + 0.05, y: 3.48, z: zi + 0.05 }, PAINT.fixture);
+        physics.box({ x: x - 0.08, y: PLATFORM_Y, z: zi - 0.08 }, { x: x + 0.08, y: 3.48, z: zi + 0.08 });
+      }
     }
   }
 
@@ -1051,7 +1081,22 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   for (let x = cx - 60; x <= cx + 60; x += 24) {
     for (const side of [-1, 1]) {
       // Outdoors they hang from the canopy's edges, facing the tracks.
-      if (outdoor) { for (const zi of islands) place(s, board, 3.6, 0.55, new Vector3(x, STATION_DESIGN.lightingY - 0.2, zi + side * 4.36), new Vector3(0, 0, side)); continue; }
+      // Outdoors they hang from the roof's eaves, and beyond the roof stand on two posts.
+      if (outdoor) {
+        for (const zi of islands) {
+          const z = zi + side * 4.36;
+          place(s, board, 3.6, 0.55, new Vector3(x, STATION_DESIGN.lightingY - 0.2, z), new Vector3(0, 0, side));
+          const eave = def.canopy?.roof === 'butterfly' ? CANOPY.y + CANOPY.pitch : CANOPY.y;
+          const roofedHere = roofed(x, 1.9);
+          if (roofedHere && eave - STATION_DESIGN.lightingY < 0.2) continue;
+          for (const dx of [-1.5, 1.5]) {
+            const [y0, y1] = roofedHere ? [STATION_DESIGN.lightingY + 0.05, eave] : [PLATFORM_Y, STATION_DESIGN.lightingY + 0.05];
+            s.lit.box({ x: x + dx - 0.03, y: y0, z: z - side * 0.08 - 0.03 }, { x: x + dx + 0.03, y: y1, z: z - side * 0.08 + 0.03 }, PAINT.fixture);
+            if (!roofedHere) physics.box({ x: x + dx - 0.06, y: PLATFORM_Y, z: z - side * 0.08 - 0.06 }, { x: x + dx + 0.06, y: y1, z: z - side * 0.08 + 0.06 });
+          }
+        }
+        continue;
+      }
       place(s, board, 4.2, 0.64, new Vector3(x, STATION_DESIGN.nameBoardY, side * boardZ), new Vector3(0, 0, -side));
       if (twin) place(s, board, 4.2, 0.64, new Vector3(x, STATION_DESIGN.nameBoardY, side * (TRACK_Z - TRAIN_HALF_W - 1.5 + 0.02)), new Vector3(0, 0, side));
     }

@@ -351,3 +351,24 @@ export const COMMUTER_LAYOUT = {
   boardDuration: 2.4,
   stagger: 0.2,
 };
+
+/** An open-air platform's roof (`world/canopy.ts`): its height, reach and posts. */
+export const CANOPY = {
+  /** The roof's underside, just over the lamp rail. */
+  y: STATION_DESIGN.lightingY + 0.3,
+  thick: 0.22,
+  /** Half its width across the island. */
+  halfW: 4.3,
+  /** How far a butterfly's wings or a gable's ridge rise over the eaves. */
+  pitch: 0.55,
+  postHalf: 0.12,
+  /** Where its posts stand along the island, from the middle: clear of the benches, pillars, signs and displays. */
+  postXs: [-66, -56, -34, -22, 0, 22, 34, 56, 66],
+  /** Beyond the roof, lamp posts carrying the lamp rail and two lanterns each, this far apart. */
+  lanternStep: 12,
+  /** A concrete deck over the whole station (a town centre built over the tracks): its underside. */
+  deckY: 6.2,
+  /** A cutting's walls: how far beyond the fences they stand, and the length of each block of rock. */
+  cutGap: 1.5,
+  cutStep: 2,
+};

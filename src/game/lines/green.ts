@@ -1,9 +1,10 @@
 import text from '../i18n/sv.json';
-import { mix, rgb } from '../gfx/color';
+import { mix, rgb, type RGB } from '../gfx/color';
 import { fbm3 } from '../gfx/noise';
 import { JUNCTION_RUN } from '../layout';
 import type { LineDef } from '../line';
-import { coolLamp, grain, pattern, rock, tiles, warmLamp, type Theme } from './theme';
+import { coolLamp, grain, pattern, rock, TILED_BOTTOM, TILED_WALL_H, tiles, VAULT_WALL_H, warmLamp, type Theme } from './theme';
+import { fridhemsplanTexture, radmansgatanTexture, skanstullTexture } from '../gfx/art/green';
 
 /*
  * The green line: routes 17 (Åkeshov to Skarpnäck), 18 (Alvik to Farsta
@@ -31,11 +32,28 @@ const arcade: Theme = pattern(0x3e3f4a, coolLamp, (p, n) => {
 });
 
 
-// Skarpnäck: dark rock walls under a ceiling painted brick red.
-const redCave: Theme = pattern(0x4a3430, warmLamp, (p) => (p.y > 4.2 ? mix(rgb(0x8a3020), rgb(0xb84a2c), grain(p, 124)) : mix(rgb(0x2a2624), rgb(0x4a4440), grain(p, 125))));
+// Skarpnäck (1994): one wide vault of sprayed rock painted deep oxide red, walls and all, darker down by the rails.
+const redCave: Theme = pattern(0x4a2620, warmLamp, (p) => mix(mix(rgb(0x5e1a10), rgb(0xa13c24), grain(p, 124)), rgb(0x2e0e08), Math.max(0, (1.4 - p.y) / 2.4)));
 
-// Bagarmossen: dark grey rock with a band of blue light.
-const blueBand: Theme = pattern(0x34363c, coolLamp, (p) => (p.y > 2.4 && p.y < 3.0 ? rgb(0x4a5aff) : mix(rgb(0x3a3c40), rgb(0x5a5c60), grain(p, 126))));
+// Bagarmossen (1994, Gert Marcus): an all-grey cave, pale grey rock over a black lower wall (with its band of glass, `details/green.ts`).
+const greyCave: Theme = pattern(0x44464a, coolLamp, (p) => (p.y < 2.2 ? mix(rgb(0x262728), rgb(0x3a3b3c), grain(p, 126)) : mix(rgb(0x5e5f5e), rgb(0x8e8f8d), grain(p, 127))));
+
+/** A tiled 1950s box whose walls are a painted artwork, its end walls and columns in the wall's colour. */
+const painted = (ambient: number, lamp: RGB, wall: number, art: (arc: number, wallH: number) => ReturnType<NonNullable<Theme['art']>>, ceiling = 0xefeee9, top: number = TILED_WALL_H): Theme => ({
+  ...pattern(ambient, lamp, (p) => (p.y < 1.0 ? rgb(0x4a4a46) : p.y > top ? rgb(ceiling) : rgb(wall))),
+  art: (arc, wallH = TILED_WALL_H - TILED_BOTTOM) => art(arc, wallH),
+});
+
+// Fridhemsplan's green platform: yellow perforated panels under a vault half bare rock, half the white 1952 vault.
+const fridhemsplan = painted(0x4e4c46, coolLamp, 0xe0d78e, fridhemsplanTexture, 0x5c5b58, VAULT_WALL_H);
+// Rådmansgatan: pale cream tiles and Strindberg's drawings on white enamel.
+const radmansgatan = painted(0x56564e, warmLamp, 0xe9e2c8, radmansgatanTexture);
+// Skanstull: framed cream-yellow tiles over a dark plinth.
+const skanstull = painted(0x55544c, warmLamp, 0xe9dfae, skanstullTexture);
+// Hötorget: glossy tiles in seven shades of pale blue and blue-green, floor to ceiling.
+const hotorget = tiles(0x5a6466, coolLamp, { tile: 0xb9d2d2, seed: 153, size: 0.18, ceiling: 0xf2f2ee, frieze: { colors: [0xcfe0de, 0xc4dada, 0xb9d2d2, 0xafcacc, 0xa5c3c6, 0xd6e6e2, 0xbfd8d4], from: -1, to: 6 } });
+// Medborgarplatsen: mustard-yellow tiles over a black band by the rails, under an off-white vault.
+const medborgarplatsen = tiles(0x5a5446, warmLamp, { tile: 0xd4b13a, low: 0x1c1c1c, dado: 1.25, seed: 149, size: 0.15, ceiling: 0xe6e3da });
 
 /** Tiled boxes of the 1950s, each in its own colour. */
 const box = (tile: number, low: number, seed: number, accent?: number): Theme =>
@@ -71,24 +89,24 @@ export const GREEN_LINE: LineDef = {
     { name: 'Alvik', map: [0.28, 0.468], sl: 9112, riders: 15000, architecture: 'tiles', exits: 'Alviks torg', halls: [{ end: 'inbound', from: 60, down: true }, { end: 'outbound' }], open: true, transfer: text.announcements.alvikTransfer, theme: box(0xe4e6e0, 0x4a6a5a, 158) },
     { name: 'Kristineberg', map: [0.32, 0.462], sl: 9113, riders: 5000, gap: 900, architecture: 'tiles', exits: 'Kristineberg', halls: [{ end: 'inbound', from: 60, down: true }], open: true, theme: box(0xe0e4e6, 0x5a6a7a, 157) },
     { name: 'Thorildsplan', map: [0.36, 0.458], sl: 9114, riders: 4000, architecture: 'tiles', exits: 'Thorildsplan', halls: [{ end: 'outbound', from: 60, down: true }], open: true, theme: arcade },
-    // Fridhemsplan's green platform: a dark rock vault over walls of big yellow tiles.
+    // Fridhemsplan's green platform (1952): one vault over the island, half bare grey rock and half the old white vault, over yellow perforated panels.
     { name: 'Fridhemsplan', map: [0.405, 0.438], sl: 9115, riders: 15000, rise: 10, architecture: 'tiles', exits: 'Drottningholmsvägen · S:t Eriksgatan', halls: [{ end: 'outbound', incline: true, exits: 'S:t Eriksgatan' }, { end: 'inbound', incline: true, exits: 'Drottningholmsvägen' }], transfer: text.announcements.otherMetro,
-      look: { ceiling: 'vault', floor: 0xd8d6d0, columns: 'none' }, theme: tiles(0x4a4640, warmLamp, { tile: 0xd9b44a, seed: 156, size: 0.4, ceiling: 0x2e3033 }) },
-    // S:t Eriksplan: a flat ceiling on grey concrete columns, pale tiles and a light floor.
-    { name: 'S:t Eriksplan', map: [0.428, 0.395], sl: 9116, riders: 15000, rise: 7, architecture: 'tiles', exits: 'S:t Eriksplan · Atlasgatan', halls: [{ end: 'inbound' }, { end: 'outbound', incline: true }], look: { ceiling: 'flat', floor: 0xe0dcd0, columns: 'square', columnColor: 0x8a8c8a }, theme: box(0xdcdcd4, 0x9a9a94, 155) },
-    // Odenplan: a cream vault over pale grey tiles.
-    { name: 'Odenplan', map: [0.455, 0.378], sl: 9117, riders: 20000, rise: 7, architecture: 'tiles', exits: 'Odenplan · Karlbergsvägen', halls: [{ end: 'outbound', exits: 'Karlbergsvägen' }, { end: 'inbound', corridor: 10, exits: 'Västmannagatan' }], transfer: text.announcements.pendeltagTransfer, look: { ceiling: 'vault', floor: 0xe0dccc, columns: 'none' }, theme: box(0xd8dcdc, 0x9aa0a4, 154) },
-    // Rådmansgatan: pale tiles, yellow tiled columns and round lamps in a flat ceiling.
-    { name: 'Rådmansgatan', map: [0.482, 0.38], sl: 9118, riders: 12000, rise: 7, architecture: 'tiles', exits: 'Sveavägen · Rådmansgatan', halls: [{ end: 'inbound', corridor: 40, incline: true, exits: 'Sveavägen' }, { end: 'outbound' }], look: { ceiling: 'flat', floor: 0xe4e0d8, columns: 'square', columnColor: 0xe0c860 }, theme: box(0xe8e0c8, 0xb8a888, 122) },
-    // Hötorget (1952): pale turquoise tiles on the walls and square columns, a cream floor, and neon under the ceiling.
-    { name: 'Hötorget', map: [0.505, 0.405], sl: 9119, riders: 20000, rise: 7, architecture: 'tiles', exits: 'Hötorget · Kungsgatan', halls: [{ end: 'inbound', incline: true, exits: 'Tunnelgatan' }, { end: 'outbound', corridor: 30, exits: 'Malmskillnadsgatan' }, { end: 'outbound', from: -8 }], look: { ceiling: 'flat', floor: 0xe6dcc8, columns: 'square' }, theme: box(0xb8e0dc, 0x3a8a86, 153) },
+      look: { ceiling: 'vault', floor: 0x9a9894, columns: 'none' }, theme: fridhemsplan },
+    // S:t Eriksplan (1952): a plain white tiled box without art, a low flat ceiling on one row of pale square columns.
+    { name: 'S:t Eriksplan', map: [0.428, 0.395], sl: 9116, riders: 15000, rise: 7, architecture: 'tiles', exits: 'S:t Eriksplan · Atlasgatan', halls: [{ end: 'inbound' }, { end: 'outbound', incline: true }], look: { ceiling: 'flat', floor: 0xcfccc4, columns: 'none' }, theme: tiles(0x56585a, coolLamp, { tile: 0xe6e4dc, low: 0x5a5c5a, dado: 1.1, seed: 155, size: 0.15, ceiling: 0xeeeeea }) },
+    // Odenplan: a shallow white vault over pale grey-green tiles, and a glass art case behind red railings on the platform.
+    { name: 'Odenplan', map: [0.455, 0.378], sl: 9117, riders: 20000, rise: 7, architecture: 'tiles', exits: 'Odenplan · Karlbergsvägen', halls: [{ end: 'outbound', exits: 'Karlbergsvägen' }, { end: 'inbound', corridor: 10, exits: 'Västmannagatan' }], transfer: text.announcements.pendeltagTransfer, look: { ceiling: 'vault', floor: 0xd8cfbf, columns: 'none' }, theme: tiles(0x585c5a, coolLamp, { tile: 0xc9d3cc, low: 0x6a706c, dado: 1.0, seed: 154, size: 0.15, ceiling: 0xf0efe9 }) },
+    // Rådmansgatan (1952): pale tiles, yellow tiled square columns under a flat ceiling, and Strindberg's drawings on white enamel.
+    { name: 'Rådmansgatan', map: [0.482, 0.38], sl: 9118, riders: 12000, rise: 7, architecture: 'tiles', exits: 'Sveavägen · Rådmansgatan', halls: [{ end: 'inbound', corridor: 40, incline: true, exits: 'Sveavägen' }, { end: 'outbound' }], look: { ceiling: 'flat', floor: 0xcfcfca, columns: 'none' }, theme: radmansgatan },
+    // Hötorget (1952): glossy tiles in seven shades of pale blue on the walls and square columns, and Gun Gordillo's loops of white neon under the ceiling.
+    { name: 'Hötorget', map: [0.505, 0.405], sl: 9119, riders: 20000, rise: 7, architecture: 'tiles', exits: 'Hötorget · Kungsgatan', halls: [{ end: 'inbound', incline: true, exits: 'Tunnelgatan' }, { end: 'outbound', corridor: 30, exits: 'Malmskillnadsgatan' }, { end: 'outbound', from: -8 }], look: { ceiling: 'flat', floor: 0xcbbfaa, columns: 'none' }, theme: hotorget },
     { name: 'T-Centralen', shared: 'red', map: [0.507, 0.447] },
     { name: 'Gamla stan', shared: 'red', map: [0.513, 0.505] },
     { name: 'Slussen', shared: 'red', map: [0.522, 0.555] },
-    // Medborgarplatsen: a cream vault, yellow tiles and blue columns ringed in colour.
-    { name: 'Medborgarplatsen', map: [0.54, 0.59], sl: 9191, riders: 20000, rise: 7, architecture: 'tiles', exits: 'Medborgarplatsen · Götgatan', halls: [{ end: 'outbound', corridor: 15, exits: 'Folkungagatan' }, { end: 'inbound', from: 10, exits: 'Götgatan' }], look: { ceiling: 'vault', floor: 0xdcd8d0, columns: 'square', columnColor: 0x2a4aa0 }, theme: box(0xe0c048, 0xb89a30, 149) },
-    // Skanstull: a flat ceiling on round white columns.
-    { name: 'Skanstull', map: [0.553, 0.625], sl: 9190, riders: 15000, rise: 7, architecture: 'tiles', exits: 'Götgatan · Ringvägen', halls: [{ end: 'outbound', exits: 'Ringvägen' }, { end: 'inbound', corridor: 10, exits: 'Götgatan' }], look: { ceiling: 'flat', floor: 0xb8b6b0, columns: 'round', columnColor: 0xe8e8e4 }, theme: box(0xe4e4dc, 0xa8a8a0, 148) },
+    // Medborgarplatsen (1933): mustard tiles over a black band, a low off-white vault, and Gunnar Söderström's blue columns striped in colour.
+    { name: 'Medborgarplatsen', map: [0.54, 0.59], sl: 9191, riders: 20000, rise: 7, architecture: 'tiles', exits: 'Medborgarplatsen · Götgatan', halls: [{ end: 'outbound', corridor: 15, exits: 'Folkungagatan' }, { end: 'inbound', from: 10, exits: 'Götgatan' }], look: { ceiling: 'vault', floor: 0xd9d9d4, columns: 'none' }, theme: medborgarplatsen },
+    // Skanstull (1933): framed cream-yellow tiles, a flat beamed ceiling on round white columns flared at the top.
+    { name: 'Skanstull', map: [0.553, 0.625], sl: 9190, riders: 15000, rise: 7, architecture: 'tiles', exits: 'Götgatan · Ringvägen', halls: [{ end: 'outbound', exits: 'Ringvägen' }, { end: 'inbound', corridor: 10, exits: 'Götgatan' }], look: { ceiling: 'flat', floor: 0x9a9a96, columns: 'none' }, theme: skanstull },
     { name: 'Gullmarsplan', map: [0.57, 0.67], sl: 9189, riders: 18000, gap: 800, architecture: 'tiles', exits: 'Gullmarsplan · Johanneshov', halls: [{ end: 'outbound' }], open: true, transfer: text.announcements.tvarbanaTransfer, theme: box(0xe6e2d8, 0x7a5a3a, 147) },
     // Route 19 toward Hagsätra.
     { name: 'Globen', map: [0.56, 0.71], sl: 9168, riders: 5000, gap: JUNCTION_RUN, architecture: 'tiles', exits: 'Globen · Arenavägen', halls: [{ end: 'inbound' }, { end: 'outbound' }], branch: '19', open: true, transfer: text.announcements.tvarbanaTransfer, theme: box(0xe4e6ea, 0x3a4a6a, 146) },
@@ -105,10 +123,10 @@ export const GREEN_LINE: LineDef = {
     { name: 'Hammarbyhöjden', map: [0.63, 0.684], sl: 9144, riders: 5000, gap: JUNCTION_RUN, architecture: 'tiles', exits: 'Hammarbyhöjden', halls: [{ end: 'inbound' }, { end: 'outbound', from: 60, down: true }], branch: '17', open: true, theme: box(0xe8e2d4, 0x9a7a5a, 128) },
     { name: 'Björkhagen', map: [0.66, 0.684], sl: 9143, riders: 4000, architecture: 'tiles', exits: 'Björkhagen', halls: [{ end: 'outbound', from: 20, down: true }], branch: '17', open: true, theme: box(0xe0e6dc, 0x6a8a5a, 127) },
     { name: 'Kärrtorp', map: [0.69, 0.688], sl: 9142, riders: 4000, open: true, architecture: 'rock', exits: 'Kärrtorps centrum', halls: [{ end: 'outbound', from: 60, down: true }], branch: '17', theme: rock(0x46483e, warmLamp, 0x606a48, 0x9aa478, 126) },
-    // Bagarmossen: a dark grey rock cave with a band of blue light along the walls.
-    { name: 'Bagarmossen', map: [0.72, 0.695], sl: 9141, riders: 6000, rise: 11, architecture: 'rock', exits: 'Bagarmossens centrum', halls: [{ end: 'inbound', incline: true }], branch: '17', look: { floor: 0xa8a8a4 }, theme: blueBand },
-    // Skarpnäck: a rock cave with its ceiling painted red, dark walls, a brick floor and granite seats.
-    { name: 'Skarpnäck', map: [0.75, 0.705], sl: 9140, riders: 6000, rise: 17, architecture: 'rock', exits: 'Skarpnäcks centrum', halls: [{ end: 'inbound', incline: true }], branch: '17', look: { floor: 0x8a4a32 }, theme: redCave },
+    // Bagarmossen (1994): a grey rock cave over black lower walls, along them a glowing band of glass in blue, violet and green.
+    { name: 'Bagarmossen', map: [0.72, 0.695], sl: 9141, riders: 6000, rise: 11, architecture: 'rock', exits: 'Bagarmossens centrum', halls: [{ end: 'inbound', incline: true }], branch: '17', look: { floor: 0x9a9a98, columns: 'none' }, theme: greyCave },
+    // Skarpnäck (1994): one wide rock vault painted red, walls and all, over red clinker, with Richard Nonas' granite benches.
+    { name: 'Skarpnäck', map: [0.75, 0.705], sl: 9140, riders: 6000, rise: 17, architecture: 'rock', exits: 'Skarpnäcks centrum', halls: [{ end: 'inbound', incline: true }], branch: '17', look: { floor: 0xb0553a, columns: 'none' }, theme: redCave },
     // Route 18 toward Farsta strand.
     { name: 'Blåsut', map: [0.61, 0.73], sl: 9187, riders: 3500, gap: JUNCTION_RUN, architecture: 'tiles', exits: 'Blåsut', halls: [{ end: 'outbound', from: 60, down: true }], branch: '18', open: true, theme: box(0xdce4ec, 0x3a5a8a, 136) },
     { name: 'Sandsborg', map: [0.62, 0.76], sl: 9186, riders: 3000, architecture: 'tiles', exits: 'Sandsborg', halls: [{ end: 'outbound', from: 60, down: true }], branch: '18', open: true, theme: box(0xe8e0d0, 0x9a6a4a, 135) },

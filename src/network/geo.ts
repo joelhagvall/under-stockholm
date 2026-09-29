@@ -48,7 +48,7 @@ export const GEO: Record<string, readonly [number, number, number]> = {
   'Aspudden': [59.3064, 18.0014, 10],
   'Örnsberg': [59.3055, 17.9893, 0],
   'Axelsberg': [59.3044, 17.9755, 0],
-  'Mälarhöjden': [59.3009, 17.9573, 0],
+  'Mälarhöjden': [59.3009, 17.9573, 35],
   'Bredäng': [59.2948, 17.9338, 0],
   'Sätra': [59.2849, 17.9213, 0],
   'Skärholmen': [59.2771, 17.907, 5],

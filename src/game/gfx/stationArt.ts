@@ -18,6 +18,27 @@ import { cached, canvas, finish, mulberry32 } from './textures';
 /** Texels along one period of the artwork. 1536 keeps flat shapes crisp at a third less memory than 2048. */
 const SIZE = 1536;
 
+/** The side of the tile of paint grain laid over every vault. */
+const GRAIN = 256;
+let grainTile: HTMLCanvasElement | null = null;
+
+/** Light and dark specks, faint enough to shift a colour by a few steps either way. Made once and kept: it is the same for every vault. */
+function grain(): HTMLCanvasElement {
+  if (grainTile) return grainTile;
+  const [c, ctx] = canvas(GRAIN, GRAIN);
+  const img = ctx.createImageData(GRAIN, GRAIN);
+  const rnd = mulberry32(7);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const g = rnd() - 0.5;
+    const v = g > 0 ? 255 : 0;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+    img.data[i + 3] = Math.round(Math.abs(g) * 24);
+  }
+  ctx.putImageData(img, 0, 0);
+  grainTile = c;
+  return c;
+}
+
 /** Draws on a wall in meters: x along the platform, h up from the rails. */
 export interface WallPen {
   ctx: CanvasRenderingContext2D;
@@ -27,7 +48,7 @@ export interface WallPen {
   text(s: string, x: number, h: number, size: number, color: string, font?: string): void;
 }
 
-interface Vault {
+export interface Vault {
   ctx: CanvasRenderingContext2D;
   period: number;
   arc: number;
@@ -38,7 +59,7 @@ interface Vault {
   wrap(fn: () => void): void;
 }
 
-function vault(key: string, period: number, arcLength: number, seed: number, paint: (v: Vault) => void): Texture {
+export function vault(key: string, period: number, arcLength: number, seed: number, paint: (v: Vault) => void): Texture {
   return cached(`${key}-${period}-${arcLength.toFixed(1)}`, () => {
     const [c, ctx] = canvas(SIZE, SIZE);
     const px = SIZE / period;
@@ -84,21 +105,20 @@ function vault(key: string, period: number, arcLength: number, seed: number, pai
     };
     paint(v);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    // A little paint grain over rough rock.
-    const img = ctx.getImageData(0, 0, SIZE, SIZE);
-    const d = img.data;
-    const rnd = mulberry32(seed + 1);
-    for (let i = 0; i < d.length; i += 4) {
-      const g = (rnd() - 0.5) * 12;
-      d[i] += g; d[i + 1] += g; d[i + 2] += g;
-    }
-    ctx.putImageData(img, 0, 0);
+    // A little paint grain over rough rock: a tile of specks laid over the whole, shifted by the seed. Reading and
+    // writing every pixel instead took most of the painting's time, and there are dozens of these to paint at start.
+    const tile = grain();
+    const shift = Math.floor(mulberry32(seed + 1)() * GRAIN);
+    ctx.fillStyle = ctx.createPattern(tile, 'repeat')!;
+    ctx.translate(-shift, -shift);
+    ctx.fillRect(shift, shift, SIZE, SIZE);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     return finish(c, null);
   });
 }
 
 /** A filled polygon from [x, h] points. */
-function poly(ctx: CanvasRenderingContext2D, points: Array<[number, number]>, fill: string, stroke?: string, width = 0.04): void {
+export function poly(ctx: CanvasRenderingContext2D, points: Array<[number, number]>, fill: string, stroke?: string, width = 0.04): void {
   ctx.beginPath();
   points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
   ctx.closePath();
@@ -107,7 +127,7 @@ function poly(ctx: CanvasRenderingContext2D, points: Array<[number, number]>, fi
   if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = width; ctx.lineJoin = 'round'; ctx.stroke(); }
 }
 
-function ellipse(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, ry: number, fill: string, stroke?: string, width = 0.04): void {
+export function ellipse(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, ry: number, fill: string, stroke?: string, width = 0.04): void {
   ctx.beginPath();
   ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
   ctx.fillStyle = fill;
@@ -150,7 +170,7 @@ export function solnaCentrumTexture(arcLength: number): { texture: Texture; peri
         g.fillRect(-period, 1.5, period * 3, 0.6);
         const clearcut = { x0: 26, x1: 31 };
         // Three rows of spruces, darkest at the back.
-        for (const [shade, base, tall] of [['#15321f', 1.9, 2.8], ['#1e4a2b', 1.7, 2.3], ['#2d6a3a', 1.5, 1.8]] as const) {
+        for (const [shade, base, tall] of [['#15321f', 1.9, 3.9], ['#1e4a2b', 1.7, 3.2], ['#2d6a3a', 1.5, 2.4]] as const) {
           for (let x = 0; x < period; x += 0.5 + rnd() * 0.45) {
             if (x > clearcut.x0 && x < clearcut.x1) continue;
             const hgt = tall * (0.7 + rnd() * 0.45);
@@ -245,6 +265,14 @@ export function tenstaTexture(arcLength: number): { texture: Texture; period: nu
   return { period, texture: vault('tensta', period, arcLength, 1975, ({ ctx, arc, rnd, wrap, wall }) => {
     ctx.fillStyle = '#f7f5ef';
     ctx.fillRect(-period, 0, period * 3, arc);
+    // Hollows in the vault painted sky and lake blue.
+    for (let i = 0; i < 5; i++) {
+      const x = 3 + i * 7.3 + rnd() * 2, y = arc * (0.38 + rnd() * 0.24), rx = 1.8 + rnd() * 1.6, ry = 1.2 + rnd() * 1.2;
+      wrap(() => {
+        ellipse(ctx, x, y, rx, ry, '#6a9ac4');
+        ellipse(ctx, x - rx * 0.2, y + ry * 0.15, rx * 0.6, ry * 0.5, 'rgba(150, 190, 225, 0.6)');
+      });
+    }
     // Leaves drifting over the vault.
     for (let i = 0; i < 90; i++) {
       const x = rnd() * period, y = arc * (0.2 + rnd() * 0.6), a = rnd() * Math.PI * 2, l = 0.3 + rnd() * 0.4;
@@ -325,6 +353,22 @@ export function tenstaTexture(arcLength: number): { texture: Texture; period: nu
           ellipse(g, x, y + 0.6, 0.55, 0.55, '#b8651a', outline);
           ellipse(g, x, y + 0.6, 0.32, 0.32, '#e0b94a', outline);
           for (const lx of [-1.2, -0.3]) { g.fillStyle = '#d8a31a'; g.fillRect(x + lx, y - 0.25, 0.14, 0.5); }
+        });
+        // A big purple mammoth, and a primeval beast in maroon like a cave painting.
+        w(() => {
+          const x = 20.5 + edge * 8, y = 2.5;
+          ellipse(g, x, y + 0.9, 1.3, 0.75, '#7a5a9a', outline);
+          ellipse(g, x + 1.15, y + 1.25, 0.5, 0.5, '#7a5a9a', outline);
+          g.strokeStyle = '#7a5a9a'; g.lineWidth = 0.22; g.lineCap = 'round';
+          g.beginPath(); g.moveTo(x + 1.5, y + 1.1); g.quadraticCurveTo(x + 1.8, y + 0.4, x + 1.6, y + 0.1); g.stroke();
+          g.strokeStyle = '#f2ede2'; g.lineWidth = 0.07;
+          g.beginPath(); g.moveTo(x + 1.35, y + 0.9); g.quadraticCurveTo(x + 1.9, y + 0.7, x + 2.0, y + 1.1); g.stroke();
+          for (const lx of [-0.9, -0.5, 0.4, 0.8]) { g.fillStyle = '#7a5a9a'; g.fillRect(x + lx, y - 0.2, 0.3, 0.6); }
+          const bx = edge ? 14 : 15.5, by = 3.3;
+          g.strokeStyle = '#8a3040'; g.lineWidth = 0.06;
+          g.beginPath(); g.ellipse(bx, by, 0.8, 0.38, 0, 0, Math.PI * 2); g.stroke();
+          for (const lx of [-0.5, -0.25, 0.3, 0.55]) { g.beginPath(); g.moveTo(bx + lx, by - 0.3); g.lineTo(bx + lx, by - 0.8); g.stroke(); }
+          g.beginPath(); g.moveTo(bx + 0.7, by + 0.2); g.lineTo(bx + 1.1, by + 0.45); g.lineTo(bx + 1.2, by + 0.2); g.moveTo(bx + 1.0, by + 0.45); g.lineTo(bx + 0.9, by + 0.85); g.moveTo(bx + 1.1, by + 0.45); g.lineTo(bx + 1.35, by + 0.8); g.stroke();
         });
         // Penguins huddled above a walrus.
         w(() => {
