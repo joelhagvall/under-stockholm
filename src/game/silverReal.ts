@@ -119,4 +119,4 @@ export class RealSilverpilen {
 }
 
 /** On her track, or crossing toward it in a turnback. */
-const onTrack = (t: Rival) => t.z > -TRACK_Z + 1;
+const onTrack = (t: Rival) => t.z < TRACK_Z - 1;

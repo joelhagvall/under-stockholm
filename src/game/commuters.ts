@@ -1,4 +1,4 @@
-import { COMMUTER_LAYOUT as C, DOOR_XS, TRACK_Z } from './layout';
+import { COMMUTER_LAYOUT as C, DOOR_XS, TRACK_Z, trackSide } from './layout';
 import type { PassengerPose } from './crowd';
 import type { Timetable, TrainState } from './timetable';
 
@@ -40,7 +40,7 @@ export function commuterPoses({ time, state, timetable, doors = DOOR_XS }: Crowd
   const incomingCohort = ordinal % 2;
   const x = timetable.stationX[stop.station];
   // The track the train stands on there: further out where it shares another line's station.
-  const z = timetable.pose(stop.u).z || (stop.track === 1 ? TRACK_Z : -TRACK_Z);
+  const z = timetable.pose(stop.u).z || trackSide(stop.track === 1 ? 1 : -1) * TRACK_Z;
   const platformZ = platformAt(stop.station, z);
   // The C20's doors they use, or the nearest of another stock's.
   const doorAt = (index: number) => doors.reduce((a, b) => (Math.abs(b - DOOR_XS[index]) < Math.abs(a - DOOR_XS[index]) ? b : a));

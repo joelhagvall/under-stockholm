@@ -1,5 +1,5 @@
 import { hash01 } from './clock';
-import { TRACK_Z, TRAIN_HALF_L, TRAIN_NOSE } from './layout';
+import { TRACK_Z, TRAIN_HALF_L, TRAIN_NOSE, trackSide } from './layout';
 import type { Operations } from './operations';
 
 /**
@@ -40,7 +40,7 @@ export class Express {
     const station = Math.floor(hash01(slot, 111) * this.stationX.length);
     const dir: 1 | -1 = hash01(slot, 112) < 0.5 ? 1 : -1;
     const cx = this.stationX[station];
-    const z = dir > 0 ? TRACK_Z : -TRACK_Z;
+    const z = trackSide(dir) * TRACK_Z;
     let found: { start: number; station: number; dir: 1 | -1 } | null = null;
     // Try moments through the half hour until the stretch stays clear for the whole run.
     for (let k = 0; k < 150 && !found; k++) {
@@ -74,7 +74,7 @@ export class Express {
       const t = time - p.start;
       if (t < 0 || t > RUN) continue;
       const cx = this.stationX[p.station];
-      return { slot: s, x: cx - p.dir * REACH + p.dir * SPEED * t, z: p.dir > 0 ? TRACK_Z : -TRACK_Z, speed: SPEED, dir: p.dir, station: p.station };
+      return { slot: s, x: cx - p.dir * REACH + p.dir * SPEED * t, z: trackSide(p.dir) * TRACK_Z, speed: SPEED, dir: p.dir, station: p.station };
     }
     return null;
   }

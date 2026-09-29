@@ -21,7 +21,7 @@ export interface MapTrain {
   route: number;
   /** Position along the route in station steps: 0 is its first station, fractions lie between stations. */
   s: number;
-  /** 0 on track 1 (outbound), 1 on track 2 (inbound), in between while crossing over. */
+  /** Which side of the line: 1 on track 1 (outbound), 0 on track 2 (inbound), in between while crossing over. Trains keep left. */
   row: number;
   doorsOpen: boolean;
   status: TrainStatus;

@@ -20,7 +20,7 @@ test('Silverpilen keeps well clear of every regular train on track 1, on both ro
       expect(s).not.toBeNull();
       for (let i = 0; i < TRAIN_COUNT; i++) {
         const r = operations.timetableOf(i).stateAt(t + operations.offsets[i]);
-        if (Math.abs(r.z - TRACK_Z) < 2 * TRAIN_HALF_W + 0.3) expect(Math.abs(r.x - s!.x)).toBeGreaterThan(clearance);
+        if (Math.abs(r.z + TRACK_Z) < 2 * TRAIN_HALF_W + 0.3) expect(Math.abs(r.x - s!.x)).toBeGreaterThan(clearance);
       }
     }
   }

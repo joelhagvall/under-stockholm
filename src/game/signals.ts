@@ -1,6 +1,6 @@
 import { AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, Color, DynamicDrawUsage, InstancedMesh, Matrix4, MeshBasicMaterial, MeshLambertMaterial, Points, PointsMaterial, SphereGeometry, type Scene } from 'three';
 import { glowTexture } from './gfx/textures';
-import { CAVE_HALF_L, TRACK_Z, TRAIN_HALF_L, TRAIN_NOSE } from './layout';
+import { CAVE_HALF_L, TRACK_Z, TRAIN_HALF_L, TRAIN_NOSE, trackSide } from './layout';
 import type { Network } from './line';
 import { noiseBurst, Spatial, thump, tone, type AudioOut } from './sfx';
 import type { Timetable, TrainState } from './timetable';
@@ -58,7 +58,7 @@ export function layoutSignals(net: Network, stationX: number[]): Signal[] {
     for (const dir of [1, -1] as const) {
       const start = dir > 0 ? a + CAVE_HALF_L - 2 : b - CAVE_HALF_L + 2;
       const stop = dir > 0 ? b - CAVE_HALF_L : a + CAVE_HALF_L;
-      const track = dir > 0 ? TRACK_Z : -TRACK_Z;
+      const track = trackSide(dir) * TRACK_Z;
       const xs: number[] = [start];
       if (!jump) for (let x = start + dir * BLOCK; (stop - x) * dir > 60; x += dir * BLOCK) xs.push(x);
       xs.forEach((x, i) => out.push({ x, track, dir, end: i + 1 < xs.length ? xs[i + 1] : stop + dir * (CAVE_HALF_L + 10), red: false }));

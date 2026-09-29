@@ -242,11 +242,11 @@ export function buildTurnback(s: Section, physics: Physics, wallX: number, dir: 
   const door = options.door;
   if (door) holes.push(rectHole(-door.halfWidth, door.halfWidth, 0, door.height));
   wallWithHoles(s.lit, c0, profile, holes, PAINT.tunnelRock);
-  wallWithHoles(s.lit, c1, profile, options.throughTrack1 ? [archHole(TRACK_Z, TUBE_HALF_W, TUBE_WALL_H, TUBE_TOP, TUBE_BOTTOM)] : [], PAINT.tunnelRock);
+  wallWithHoles(s.lit, c1, profile, options.throughTrack1 ? [archHole(-TRACK_Z, TUBE_HALF_W, TUBE_WALL_H, TUBE_TOP, TUBE_BOTTOM)] : [], PAINT.tunnelRock);
 
   // Buffer stops at the far end.
   for (const zc of [-TRACK_Z, TRACK_Z]) {
-    if (options.throughTrack1 && zc > 0) continue;
+    if (options.throughTrack1 && zc < 0) continue;
     const bx = c1 - dir * 1.2;
     s.lit.box({ x: bx - 0.4, y: 0, z: zc - 1.2 }, { x: bx + 0.4, y: 1.4, z: zc + 1.2 }, PAINT.buffer);
   }
@@ -263,9 +263,9 @@ export function buildTurnback(s: Section, physics: Physics, wallX: number, dir: 
   physics.box({ x: lo, y: -1, z: -CAVERN_HALF_W - 1 }, { x: hi, y: 9, z: -CAVERN_HALF_W });
   const endX = dir > 0 ? { a: hi, b: hi + 1 } : { a: lo - 1, b: lo };
   if (options.throughTrack1) {
-    physics.box({ x: endX.a, y: -1, z: -CAVERN_HALF_W }, { x: endX.b, y: 9, z: TUBE_INNER });
-    physics.box({ x: endX.a, y: -1, z: TUBE_OUTER }, { x: endX.b, y: 9, z: CAVERN_HALF_W });
-    physics.box({ x: endX.a, y: TUBE_TOP, z: TUBE_INNER }, { x: endX.b, y: 9, z: TUBE_OUTER });
+    physics.box({ x: endX.a, y: -1, z: -CAVERN_HALF_W }, { x: endX.b, y: 9, z: -TUBE_OUTER });
+    physics.box({ x: endX.a, y: -1, z: -TUBE_INNER }, { x: endX.b, y: 9, z: CAVERN_HALF_W });
+    physics.box({ x: endX.a, y: TUBE_TOP, z: -TUBE_OUTER }, { x: endX.b, y: 9, z: -TUBE_INNER });
   } else {
     physics.box({ x: endX.a, y: -1, z: -CAVERN_HALF_W }, { x: endX.b, y: 9, z: CAVERN_HALF_W });
   }

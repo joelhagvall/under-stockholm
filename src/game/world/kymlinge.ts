@@ -101,10 +101,10 @@ export function* kymlingeSteps(physics: Physics, kx: number, dry = false): Gener
   // Trackbed and both through tracks, with spare sleepers stacked against the far wall.
   s.lit.box({ x: xa, y: -0.5, z: -CAVE_HALF_W }, { x: xb, y: 0, z: CAVE_HALF_W }, PAINT.ballast, ['ny']);
   for (const zc of [-TRACK_Z, TRACK_Z]) addTrack(s, xa, xb, zc, true);
-  const stackZ = -CAVE_HALF_W + 1.2;
+  const stackZ = CAVE_HALF_W - 1.2;
   for (let x = xa + 6; x < xb - 6; x += 23) {
-    for (let k = 0; k < 5; k++) s.lit.box({ x: x - 1.25, y: k * 0.13, z: stackZ - 0.12 - (k & 1) * 0.3 }, { x: x + 1.25, y: k * 0.13 + 0.12, z: stackZ + 0.12 - (k & 1) * 0.3 }, PAINT.sleeper);
-    physics.box({ x: x - 1.25, y: 0, z: stackZ - 0.45 }, { x: x + 1.25, y: 0.65, z: stackZ + 0.15 });
+    for (let k = 0; k < 5; k++) s.lit.box({ x: x - 1.25, y: k * 0.13, z: stackZ - 0.12 + (k & 1) * 0.3 }, { x: x + 1.25, y: k * 0.13 + 0.12, z: stackZ + 0.12 + (k & 1) * 0.3 }, PAINT.sleeper);
+    physics.box({ x: x - 1.25, y: 0, z: stackZ - 0.15 }, { x: x + 1.25, y: 0.65, z: stackZ + 0.45 });
   }
 
   // A rough slab platform, never tiled.
@@ -146,12 +146,12 @@ export function* kymlingeSteps(physics: Physics, kx: number, dry = false): Gener
     bulb.dispose();
     if (!dead) s.light(x, 3.3, 0, BULB, 1.05, 11);
   }
-  s.light(kx, 5.5, TRACK_Z, BULB, 0.4, 14);
+  s.light(kx, 5.5, -TRACK_Z, BULB, 0.4, 14);
 
   // Hand-painted name on the rock above the track, and the enamel sign that never went up.
   const painted = paintedSign(text.kymlinge.name.toUpperCase(), 1024, 192, null);
   painted.material.transparent = true;
-  for (const x of [kx - 30, kx + 26]) place(s, painted, 6, 1.1, new Vector3(x, 3.4, CAVE_HALF_W - STATION_ROCK_INSET - 0.3), new Vector3(0, 0, -1));
+  for (const x of [kx - 30, kx + 26]) place(s, painted, 6, 1.1, new Vector3(x, 3.4, -CAVE_HALF_W + STATION_ROCK_INSET + 0.3), new Vector3(0, 0, 1));
   const enamel = createCanvasSign(1024, 192, (ctx, w, h) => {
     ctx.fillStyle = '#244f8f';
     ctx.fillRect(0, 0, w, h);

@@ -1,5 +1,5 @@
 import { hash01 } from './clock';
-import { SILVER_VANISH, TRACK_Z, TURNBACK_REACH } from './layout';
+import { SILVER_VANISH, TRACK_Z, TURNBACK_REACH, trackSide } from './layout';
 import type { Timetable } from './timetable';
 
 /**
@@ -173,7 +173,7 @@ export class Silverpilen {
       const x = this.xEast + u;
       const vanishStart = this.kymlingeX + SILVER_VANISH - 60;
       const opacity = Math.max(0, Math.min(1, 1 - (x - vanishStart) / 60));
-      return { run, u, x, z: TRACK_Z, speed, doors, phase, at, stopStation: plan.station, opacity };
+      return { run, u, x, z: trackSide(1) * TRACK_Z, speed, doors, phase, at, stopStation: plan.station, opacity };
     };
     const hold = (u: number, duration: number, at: SilverState['at']): SilverState | null => {
       if (t >= duration) { t -= duration; return null; }

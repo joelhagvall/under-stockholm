@@ -97,7 +97,7 @@ test('a westbound train is interpolated between the stations it lies between', (
   expect(t.status).toEqual({ kind: 'to', station: 2 });
   expect(t.s).toBeGreaterThan(1);
   expect(t.s).toBeLessThan(2);
-  expect(t.row).toBe(0);
+  expect(t.row).toBe(1);
   // Within the dwell before its expected departure it stands at Rådhuset.
   expect(real.trains(base + 100)[0].status).toEqual({ kind: 'at', station: 2 });
 });
@@ -107,7 +107,7 @@ test('an eastbound train is followed into Kungsträdgården, which lists no arri
   real.update([sight(8, 2, 1, 0)], base - 10);
   const into = real.trains(base + 40)[0];
   expect(into.status).toEqual({ kind: 'to', station: 0 });
-  expect(into.row).toBe(1);
+  expect(into.row).toBe(0);
   expect(real.trains(base + 115)[0].status).toEqual({ kind: 'at', station: 0 });
   expect(real.trains(base + 600)).toEqual([]);
 });

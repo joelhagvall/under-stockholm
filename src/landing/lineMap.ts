@@ -298,7 +298,7 @@ export function mountLineMap(root: HTMLElement): void {
   }
 
   function drawList(current: MapTrain[]): void {
-    const rows = [...current].sort((a, b) => Math.round(a.row) - Math.round(b.row) || (a.row < 0.5 ? b.s - a.s : a.s - b.s) || a.route - b.route);
+    const rows = [...current].sort((a, b) => Math.round(b.row) - Math.round(a.row) || (a.row > 0.5 ? b.s - a.s : a.s - b.s) || a.route - b.route);
     const lines = rows.slice(0, LIST_MAX).map((t) => [t.line, t.destination ?? text.lineMap.turningBack, describe(t)]);
     const more = rows.length - lines.length;
     let empty = '';

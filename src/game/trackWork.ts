@@ -6,7 +6,7 @@ import { MeshBuilder } from './gfx/builder';
 import { rgb } from './gfx/color';
 import { glowTexture } from './gfx/textures';
 import text from './i18n/sv.json';
-import { CAVE_HALF_L, TRACK_Z } from './layout';
+import { CAVE_HALF_L, TRACK_Z, trackSide } from './layout';
 import type { Physics, StaticCollider } from './physics';
 import { propMaterial } from './props';
 import { loopNoise, noiseBurst, Spatial, thump, type AudioOut } from './sfx';
@@ -20,7 +20,7 @@ import { loopNoise, noiseBurst, Spatial, thump, type AudioOut } from './sfx';
 
 const SPARKS = 30;
 
-/** Tonight's site: a tunnel (between the stations at these indices) and a track. */
+/** Tonight's site: a tunnel (between the stations at these indices) and a track, by the way it runs (1 toward +x). */
 export function workSite(epoch: number, pairs: Array<[number, number]>): { pair: [number, number]; along: number; track: 1 | -1 } {
   const night = dayNumber(epoch - 6 * 3600);
   const pair = pairs[Math.floor(hash01(night, 121) * pairs.length)];
@@ -108,7 +108,7 @@ export class TrackWork {
     const [a, b] = site.pair;
     const x0 = this.stationX[a] + CAVE_HALF_L;
     const x1 = this.stationX[b] - CAVE_HALF_L;
-    return { x: x0 + (x1 - x0) * site.along, z: site.track * TRACK_Z, dir: site.track > 0 ? 1 : -1 };
+    return { x: x0 + (x1 - x0) * site.along, z: trackSide(site.track) * TRACK_Z, dir: site.track };
   }
 
   update(dt: number, time: number, feet: Vector3, out: AudioOut | null): void {

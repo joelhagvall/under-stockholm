@@ -56,7 +56,7 @@ import { Hud } from './hud';
 import { cabinSeats, nearestSeat } from './journey';
 import { Crowd, occupiedSeatPoses, trainPassengerPoses } from './crowd';
 import { lang, setLang, text } from './i18n/text';
-import { DOOR_HALF_W, PLATFORM_HALF_L, PLATFORM_HALF_W, PLATFORM_Y, TRAIN_HALF_L, TRAIN_HALF_W } from './layout';
+import { DOOR_HALF_W, PLATFORM_HALF_L, PLATFORM_HALF_W, PLATFORM_Y, TRAIN_HALF_L, TRAIN_HALF_W, trackSide } from './layout';
 import { isLineTerminal, NETWORK, networkServices, networkSlots, ridership, serviceDestination, stationIndex as indexOf } from './line';
 import { Night, stationLight } from './night';
 import { Operations, startTime } from './operations';
@@ -401,8 +401,8 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   // Spawn on a platform where a train is due soon.
   const spawnAt = (station: number, track: 1 | 2) => {
     const s = world.stations[station];
-    const z = track === 1 ? 2.2 : -2.2;
     const travel = track === 1 ? 1 : -1;
+    const z = trackSide(travel) * 2.2;
     const fx = -travel * 0.55;
     const fz = Math.sign(z) * 0.84;
     return { feet: new Vector3(s.cx - s.exitDir * 20, PLATFORM_Y, z), yaw: Math.atan2(-fx, -fz) };
@@ -893,7 +893,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   const platformPose = (station: number, track: 1 | 2): ShowPose => {
     const s = world.stations[station];
     const dir = track === 1 ? 1 : -1;
-    const z = (track === 1 ? 1 : -1) * (PLATFORM_HALF_W - 1.1);
+    const z = trackSide(dir) * (PLATFORM_HALF_W - 1.1);
     const yaw = (dir > 0 ? Math.PI / 2 : -Math.PI / 2) + (z > 0 ? -0.2 : 0.2) * dir;
     return { x: s.cx + dir * (PLATFORM_HALF_L - 12), y: PLATFORM_Y, z, yaw, pitch: 0, pan: -dir * 0.008 };
   };
@@ -1624,7 +1624,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     silverTrain.setActive(st !== null && st.opacity > 0.01);
     if (!st) return;
     silverTrain.setPose(st.x, st.z);
-    silverTrain.setDoors(st.doors, -1);
+    silverTrain.setDoors(st.doors, st.z > 0 ? -1 : 1);
     silverTrain.setOpacity(st.opacity);
     // A cabin lit by tired fluorescent tubes.
     const buzz = Math.sin(time * 37) > 0.93 || Math.sin(time * 3.1 + Math.sin(time * 0.7) * 4) > 0.985;

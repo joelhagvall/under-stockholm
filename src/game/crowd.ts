@@ -466,14 +466,14 @@ export class Crowd {
     const heat = conditions?.heat ?? false;
     const sunday = conditions?.occasion === 'sunday';
 
-    // Which stations see a train pull out of track 1 right now (for the waving child).
+    // Which stations see a train pull out of track 2, the child's side, right now (for the waving child).
     const departing = new Set<number>();
     if (services) {
       for (const svc of services) {
         if (!svc) continue;
         const timetable = svc.timetable;
         const stop = timetable.stops[svc.state.stop];
-        if (stop.kind !== 'station' || stop.track !== 1) continue;
+        if (stop.kind !== 'station' || stop.track !== 2) continue;
         const leaving = svc.state.phase === 'closing' || svc.state.phase === 'waiting' || (svc.state.phase === 'moving' && Math.abs(svc.state.x - timetable.stationX[stop.station]) < 150);
         if (leaving) departing.add(stop.station);
       }
@@ -493,7 +493,7 @@ export class Crowd {
         let pose: FigurePose = { ...crowdPose(i, this.clock), carry };
         if (i === CHILD) {
           const parent = crowdPose(PARENT, this.clock);
-          pose = { ...pose, x: parent.x + 0.75, z: parent.z, scale: 0.6, arm: departing.has(st.index) ? 'wave' : undefined, look: departing.has(st.index) ? -0.6 : undefined };
+          pose = { ...pose, x: parent.x + 0.75, z: parent.z, scale: 0.6, arm: departing.has(st.index) ? 'wave' : undefined, look: departing.has(st.index) ? 0.6 : undefined };
         }
         if (child2) {
           // Hand in hand, on the parent's right.

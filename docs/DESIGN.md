@@ -28,12 +28,12 @@ The classic C20 cabin has separate rounded seat cushions and tilted backrests, o
 
 Start with `bun run dev`, open one of these URLs, then click **Gå ner i tunnelbanan**. The debug-only `freeze` flag stops timetable progression while keeping movement and rendering active.
 
-- Cab and Kungsträdgården: `/?debug&freeze&x=76&z=2.8&yaw=1.95&t=20`
+- Cab and Kungsträdgården: `/?debug&freeze&x=76&z=-2.8&yaw=1.19&t=20`
 - T-Centralen: `/?debug&freeze&x=480&z=2.4&yaw=-1.57&t=20`
 - Rådhuset: `/?debug&freeze&x=980&z=2.4&yaw=-1.57&t=20`
 - Fridhemsplan: `/?debug&freeze&x=1480&z=2.4&yaw=-1.57&t=20`
-- Interior: `/?debug&freeze&x=0&y=1.12&z=6.6&yaw=-1.57&t=20`
-- Interior detail: `/?debug&freeze&x=8&y=1.12&z=6.6&yaw=-0.8&pitch=-0.2&t=20`
+- Interior: `/?debug&freeze&x=0&y=1.12&z=-6.6&yaw=-1.57&t=20`
+- Interior detail: `/?debug&freeze&x=8&y=1.12&z=-6.6&yaw=-2.34&pitch=-0.2&t=20`
 - Escalator entrance: `/?debug&freeze&x=76&y=1.12&z=1.18&yaw=-1.57&t=20`
 
 - Night, with the scrubber: `/?debug&x=20&z=1&yaw=1.3&clock=03:10`

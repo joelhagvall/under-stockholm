@@ -68,7 +68,7 @@ test('arriving passengers retain positions and alighted passengers stay on the p
     expect(later[i + C.doorIndices.length].x).toBe(atDeparture[i + C.doorIndices.length].x);
     expect(Math.abs(later[i + C.doorIndices.length].z)).toBe(C.waitZ);
     expect(later[i].x).toBeGreaterThan(atDeparture[i].x);
-    expect(later[i].z).toBe(TRACK_Z - C.cabinZ);
+    expect(later[i].z).toBe(-TRACK_Z + C.cabinZ);
   }
 });
 

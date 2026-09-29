@@ -68,7 +68,7 @@ export class RealTrains {
       if (route < 0) continue;
       const place = this.place(j, now, ROUTE_STATIONS[this.line][route]);
       if (!place) continue;
-      const row = j.direction === 1 ? 0 : 1;
+      const row = j.direction === 1 ? 1 : 0;
       out.push({ id: `sl-${id}`, line: j.line, destination: j.destination, route, row, doorsOpen: place.status.kind === 'at', ...place });
     }
     return out;

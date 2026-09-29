@@ -24,7 +24,7 @@ test('with no real trains about she runs at her called minute, as by the timetab
 
 test('she waits in the east turnback until the train ahead is half a headway along', () => {
   const real = new RealSilverpilen(silver);
-  const ahead: Rival = { x: silver.xEast + 200, z: TRACK_Z };
+  const ahead: Rival = { x: silver.xEast + 200, z: -TRACK_Z };
   let set = -1;
   for (let t = START; t < START + 900; t += 1) {
     ahead.x = silver.xEast + 200 + (t - START) * 10;
@@ -33,12 +33,12 @@ test('she waits in the east turnback until the train ahead is half a headway alo
   expect(set).toBeGreaterThan(START);
   expect(ahead.x - silver.xEast).toBeGreaterThanOrEqual(silver.lead());
   // A train on the other track never holds her.
-  expect(new RealSilverpilen(silver).update(START, [{ x: silver.xEast + 200, z: -TRACK_Z }])).not.toBeNull();
+  expect(new RealSilverpilen(silver).update(START, [{ x: silver.xEast + 200, z: TRACK_Z }])).not.toBeNull();
 });
 
 test('a train standing ahead holds her in the tunnel, and she goes on when it leaves', () => {
   const real = new RealSilverpilen(silver);
-  const standing: Rival = { x: silver.xEast + silver.lead() + 400, z: TRACK_Z };
+  const standing: Rival = { x: silver.xEast + silver.lead() + 400, z: -TRACK_Z };
   let t = START;
   let s = real.update(t, [standing])!;
   for (; t < START + 300; t += 0.5) s = real.update(t, [standing])!;
@@ -53,7 +53,7 @@ test('a train standing ahead holds her in the tunnel, and she goes on when it le
 
 test('held past her patience, she fades and the hour is spent', () => {
   const real = new RealSilverpilen(silver);
-  const standing: Rival = { x: silver.xEast + silver.lead() + 100, z: TRACK_Z };
+  const standing: Rival = { x: silver.xEast + silver.lead() + 100, z: -TRACK_Z };
   let gone = -1;
   for (let t = START; t < START + 900; t += 0.5) if (!real.update(t, [standing]) && t > START) { gone = t; break; }
   expect(gone).toBeGreaterThan(START + 4 * 60);
@@ -65,7 +65,7 @@ test('a real train catching up from behind makes her fade where she is', () => {
   const mid = START + 200;
   for (let t = START; t < mid; t += 1) expect(real.update(t, [])).not.toBeNull();
   const here = real.update(mid, [])!;
-  const behind: Rival = { x: here.x - CLEAR + 10, z: TRACK_Z };
+  const behind: Rival = { x: here.x - CLEAR + 10, z: -TRACK_Z };
   real.update(mid + 1, [behind]);
   const fading = real.update(mid + 2, [behind])!;
   expect(fading.opacity).toBeLessThan(here.opacity);

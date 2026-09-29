@@ -123,7 +123,7 @@ export class RideLight {
     this.material.opacity = 0.55 * this.level;
     if (!this.patches.visible) return;
     const x = train.position.x;
-    // The lamps hang on the outer tube wall: the +z side on track 1, the -z side on track 2.
+    // The lamps hang on the outer tube wall: the -z side on track 1, the +z side on track 2.
     const outer = train.position.z > 0 ? 1 : -1;
     const first = Math.ceil((x - TRAIN_HALF_L) / LAMP_SPACING) * LAMP_SPACING;
     let n = 0;

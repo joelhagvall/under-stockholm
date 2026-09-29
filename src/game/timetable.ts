@@ -1,8 +1,9 @@
 import { TRACK_Z, TURNBACK_REACH } from './layout';
 
 /**
- * A route is modelled as one closed loop: west on track 1 (z > 0), across
- * in the far turnback cavern, east on track 2 (z < 0), and across again.
+ * A route is modelled as one closed loop: west on track 1 (z < 0, trains
+ * keep left), across in the far turnback cavern, east on track 2 (z > 0), and
+ * across again.
  * Every train on a route follows the same timetable, offset in time, so the
  * whole service is a pure function of the clock and never needs collision
  * checks. Routes that share a trunk share its timing too (see
@@ -228,14 +229,14 @@ export class Timetable {
     const w = mod(u, this.loopLength);
     if (w < L) {
       const s = this.segment(this.xEast + w);
-      return { x: this.xEast + w + s.offset, z: TRACK_Z + s.lane };
+      return { x: this.xEast + w + s.offset, z: -TRACK_Z - s.lane };
     }
-    if (w < L + C) return { x: this.shift(this.xWest), z: TRACK_Z - (w - L) };
+    if (w < L + C) return { x: this.shift(this.xWest), z: -TRACK_Z + (w - L) };
     if (w < 2 * L + C) {
       const s = this.segment(this.xWest - (w - L - C));
-      return { x: this.xWest - (w - L - C) + s.offset, z: -TRACK_Z - s.lane };
+      return { x: this.xWest - (w - L - C) + s.offset, z: TRACK_Z + s.lane };
     }
-    return { x: this.shift(this.xEast), z: -TRACK_Z + (w - 2 * L - C) };
+    return { x: this.shift(this.xEast), z: TRACK_Z - (w - 2 * L - C) };
   }
 
   /** Does this route stop at a station? */

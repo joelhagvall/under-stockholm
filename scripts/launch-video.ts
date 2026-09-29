@@ -31,7 +31,7 @@ const SCENES: Scene[] = [
     // and a feed plays it without sound.
     name: 'T-Centralen',
     view: 'game',
-    place: `{ const s = __us.world.stations[1]; __stand(s.cx + 60.5, 1.1, 3.9, Math.PI / 2 - 0.2); }`,
+    place: `{ const s = __us.world.stations[1]; __stand(s.cx + 60.5, 1.1, -3.9, Math.PI / 2 + 0.2); }`,
     start: `__before(1, 1, 9);`,
     each: `__us.player.yaw -= 0.0006;`,
     seconds: 2 * BAR,
@@ -62,7 +62,7 @@ const SCENES: Scene[] = [
     // Out in the open at Gamla stan, as a red line train comes in off the bridge.
     name: 'Gamla stan',
     view: 'game',
-    place: `{ const s = __us.world.stations[31]; __stand(s.cx - 68, 1.1, 9.3, -Math.PI / 2 + 0.2); }`,
+    place: `{ const s = __us.world.stations[31]; __stand(s.cx - 68, 1.1, -9.3, -Math.PI / 2 - 0.2); }`,
     // A red line train in off the bridge: the next on the green line's track beside would come in out of shot.
     start: `__before(31, 1, 7, 1);`,
     seconds: BAR,
@@ -119,7 +119,7 @@ const SCENES: Scene[] = [
     // Rådhuset in 1975, as a train comes in.
     name: '1975',
     view: 'game',
-    place: `__us.stopDriving(); __us.era.set('1975', false); { const s = __us.world.stations[2]; __stand(s.cx - 60.5, 1.1, -3.9, -Math.PI / 2 - 0.2); }`,
+    place: `__us.stopDriving(); __us.era.set('1975', false); { const s = __us.world.stations[2]; __stand(s.cx - 60.5, 1.1, 3.9, -Math.PI / 2 + 0.2); }`,
     start: `__before(2, 2, 4);`,
     seconds: BAR,
     caption: ['Åk tillbaka till 1975'],
@@ -139,7 +139,7 @@ const SCENES: Scene[] = [
     // The power cut on T-Centralen's platform: the tubes die and the phone torches come out.
     name: 'Power cut',
     view: 'game',
-    place: `{ const s = __us.world.stations[1]; __stand(s.cx - 60.5, 1.1, -3.9, -Math.PI / 2 - 0.2); }`,
+    place: `{ const s = __us.world.stations[1]; __stand(s.cx - 60.5, 1.1, 3.9, -Math.PI / 2 + 0.2); }`,
     start: `__us.powerCut(0.3, 90);`,
     each: `__us.player.yaw += 0.001;`,
     seconds: BAR,
@@ -184,7 +184,7 @@ const SCENES: Scene[] = [
     // Where the dive lands: Stadion's rainbow, as a train comes in.
     name: 'Stadion',
     view: 'game',
-    place: `{ const s = __us.world.stations[__station('Stadion')]; __stand(s.cx + 60.5, 1.1, 3.9, Math.PI / 2 - 0.2); }`,
+    place: `{ const s = __us.world.stations[__station('Stadion')]; __stand(s.cx + 60.5, 1.1, -3.9, Math.PI / 2 + 0.2); }`,
     start: `__before(__station('Stadion'), 1, 5.5);`,
     seconds: BAR,
     speed: 1.3,

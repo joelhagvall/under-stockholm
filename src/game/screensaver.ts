@@ -1,6 +1,6 @@
 import { Vector3 } from 'three';
 import { hash01 } from './clock';
-import { ESC_DESIGN, PLATFORM_Y, TRAIN_HALF_L } from './layout';
+import { ESC_DESIGN, PLATFORM_Y, TRAIN_HALF_L, trackSide } from './layout';
 import type { AudioOut } from './sfx';
 import type { TrainState } from './timetable';
 import type { Train } from './train';
@@ -132,7 +132,7 @@ export class Screensaver {
       if (!best) return null;
       const { s, track, eta } = best;
       const dir = track === 1 ? 1 : -1;
-      const z = track === 1 ? 2.8 : -2.8;
+      const z = trackSide(dir) * 2.8;
       // Toward the tunnel the train comes out of, then panning slowly as it pulls in.
       const yaw = dir > 0 ? Math.PI / 2 : -Math.PI / 2;
       this.world.teleport(new Vector3(s.cx + dir * 30, PLATFORM_Y, z), yaw + (z > 0 ? -0.35 : 0.35) * dir);

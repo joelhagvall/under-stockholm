@@ -1058,12 +1058,12 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
 
   // Stop marks where a train's nose comes to rest, one per track, for drivers, on its far side from the platform.
   for (const tz of trackZs) {
-    const track = tz > 0 ? 1 : -1;
-    const x = cx + track * (TRAIN_HALF_L + TRAIN_NOSE);
+    const dir = tz < 0 ? 1 : -1;
+    const x = cx + dir * (TRAIN_HALF_L + TRAIN_NOSE);
     const z = tz + Math.sign(tz - islandOf(tz)) * 2.05;
     s.lit.box({ x: x - 0.04, y: 0, z: z - 0.04 }, { x: x + 0.04, y: 2.4, z: z + 0.04 }, rgb(0x2a2c30));
     physics.box({ x: x - 0.05, y: 0, z: z - 0.05 }, { x: x + 0.05, y: 2.4, z: z + 0.05 });
-    place(s, stopMark(), 0.5, 0.62, new Vector3(x, 2.55, z), new Vector3(-track, 0, 0));
+    place(s, stopMark(), 0.5, 0.62, new Vector3(x, 2.55, z), new Vector3(-dir, 0, 0));
   }
 
   for (const way of ways) {
@@ -1102,7 +1102,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     }
   }
 
-  // Hanging direction signs. Track 1 (z > 0) runs west, track 2 (z < 0) east.
+  // Hanging direction signs. Trains keep left: track 1 (z < 0) runs west, track 2 (z > 0) east.
   // At a shared station each island has one direction of both lines.
   const lineAt = (z: number) => (twin && Math.abs(z) > TRACK_Z + 1 ? net.lines[def.lines.find((l) => l !== def.line)!] : line);
   const toward = (on: LineDef, end: 'outbound' | 'inbound') => {
@@ -1112,8 +1112,8 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   };
   /** A track's number and where its trains go, or that they end here. */
   const trackText = (z: number) => {
-    const where = toward(lineAt(z), z > 0 ? 'outbound' : 'inbound');
-    return { number: twin ? trackZs.length - trackZs.indexOf(z) : z > 0 ? 1 : 2, where: where || 'Slutstation' };
+    const where = toward(lineAt(z), z < 0 ? 'outbound' : 'inbound');
+    return { number: twin ? trackZs.indexOf(z) + 1 : z < 0 ? 1 : 2, where: where || 'Slutstation' };
   };
   for (const zi of islands) {
     const [lo, hi] = trackZs.filter((z) => islandOf(z) === zi).sort((a, b) => a - b);
@@ -1136,7 +1136,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
 
   yield;
   // Departure displays: each island's shows the trains due on its two tracks.
-  const platformTracks = trackZs.map((z) => ({ z, track: (z > 0 ? 1 : 2) as 1 | 2, line: net.lines.indexOf(lineAt(z)), number: trackText(z).number })).sort((a, b) => a.number - b.number);
+  const platformTracks = trackZs.map((z) => ({ z, track: (z < 0 ? 1 : 2) as 1 | 2, line: net.lines.indexOf(lineAt(z)), number: trackText(z).number })).sort((a, b) => a.number - b.number);
   const displays: Array<{ sign: CanvasSign; tracks: number[] }> = [];
   for (const zi of islands) {
     const tracks = platformTracks.flatMap((t, k) => (islandOf(t.z) === zi ? [k] : []));

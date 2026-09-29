@@ -1,7 +1,7 @@
 import { Vector3 } from 'three';
 import sv from './i18n/sv.json';
 import { text } from './i18n/text';
-import { CAVE_HALF_L, PLATFORM_Y, TRACK_Z, TRAIN_HALF_L, TRAIN_NOSE } from './layout';
+import { CAVE_HALF_L, PLATFORM_Y, TRACK_Z, TRAIN_HALF_L, TRAIN_NOSE, trackSide } from './layout';
 import type { Train } from './train';
 
 /**
@@ -64,7 +64,7 @@ export class Driver {
   active = false;
   private x = 0;
   private dir: 1 | -1 = 1;
-  private z = TRACK_Z;
+  private z = trackSide(1) * TRACK_Z;
   private speed = 0;
   private notch = 0;
   private emergency = false;
@@ -90,7 +90,7 @@ export class Driver {
   start(station: number): void {
     const last = this.stationX.length - 1;
     this.dir = station === last ? -1 : 1;
-    this.z = this.dir > 0 ? TRACK_Z : -TRACK_Z;
+    this.z = trackSide(this.dir) * TRACK_Z;
     this.x = this.stationX[station];
     this.speed = 0;
     this.notch = 0;

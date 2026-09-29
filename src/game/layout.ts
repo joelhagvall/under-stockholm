@@ -7,6 +7,12 @@
 export const PLATFORM_Y = 1.1; // platform surface and train floor
 export const TRACK_Z = 6.6; // track centerline distance from the line axis
 /**
+ * The side of the line axis a train heading `dir` (1 toward +x) runs on. As on
+ * all of SL's metro, trains keep left: track 1, west toward +x, lies at z < 0,
+ * and track 2, back east, at z > 0.
+ */
+export const trackSide = (dir: number): 1 | -1 => (dir > 0 ? -1 : 1);
+/**
  * Where two lines share a station (T-Centralen, Gamla stan, Slussen), the
  * second line's tracks lie this much further out than the first's, with an
  * island platform between each pair: red inside, green outside, and one

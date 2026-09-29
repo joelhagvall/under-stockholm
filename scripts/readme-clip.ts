@@ -36,7 +36,7 @@ const SCENES: Scene[] = [
     // Under the blue vines, as a train comes out of the tunnel.
     name: 'T-Centralen',
     view: 'game',
-    place: `{ const s = __us.world.stations[1]; __stand(s.cx + 60.5, 1.1, 3.9, Math.PI / 2 - 0.2); }`,
+    place: `{ const s = __us.world.stations[1]; __stand(s.cx + 60.5, 1.1, -3.9, Math.PI / 2 + 0.2); }`,
     start: `__before(1, 1, 9);`,
     seconds: 3,
   },
@@ -52,7 +52,7 @@ const SCENES: Scene[] = [
     // Out in the open at Gamla stan, from the island platform, as a red line train comes in off the bridge.
     name: 'Gamla stan',
     view: 'game',
-    place: `{ const s = __us.world.stations[31]; __stand(s.cx - 68, 1.1, 9.3, -Math.PI / 2 + 0.2); }`,
+    place: `{ const s = __us.world.stations[31]; __stand(s.cx - 68, 1.1, -9.3, -Math.PI / 2 - 0.2); }`,
     start: `__before(31, 1, 8, 1);`,
     seconds: 2.7,
   },

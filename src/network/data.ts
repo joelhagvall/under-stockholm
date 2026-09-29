@@ -136,7 +136,7 @@ export function silverTrain(time: number): (MapTrain & { opacity: number }) | nu
   const st = silver.stateAt(time);
   if (!st || st.opacity < 0.02) return null;
   return {
-    id: `silver-${st.run}`, line: '11', destination: null, route: GHOST_ROUTE, s: stepsAt(st.x), row: 0, doorsOpen: st.doors > 0,
+    id: `silver-${st.run}`, line: '11', destination: null, route: GHOST_ROUTE, s: stepsAt(st.x), row: 1, doorsOpen: st.doors > 0,
     status: { kind: 'away' }, opacity: st.opacity,
   };
 }

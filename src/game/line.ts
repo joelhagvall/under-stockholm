@@ -83,7 +83,7 @@ export interface HallDef {
    * toward the middle of the platform, to a hall whose stairs come up beside the tracks, beyond the fences.
    */
   down?: boolean;
-  /** Which track's side a hall under the tracks has its stairs up on (1: +z, 2: -z). */
+  /** Which side of the tracks a hall under them has its stairs up on (1: +z, 2: -z), whichever track runs there. */
   beside?: 1 | 2;
   /** Meters of level passage from the top of the escalators to the hall, where the real walk is long. */
   corridor?: number;
