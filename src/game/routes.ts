@@ -30,6 +30,8 @@ export interface StationData {
   branch?: string | readonly string[];
   /** Meters from the previous station on its routes, when not `STATION_SPACING`. */
   gap?: number;
+  /** Two levels, one per direction (see `STACK`): track 1's island right under track 2's. Only on a station two lines share. */
+  stacked?: boolean;
   /** The same station as this earlier line's (by `id`) of this name: its trains call there on tracks of their own, beyond that line's (see `LANE`). */
   shared?: string;
   /** Weekday boardings: the busier the station, the longer trains stand there (`stationDwell`). A shared station takes the earlier line's. */
@@ -84,6 +86,8 @@ export interface RouteLayout {
   lanes: number[];
   /** A terminal where the line goes on: trains turn on a siding between the tracks. */
   siding: { east: boolean; west: boolean };
+  /** Per station, whether it lies on two levels (`StationData.stacked`). */
+  stacked: boolean[];
   /** Seconds the doors stand open at each station. */
   dwells: number[];
 }
@@ -161,6 +165,7 @@ export function layoutLines(lines: readonly LineShape[]): NetworkLayout {
   let placed = 0;
   const allSeqs: number[][] = [];
   const riders: Array<number | undefined> = [];
+  const stackedOf: boolean[] = [];
   for (const [li, line] of lines.entries()) {
     stationBase.push(x.length);
     routeBase.push(routes.length);
@@ -175,6 +180,7 @@ export function layoutLines(lines: readonly LineShape[]): NetworkLayout {
       lineOf.push(li);
       order.push(-1);
       riders.push(s.riders);
+      stackedOf.push(!!s.stacked);
       return x.length - 1;
     });
     global.push(map);
@@ -249,6 +255,7 @@ export function layoutLines(lines: readonly LineShape[]): NetworkLayout {
         offsets: seq.map((i, k) => x[i] - alongs[r][k]),
         lanes: seq.map((i) => (lineOf[i] === li ? 0 : LANE)),
         siding: { east: beyond(seq[0], -1), west: beyond(seq[seq.length - 1], 1) },
+        stacked: seq.map((i) => stackedOf[i]),
         dwells: seq.map((i) => stationDwell(riders[i])),
       });
     }
@@ -332,7 +339,7 @@ export interface LineService {
  */
 export function lineTimetables(layout: NetworkLayout, line: number, trains = 3): LineService {
   const routes = layout.routes.filter((r) => r.line === line);
-  const shape = (r: RouteLayout, layover = { west: 0, east: 0 }) => ({ stations: r.stations, along: r.along, offsets: r.offsets, lanes: r.lanes, layover, siding: r.siding, dwells: r.dwells });
+  const shape = (r: RouteLayout, layover = { west: 0, east: 0 }) => ({ stations: r.stations, along: r.along, offsets: r.offsets, lanes: r.lanes, stacked: r.stacked, layover, siding: r.siding, dwells: r.dwells });
   const plain = routes.map((r) => new Timetable(layout.x, shape(r)));
   const trunk = routes[0].stations.filter((i) => routes.every((r) => r.stations.includes(i)));
   const [east, west] = [trunk[0], trunk[trunk.length - 1]];

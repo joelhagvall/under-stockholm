@@ -1,4 +1,4 @@
-import { COMMUTER_LAYOUT as C, DOOR_XS, TRACK_Z, trackSide } from './layout';
+import { COMMUTER_LAYOUT as C, DOOR_XS, PLATFORM_Y, TRACK_Z, trackSide } from './layout';
 import type { PassengerPose } from './crowd';
 import type { Timetable, TrainState } from './timetable';
 
@@ -40,17 +40,20 @@ export function commuterPoses({ time, state, timetable, doors = DOOR_XS }: Crowd
   const incomingCohort = ordinal % 2;
   const x = timetable.stationX[stop.station];
   // The track the train stands on there: further out where it shares another line's station.
-  const z = timetable.pose(stop.u).z || trackSide(stop.track === 1 ? 1 : -1) * TRACK_Z;
+  const at = timetable.pose(stop.u);
+  const z = at.z || trackSide(stop.track === 1 ? 1 : -1) * TRACK_Z;
   const platformZ = platformAt(stop.station, z);
+  // On the lower level of a two-level station they walk its island, under the other (see `STACK`).
+  const level = at.y ? { y: PLATFORM_Y + at.y } : {};
   // The C20's doors they use, or the nearest of another stock's.
   const doorAt = (index: number) => doors.reduce((a, b) => (Math.abs(b - DOOR_XS[index]) < Math.abs(a - DOOR_XS[index]) ? b : a));
   return [0, 1].flatMap((cohort) => C.doorIndices.map((doorIndex, i) => {
     const incoming = cohort === incomingCohort;
     const progress = clamp((elapsed - (incoming ? C.boardStart : C.exitStart) - i * C.stagger) / (incoming ? C.boardDuration : C.exitDuration));
-    const pose = route(x, z, platformZ, doorAt(doorIndex), progress, incoming);
+    const pose = { ...route(x, z, platformZ, doorAt(doorIndex), progress, incoming), ...level };
     // Terminal arrivals empty the train. New passengers wait for its return on the other track.
     if ((!incoming && stops[previous].terminal) || (incoming && stop.terminal)) return { ...pose, visible: false };
-    if (incoming && !atStation) return { ...pose, x: state.x + doorAt(doorIndex), z: state.z - Math.sign(z - platformZ) * C.cabinZ, walking: false };
+    if (incoming && !atStation) return { ...pose, x: state.x + doorAt(doorIndex), y: PLATFORM_Y + state.y, z: state.z - Math.sign(z - platformZ) * C.cabinZ, walking: false };
     return pose;
   }));
 }

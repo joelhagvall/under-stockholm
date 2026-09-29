@@ -14,6 +14,7 @@ import {
   PLATFORM_HALF_L,
   PLATFORM_HALF_W,
   HALL_H,
+  STACK,
   VIADUCT,
   PLATFORM_Y,
   STREET,
@@ -388,6 +389,36 @@ export class World {
           yield;
         }
       }
+    }
+
+    // A two-level station (`STACK`): through it track 1 runs under track 2, in tubes of its own out to where its
+    // trains cross over at a portal, closed a little way past it; the tubes they leave there are closed at the cave,
+    // which is only the upper level's now.
+    for (const i of net.stations.keys()) {
+      if (!net.stations[i].stacked || net.stations[i].lines.length < 2 || isOutdoor(net, i)) continue;
+      const lower = (p: Physics) => shifted(p, 0, 0, -STACK.drop);
+      for (const dir of [-1, 1] as const) {
+        const edge = xs[i] + dir * CAVE_HALF_L;
+        const far = edge + dir * (STACK.portal + STACK.copy);
+        const [t0, t1] = [Math.min(edge, far), Math.max(edge, far)];
+        for (const lane of [0, LANE]) {
+          const zc = TRACK_Z + lane;
+          const make = function* (dry: boolean): Generator<void, Group> {
+            const s = new Section(`stack-${i}-${dir}-${lane}`, tunnelAmbient, dry);
+            const p = dry ? lower(physics) : NO_PHYSICS;
+            yield* tubeSteps(s, p, t0, t1, 700 + lane, false, { lane, sides: [1] });
+            closeTube(s, p, far - dir * 0.5, zc);
+            // The tube left behind, closed where the cave was (raised back to its level, the group being lowered).
+            closeTube(s, p, edge + dir * 0.5, -zc, STACK.drop);
+            const group = yield* s.finishSteps();
+            group.position.y = -STACK.drop;
+            return group;
+          };
+          drain(make(true));
+          this.later(t0, t1, function* (this: World) { yield* this.add(yield* make(false)); }.bind(this));
+        }
+      }
+      yield;
     }
 
     // Turnback caverns beyond the ends of each line (or, in the open, tracks on to buffer stops).
@@ -888,7 +919,8 @@ export class World {
         if (corridor && p.x >= corridor.x0 && p.x <= corridor.x1 && Math.abs(p.z) < corridor.halfWidth + 0.5 && p.y > bounds.y - 1) return { station: s.index, area: 'hall' };
       }
       if (Math.abs(p.x - s.cx) <= CAVE_HALF_L && p.y < 9) {
-        const onPlatform = s.platforms.some((zc) => Math.abs(p.z - zc) <= PLATFORM_HALF_W + 0.05) && p.y > PLATFORM_Y - 0.3;
+        // Each island at its own level (a two-level station's lower one under the other, `STACK`).
+        const onPlatform = s.platforms.some((zc, k) => Math.abs(p.z - zc) <= PLATFORM_HALF_W + 0.05 && p.y > PLATFORM_Y + s.levels[k] - 0.3);
         return { station: s.index, area: onPlatform ? 'platform' : 'track' };
       }
     }
@@ -989,13 +1021,14 @@ export class World {
   }
 
   /** Can someone standing on the track at `p` climb onto the platform here? */
-  canClimb(p: Vector3): { station: number; z: number } | null {
+  canClimb(p: Vector3): { station: number; z: number; y: number } | null {
     for (const s of this.stations) {
       if (Math.abs(p.x - s.cx) > PLATFORM_HALF_L - 0.5) continue;
-      for (const zc of s.platforms) {
+      for (const [k, zc] of s.platforms.entries()) {
         const az = Math.abs(p.z - zc);
-        if (p.y < PLATFORM_Y - 0.3 && az > PLATFORM_HALF_W && az < PLATFORM_HALF_W + 1.4) {
-          return { station: s.index, z: zc + Math.sign(p.z - zc) * (PLATFORM_HALF_W - 0.6) };
+        const level = s.levels[k];
+        if (p.y < PLATFORM_Y + level - 0.3 && p.y > level - 1.5 && az > PLATFORM_HALF_W && az < PLATFORM_HALF_W + 1.4) {
+          return { station: s.index, z: zc + Math.sign(p.z - zc) * (PLATFORM_HALF_W - 0.6), y: PLATFORM_Y + level };
         }
       }
     }
@@ -1132,4 +1165,11 @@ function adopt(info: StationInfo, built: StationInfo): void {
   };
   if (departures) info.setDepartures(...departures);
   if (time) info.setTime(time);
+}
+
+/** A rock wall across a tube at `x` round the track at `zc`, with a collider, raised `dy` over where it is built. */
+function closeTube(s: Section, physics: Physics, x: number, zc: number, dy = 0): void {
+  const face = archProfile(zc, TUBE_HALF_W, TUBE_WALL_H, TUBE_TOP, TUBE_BOTTOM, 10).map((p) => ({ ...p, y: p.y + dy }));
+  wallWithHoles(s.lit, x, face, [], PAINT.tunnelRock);
+  physics.box({ x: x - 0.5, y: -1 + dy, z: zc - TUBE_HALF_W - 1 }, { x: x + 0.5, y: TUBE_TOP + 1 + dy, z: zc + TUBE_HALF_W + 1 });
 }

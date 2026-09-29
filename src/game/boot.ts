@@ -320,7 +320,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     const train = new Train(physics, index, net.lines[slots[index].line].id === 'red' ? 'c30' : 'c20');
     const tt = operations.timetableOf(index);
     const st = tt.stateAt(time + offset);
-    train.place(st.x, st.z);
+    train.place(st.x, st.z, st.y);
     const spare = !!slots[index].spare;
     if (spare) train.setActive(false);
     scene.add(train.group);
@@ -1375,7 +1375,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   function climb(): void {
     const spot = world.canClimb(player.feet);
     if (!spot) return;
-    player.teleport(new Vector3(player.feet.x, PLATFORM_Y + 0.05, spot.z));
+    player.teleport(new Vector3(player.feet.x, spot.y + 0.05, spot.z));
   }
 
   function use(): void {
@@ -1438,7 +1438,9 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     const lz = player.feet.z - train.position.z;
     const side = train.openSide;
     if (Math.sign(lz) !== side || Math.abs(lz) < TRAIN_HALF_W - 0.45 || Math.abs(lz) > TRAIN_HALF_W + 0.45) return;
-    if (player.feet.y < PLATFORM_Y - 0.3 || player.feet.y > PLATFORM_Y + 0.5) return;
+    // Measured from the train's own rails: at a two-level station the lower one's lie under the other's.
+    const up = player.feet.y - train.position.y;
+    if (up < PLATFORM_Y - 0.3 || up > PLATFORM_Y + 0.5) return;
     if (!train.stock.doors.some((d) => Math.abs(lx - d) < DOOR_HALF_W + 0.35)) return;
     const inside = Math.abs(lz) < TRAIN_HALF_W;
     const nz = train.position.z + side * (inside ? TRAIN_HALF_W - 0.5 : TRAIN_HALF_W + 0.5);
@@ -1585,10 +1587,10 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
       svc.active = active;
       const tr = svc.train;
       tr.setActive(active);
-      if (!active) { tr.place(st.x, st.z); continue; }
+      if (!active) { tr.place(st.x, st.z, st.y); continue; }
       tr.setNear(tr === riding || Math.abs(st.x - player.feet.x) < 400);
       tr.setInteriorShown(tr === riding || Math.abs(st.x - player.feet.x) < INTERIOR_REACH);
-      tr.setPose(st.x, st.z);
+      tr.setPose(st.x, st.z, st.y);
       const stop = svc.timetable.stops[st.phase === 'moving' ? st.next : st.stop];
       tr.setHeading(stop.track === 1 ? 1 : -1);
       tr.setDoors(st.doors, doorSide(svc.timetable.stops[st.stop], st.z));
@@ -1644,7 +1646,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     lineLive = live;
     realOn = live.some(Boolean);
     updateTrains(false);
-    for (const s of services) if (changed[s.line]) s.train.place(s.train.position.x, s.train.position.z);
+    for (const s of services) if (changed[s.line]) s.train.place(s.train.position.x, s.train.position.z, s.train.position.y - s.train.baseY);
     if (realOn !== wasOn) hud.say(realOn ? text.real.on : realWanted ? text.real.failed : text.real.off, 5);
     if (aboard && !respawning) {
       respawning = true;
@@ -1663,7 +1665,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     time = to;
     updateTrains(false);
     updateSilver();
-    for (const s of services) s.train.place(s.train.position.x, s.train.position.z);
+    for (const s of services) s.train.place(s.train.position.x, s.train.position.z, s.train.position.y - s.train.baseY);
     if (carrier && local && carrier.isActive) player.teleport(carrier.position.clone().add(local));
   }
 

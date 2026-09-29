@@ -10,8 +10,9 @@ import {
   Points,
   PointsMaterial,
   type Texture,
+  Vector3,
 } from 'three';
-import { bakeLighting, MeshBuilder, prepareLighting, type BakeLight } from '../gfx/builder';
+import { bakeLighting, MeshBuilder, prepareLighting, type BakeLight, type Fold } from '../gfx/builder';
 import type { RGB } from '../gfx/color';
 import { detailTexture, floorTexture, glowTexture, tactileTexture } from '../gfx/textures';
 import { torchify } from '../powerLights';
@@ -112,13 +113,45 @@ export class Section {
     this.unlit = new MeshBuilder(dry);
   }
 
+  private fold: Fold | null = null;
+
+  /**
+   * Moves what is built from now on wherever `fold` takes it (see `Fold`), lights and signs too (`foldExtras`), or
+   * stops with null.
+   */
+  setFold(fold: Fold | null): void {
+    this.fold = fold;
+    for (const b of [this.lit, this.floor, this.tactile, this.unlit, ...this.art.values()]) b.fold = fold;
+  }
+
+  /** The signs, clocks and displays in `extras` that the fold takes, moved and turned to face the mirrored way. */
+  foldExtras(): void {
+    const fold = this.fold;
+    if (!fold) return;
+    for (const child of this.extras.children) {
+      if (!fold.takes(child.position)) continue;
+      fold.move(child.position);
+      child.rotation.y = Math.PI - child.rotation.y;
+    }
+  }
+
   light(x: number, y: number, z: number, color: RGB, intensity: number, range: number): void {
     if (this.dry) return;
+    if (this.fold?.takes({ x, y, z })) {
+      const p = new Vector3(x, y, z);
+      this.fold.move(p);
+      ({ x, y, z } = p);
+    }
     this.lights.push({ x, y, z, color, intensity, range });
   }
 
   /** A soft halo sprite, e.g. around a lamp. */
   glow(x: number, y: number, z: number): void {
+    if (this.fold?.takes({ x, y, z })) {
+      const p = new Vector3(x, y, z);
+      this.fold.move(p);
+      ({ x, y, z } = p);
+    }
     this.glows.push(x, y, z);
   }
 
@@ -130,6 +163,7 @@ export class Section {
     let b = this.art.get(texture);
     if (!b) {
       b = new MeshBuilder(this.dry);
+      b.fold = this.fold;
       this.art.set(texture, b);
     }
     if (owned) this.owned.add(texture);

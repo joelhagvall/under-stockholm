@@ -193,20 +193,22 @@ export class RegularLife {
       const door = doors.reduce((best, d) => (Math.abs(s.cx + d - spot.x) < Math.abs(s.cx + best - spot.x) ? d : best));
       const doorAt = { x: s.cx + door, z: island + side * (PLATFORM_HALF_W - 0.7) };
       const busy = r.trait === 'book' || r.trait === 'phone' || r.trait === 'student' ? { arm: 'phone' as const } : {};
+      // The lower level of a two-level station lies under the other (`STACK`).
+      const level = track.y ? { y: PLATFORM_Y + track.y } : {};
       const t0 = plan.today.arrive - walk;
       if (time < t0) return null;
       // Down from the escalator to their spot.
       if (time < plan.today.arrive) {
         const f = (time - t0) / walk;
-        return { kind: 'platform', pose: { x: foot.x + (spot.x - foot.x) * f, z: foot.z + (spot.z - foot.z) * f, yaw: Math.atan2(spot.x - foot.x, spot.z - foot.z), walking: true } };
+        return { kind: 'platform', pose: { x: foot.x + (spot.x - foot.x) * f, z: foot.z + (spot.z - foot.z) * f, yaw: Math.atan2(spot.x - foot.x, spot.z - foot.z), walking: true, ...level } };
       }
       // Waiting, then over to the doors once the train is in.
       const toDoor = Math.hypot(doorAt.x - spot.x, doorAt.z - spot.z) / slow;
       const boarding = plan.departs - 5;
-      if (time < plan.arrives + 2) return { kind: 'platform', pose: { x: spot.x, z: spot.z, yaw: facing, walking: false, ...busy } };
+      if (time < plan.arrives + 2) return { kind: 'platform', pose: { x: spot.x, z: spot.z, yaw: facing, walking: false, ...busy, ...level } };
       if (time < boarding) {
         const f = Math.min(1, (time - plan.arrives - 2) / toDoor);
-        return { kind: 'platform', pose: { x: spot.x + (doorAt.x - spot.x) * f, z: spot.z + (doorAt.z - spot.z) * f, yaw: f < 1 ? Math.atan2(doorAt.x - spot.x, doorAt.z - spot.z) : facing, walking: f < 1 } };
+        return { kind: 'platform', pose: { x: spot.x + (doorAt.x - spot.x) * f, z: spot.z + (doorAt.z - spot.z) * f, yaw: f < 1 ? Math.atan2(doorAt.x - spot.x, doorAt.z - spot.z) : facing, walking: f < 1, ...level } };
       }
     }
     if (live || time >= plan.alights || time < plan.departs - 5) return null;

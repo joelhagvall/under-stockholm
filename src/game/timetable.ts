@@ -1,4 +1,4 @@
-import { TRACK_Z, TURNBACK_REACH } from './layout';
+import { CAVE_HALF_L, STACK, TRACK_Z, TURNBACK_REACH } from './layout';
 
 /**
  * A route is modelled as one closed loop: west on track 1 (z < 0, trains
@@ -40,6 +40,11 @@ export interface RouteShape {
   siding?: { east?: boolean; west?: boolean };
   /** Seconds the doors stand open at each station (see `stationDwell`). Defaults to `STATION_DWELL`. */
   dwells?: number[];
+  /**
+   * Per station, whether it lies on two levels (see `STACK`): there track 1 runs mirrored to track 2's side and
+   * `STACK.drop` under it, crossing over at a portal in the tunnel either side.
+   */
+  stacked?: boolean[];
 }
 
 export type Track = 1 | 2;
@@ -59,6 +64,8 @@ export interface TrainState {
   u: number;
   x: number;
   z: number;
+  /** The rail's height: 0, or under a two-level station's upper track (see `STACK`). */
+  y: number;
   speed: number;
   doors: number;
   phase: Phase;
@@ -137,6 +144,8 @@ export class Timetable {
   readonly along: number[];
   /** Portals along the route: from distance `from` on, world x is distance plus `offset`, and the tracks lie `lane` further out. */
   private readonly segments: Array<{ from: number; offset: number; lane: number }>;
+  /** Along the route, where track 1 runs on the lower level of a two-level station: from, to. */
+  private readonly lower: Array<[number, number]>;
 
   /** @param stationX world x of every station, by global index */
   constructor(readonly stationX: number[], shape: RouteShape = {}) {
@@ -146,6 +155,8 @@ export class Timetable {
     this.along = along;
     const offsets = shape.offsets ?? route.map((i, k) => stationX[i] - along[k]);
     const lanes = shape.lanes ?? route.map(() => 0);
+    const reach = CAVE_HALF_L + STACK.portal;
+    this.lower = route.flatMap((_, k) => (shape.stacked?.[k] ? [[along[k] - reach, along[k] + reach] as [number, number]] : []));
     this.segments = [{ from: -Infinity, offset: offsets[0], lane: lanes[0] }];
     for (let k = 1; k < route.length; k++) {
       if (offsets[k] !== offsets[k - 1] || lanes[k] !== lanes[k - 1]) this.segments.push({ from: (along[k - 1] + along[k]) / 2, offset: offsets[k], lane: lanes[k] });
@@ -222,21 +233,24 @@ export class Timetable {
     return this.xEast;
   }
 
-  /** Maps a loop coordinate to a world position on the track. */
-  pose(u: number): { x: number; z: number } {
+  /** Maps a loop coordinate to a world position on the track (`y` the rail's height). */
+  pose(u: number): { x: number; z: number; y: number } {
     const L = this.runLength;
     const C = this.shuntLength;
     const w = mod(u, this.loopLength);
     if (w < L) {
-      const s = this.segment(this.xEast + w);
-      return { x: this.xEast + w + s.offset, z: -TRACK_Z - s.lane };
+      const a = this.xEast + w;
+      const s = this.segment(a);
+      // Round a two-level station track 1 runs under track 2, crossing over at a portal either side.
+      if (this.lower.some(([p, q]) => a > p && a < q)) return { x: a + s.offset, z: TRACK_Z + s.lane, y: -STACK.drop };
+      return { x: a + s.offset, z: -TRACK_Z - s.lane, y: 0 };
     }
-    if (w < L + C) return { x: this.shift(this.xWest), z: -TRACK_Z + (w - L) };
+    if (w < L + C) return { x: this.shift(this.xWest), z: -TRACK_Z + (w - L), y: 0 };
     if (w < 2 * L + C) {
       const s = this.segment(this.xWest - (w - L - C));
-      return { x: this.xWest - (w - L - C) + s.offset, z: TRACK_Z + s.lane };
+      return { x: this.xWest - (w - L - C) + s.offset, z: TRACK_Z + s.lane, y: 0 };
     }
-    return { x: this.shift(this.xEast), z: TRACK_Z - (w - 2 * L - C) };
+    return { x: this.shift(this.xEast), z: TRACK_Z - (w - 2 * L - C), y: 0 };
   }
 
   /** Does this route stop at a station? */
@@ -259,8 +273,8 @@ export class Timetable {
     const held = this.stopDuration(k);
 
     if (local < held) {
-      const { x, z } = this.pose(stop.u);
-      if (stop.kind === 'turnback') return { u: stop.u, x, z, speed: 0, doors: 0, phase: 'waiting', stop: k, next };
+      const { x, z, y } = this.pose(stop.u);
+      if (stop.kind === 'turnback') return { u: stop.u, x, z, y, speed: 0, doors: 0, phase: 'waiting', stop: k, next };
       let doors = 1;
       let phase: Phase = 'dwell';
       if (local < OPEN) {
@@ -274,13 +288,13 @@ export class Timetable {
         doors = Math.min(1, Math.max(0, (held - DEPARTURE_HOLD - local) / DOOR_SLIDE));
         phase = 'closing';
       }
-      return { u: stop.u, x, z, speed: 0, doors, phase, stop: k, next };
+      return { u: stop.u, x, z, y, speed: 0, doors, phase, stop: k, next };
     }
 
     const { s, v } = hopAt(this.hops[k], local - held);
     const u = stop.u + s;
-    const { x, z } = this.pose(u);
-    return { u, x, z, speed: v, doors: 0, phase: 'moving', stop: k, next };
+    const { x, z, y } = this.pose(u);
+    return { u, x, z, y, speed: v, doors: 0, phase: 'moving', stop: k, next };
   }
 
   /** Seconds until a train with the given clock reaches stop `k` (0 while it is standing there). */

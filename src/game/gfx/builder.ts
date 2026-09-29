@@ -70,6 +70,16 @@ export interface BoxLike {
 }
 
 /**
+ * Part of what is built moved elsewhere as it is added: the vertices a fold `takes` go through `move`, a mirror across
+ * z = 0 (and a drop), so a triangle wholly taken is turned round to face out still. See `STACK`: one half of a
+ * two-level station folded under the other.
+ */
+export interface Fold {
+  takes(v: BoxLike): boolean;
+  move(v: Vector3): void;
+}
+
+/**
  * Accumulates flat-shaded, vertex-colored triangles. Everything static in the
  * world is built through this so a whole station collapses into one draw call.
  */
@@ -82,6 +92,9 @@ export class MeshBuilder {
   private readonly ac = new Vector3();
   private readonly n = new Vector3();
 
+  /** Where some of what is built goes elsewhere (see `Fold`). */
+  fold: Fold | null = null;
+
   /** A dry builder ignores all geometry, for passes that only want colliders and positions. */
   constructor(readonly dry = false) {}
 
@@ -91,6 +104,10 @@ export class MeshBuilder {
 
   tri(a: Vector3, b: Vector3, c: Vector3, paint: Paint, opts?: TriOptions): void {
     if (this.dry) return;
+    if (this.fold && (this.fold.takes(a) || this.fold.takes(b) || this.fold.takes(c))) {
+      this.folded(a, b, c, paint, opts);
+      return;
+    }
     this.ab.subVectors(b, a);
     this.ac.subVectors(c, a);
     this.n.crossVectors(this.ab, this.ac);
@@ -112,6 +129,43 @@ export class MeshBuilder {
       else if (ax >= az) this.uv.push2(v.z, v.y);
       else this.uv.push2(v.x, v.y);
     }
+  }
+
+  /**
+   * A triangle the fold takes: painted where it was made, then moved, mirrored and wound the other way. One the fold
+   * takes only part of is moved vertex by vertex (it is left to the builders not to make those).
+   */
+  private folded(a: Vector3, b: Vector3, c: Vector3, paint: Paint, opts?: TriOptions): void {
+    const fold = this.fold!;
+    this.ab.subVectors(b, a);
+    this.ac.subVectors(c, a);
+    const face = new Vector3().crossVectors(this.ab, this.ac);
+    if (face.lengthSq() < 1e-12) return;
+    face.normalize();
+    const verts = [a, b, c];
+    const colors = verts.map((v, i) => opts?.colors?.[i] ?? (typeof paint === 'function' ? paint(v, opts?.normals?.[i] ?? face) : paint));
+    const normals = verts.map((_, i) => (opts?.normals?.[i] ?? face).clone());
+    const uvs = opts?.uvs ?? verts.map((v) => {
+      const ax = Math.abs(face.x), ay = Math.abs(face.y), az = Math.abs(face.z);
+      return (ay >= ax && ay >= az ? [v.x, v.z] : ax >= az ? [v.z, v.y] : [v.x, v.y]) as [number, number];
+    });
+    const moved = verts.map((v) => {
+      const out = v.clone();
+      if (fold.takes(v)) fold.move(out);
+      return out;
+    });
+    const whole = verts.every((v) => fold.takes(v));
+    if (whole) for (const n of normals) n.z = -n.z;
+    this.fold = null;
+    // Mirrored, the same triangle is wound the other way round.
+    const order = whole ? [0, 2, 1] : [0, 1, 2];
+    const [i, j, k] = order;
+    this.tri(moved[i], moved[j], moved[k], paint, {
+      colors: [colors[i], colors[j], colors[k]],
+      normals: [normals[i], normals[j], normals[k]],
+      uvs: [uvs[i], uvs[j], uvs[k]],
+    });
+    this.fold = fold;
   }
 
   quad(a: Vector3, b: Vector3, c: Vector3, d: Vector3, paint: Paint): void {
@@ -150,6 +204,12 @@ export class MeshBuilder {
   /** Axis-aligned box with outward-facing faces. `skip` omits hidden faces. */
   box(min: BoxLike, max: BoxLike, paint: Paint, skip: BoxFace[] = [], cell = 2.5): void {
     if (this.dry) return;
+    // Across the middle of a fold, in two halves, so each is either taken whole or left whole.
+    if (this.fold && min.z < 0 && max.z > 0 && (this.fold.takes({ x: (min.x + max.x) / 2, y: min.y, z: min.z }) || this.fold.takes({ x: (min.x + max.x) / 2, y: max.y, z: min.z }))) {
+      this.box(min, { ...max, z: 0 }, paint, [...skip, 'pz'], cell);
+      this.box({ ...min, z: 0 }, max, paint, [...skip, 'nz'], cell);
+      return;
+    }
     const x0 = min.x, y0 = min.y, z0 = min.z;
     const x1 = max.x, y1 = max.y, z1 = max.z;
     const v = (x: number, y: number, z: number) => new Vector3(x, y, z);

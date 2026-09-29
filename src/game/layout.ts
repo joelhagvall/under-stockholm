@@ -19,6 +19,24 @@ export const trackSide = (dir: number): 1 | -1 => (dir > 0 ? -1 : 1);
  * direction of both lines on each platform.
  */
 export const LANE = 2 * TRACK_Z;
+
+/**
+ * A shared station on two levels (`StationData.stacked`, T-Centralen's red and green platforms): track 1's island lies
+ * right under track 2's, `drop` lower, with its tracks under theirs. Its trains cross over to it at a portal `portal`
+ * meters out in the tunnel from each end of the cave, where the tube they leave and the one they enter run on
+ * `copy` meters past it, so neither ends in sight.
+ */
+export const STACK = {
+  drop: 7.5,
+  portal: 120,
+  copy: 60,
+  /** In the cave, what lies under this height on track 1's side is built as the lower level. */
+  top: 14,
+  /** Stairs from the upper island down to the lower, as through the real one's floor: where each starts (from the middle, running outward), step size. */
+  stairs: [-24, 24],
+  riser: 0.17,
+  tread: 0.3,
+};
 export const PLATFORM_HALF_W = 5;
 export const PLATFORM_HALF_L = 72.5;
 

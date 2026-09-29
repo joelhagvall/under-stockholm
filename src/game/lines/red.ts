@@ -114,7 +114,7 @@ export const RED_LINE: LineDef = {
     // Östermalmstorg: grey concrete walls with Siri Derkert's drawings cut into them, peace signs in the floor.
     { name: 'Östermalmstorg', map: [0.548, 0.405], sl: 9206, riders: 25000, rise: 30, architecture: 'tiles', exits: 'Stureplan · Östermalmstorg', halls: [{ end: 'outbound', corridor: 60, incline: true, exits: 'Norrmalmstorg · Stureplan' }, { end: 'inbound', incline: true, exits: 'Sibyllegatan' }], gap: JUNCTION_RUN, look: { ceiling: 'vault', floor: 0x8a8884, columns: 'none' }, theme: derkert },
     // T-Centralen's red and green platforms (1957): low cream vaults, Klaravagnen and the glass prisms, patterned tile columns.
-    { name: 'T-Centralen', map: [0.497, 0.453], sl: 9001, riders: 45000, rise: 7, architecture: 'tiles', exits: 'Vasagatan · Centralstation', halls: [{ end: 'inbound', incline: true, exits: 'Sergels torg' }, { end: 'inbound', from: -55, exits: 'Vasagatan · Centralstationen' }], transfer: text.announcements.tCentralenTransfer,
+    { name: 'T-Centralen', stacked: true, map: [0.497, 0.453], sl: 9001, riders: 45000, rise: 7, architecture: 'tiles', exits: 'Vasagatan · Centralstation', halls: [{ end: 'inbound', incline: true, exits: 'Sergels torg' }, { end: 'inbound', from: -55, exits: 'Vasagatan · Centralstationen' }], transfer: text.announcements.tCentralenTransfer,
       look: { ceiling: 'vault', floor: 0xe2dccf, columns: 'none' },
       theme: klara },
     // Gamla stan, under Centralbron: a concrete roof on steel columns, cement mosaic after medieval weavings in brick red and

@@ -81,7 +81,7 @@ export class BrakeOverride {
       }
       u = this.stopU + Math.min(h.length, s);
     }
-    const { x, z } = this.timetable.pose(u);
-    return { u: mod(u, this.timetable.loopLength), x, z, speed, doors: 0, phase: 'moving', stop: this.start.stop, next: this.start.next };
+    const { x, z, y } = this.timetable.pose(u);
+    return { u: mod(u, this.timetable.loopLength), x, z, y, speed, doors: 0, phase: 'moving', stop: this.start.stop, next: this.start.next };
   }
 }
