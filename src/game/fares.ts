@@ -39,6 +39,8 @@ function loadCard(): Card {
 
 interface GateState {
   station: StationInfo;
+  /** Which gate line: the station's index twice over, plus one for its second hall's. */
+  key: number;
   line: GateLine;
   mesh: InstancedMesh;
   colliders: StaticCollider[];
@@ -111,13 +113,13 @@ export class Fares {
     // You arrived by metro before the game began, with a fresh ticket.
     this.validUntil = start + TICKET_MINUTES * 60;
     const material = new MeshBasicMaterial({ map: flapTexture(), transparent: true, side: DoubleSide, depthWrite: false });
-    for (const station of stations) {
-      const line = station.gates;
+    for (const station of stations) for (const [k, hall] of station.halls.entries()) {
+      const line = hall.gates;
       const mesh = new InstancedMesh(new PlaneGeometry(1, 1), material, line.passages.length * 2);
       scene.add(mesh);
       const mid = (line.paidX + line.unpaidX) / 2;
       const colliders = line.passages.map((z) => physics.box({ x: mid - 0.04, y: line.y, z: z - line.halfWidth }, { x: mid + 0.04, y: line.y + line.flapHeight, z: z + line.halfWidth }));
-      const state: GateState = { station, line, mesh, colliders, open: line.passages.map(() => 0), openness: line.passages.map(() => 0), paid: line.passages.map(() => false) };
+      const state: GateState = { station, key: station.index * 2 + k, line, mesh, colliders, open: line.passages.map(() => 0), openness: line.passages.map(() => 0), paid: line.passages.map(() => false) };
       this.gates.push(state);
       line.passages.forEach((z, i) => {
         const dir = Math.sign(line.paidX - line.unpaidX);
@@ -228,10 +230,10 @@ export class Fares {
       if (changed) this.drawFlaps(state);
 
       // Crossing from the street side into the paid area.
-      if (!inHall) { this.side.delete(state.station.index); continue; }
+      if (!inHall) { this.side.delete(state.key); continue; }
       const side = Math.sign((feet.x - mid) * dir) || 1;
-      const previous = this.side.get(state.station.index);
-      this.side.set(state.station.index, side);
+      const previous = this.side.get(state.key);
+      this.side.set(state.key, side);
       if (previous === -1 && side === 1) {
         const passage = line.passages.findIndex((z) => Math.abs(feet.z - z) < line.halfWidth + 0.15);
         const legit = passage >= 0 && state.open[passage] > 0 && state.paid[passage];

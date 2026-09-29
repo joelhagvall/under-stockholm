@@ -5,7 +5,7 @@ import { MeshBuilder } from './gfx/builder';
 import { rgb } from './gfx/color';
 import { glowTexture } from './gfx/textures';
 import text from './i18n/sv.json';
-import { CAVE_HALF_L, PLATFORM_Y } from './layout';
+import { PLATFORM_Y } from './layout';
 import { propMaterial } from './props';
 import { Spatial, tone, type AudioOut } from './sfx';
 import { benchXs, PILLAR_DXS, type StationInfo } from './world/station';
@@ -435,7 +435,7 @@ export class LostProperty {
         at = new Vector3(s.cx + pillar + (r(2) < 0.5 ? -1 : 1) * (0.5 + r(4) * 0.4), PLATFORM_Y + 0.005, s.platforms[s.platforms.length - 1] + (r(3) - 0.5) * 1.2);
       } else {
         const a = 13.5 + r(1) * 4;
-        at = new Vector3(s.cx + s.exitDir * (CAVE_HALF_L + s.escalator.run + a), s.hall.y + 0.005, (r(3) - 0.5) * 10);
+        at = new Vector3(s.hallX(a), s.hall.y + 0.005, (r(3) - 0.5) * 10);
       }
       item.spot.at.copy(at);
       item.spot.yaw = r(5) * Math.PI * 2;

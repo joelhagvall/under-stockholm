@@ -121,11 +121,12 @@ export function* tubeSteps(s: Section, physics: Physics, x0: number, x1: number,
   }
   // A floor per tube, none in the rock between: stairs from a service corridor go down through it (Rådhuset's shelter).
   for (const side of sides) physics.box({ x: x0, y: -1, z: Math.min(side * (TUBE_INNER + lane), side * (TUBE_OUTER + lane)) }, { x: x1, y: -0.02, z: Math.max(side * (TUBE_INNER + lane), side * (TUBE_OUTER + lane)) });
-  // Walls and roofs per tube only: an escalator shaft climbs through the rock between them.
+  // Walls and roofs per tube only: an escalator shaft climbs through the rock between them, and a staff passage runs
+  // in beside it (`SIDE_DOOR`), so the inner walls are thin.
   for (const side of sides) {
     const zIn = side * (TUBE_INNER + lane);
     const zOut = side * (TUBE_OUTER + lane);
-    const inner = (a: number, b: number, y0 = -1) => physics.box({ x: a, y: y0, z: Math.min(zIn, zIn - side * 0.5) }, { x: b, y: 7, z: Math.max(zIn, zIn - side * 0.5) });
+    const inner = (a: number, b: number, y0 = -1) => physics.box({ x: a, y: y0, z: Math.min(zIn, zIn - side * 0.2) }, { x: b, y: 7, z: Math.max(zIn, zIn - side * 0.2) });
     if (xm === null) inner(x0, x1);
     else {
       inner(x0, xm - gap);

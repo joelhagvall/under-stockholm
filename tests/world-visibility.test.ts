@@ -5,7 +5,7 @@ import { World } from '../src/game/world/world';
 test('nearby geometry stays visible across movement and newly streamed groups are culled immediately', () => {
   // Exercise public visibility updates without constructing the entire procedural line.
   const world = Object.assign(Object.create(World.prototype) as World, {
-    group: new Group(), lazy: [], built: [], building: null, paused: [], recording: null, extents: new Map(), shownAt: Number.NaN, shownCount: 0,
+    group: new Group(), lazy: [], built: [], building: null, paused: [], recording: null, extents: new Map(), shownAt: Number.NaN, shownCount: 0, openRanges: [],
   });
   const section = (x: number) => {
     const mesh = new Mesh(new BoxGeometry(20, 20, 20), new MeshBasicMaterial());
@@ -30,7 +30,7 @@ test('nearby geometry stays visible across movement and newly streamed groups ar
 
 test('a stretch built far away is taken down, freed and built again on the way back', () => {
   const world = Object.assign(Object.create(World.prototype) as World, {
-    group: new Group(), lazy: [], built: [], building: null, paused: [], recording: null, extents: new Map(), shownAt: Number.NaN, shownCount: 0, warm: null,
+    group: new Group(), lazy: [], built: [], building: null, paused: [], recording: null, extents: new Map(), shownAt: Number.NaN, shownCount: 0, openRanges: [], warm: null,
   });
   let builds = 0;
   let disposed = 0;
@@ -54,4 +54,17 @@ test('a stretch built far away is taken down, freed and built again on the way b
   world.ensureBuilt(50);
   expect(builds).toBe(2);
   expect(world.group.children.length).toBe(1);
+});
+
+test('an underground station\'s second hall is hidden from the open air, where it would float over the hill', () => {
+  const world = Object.assign(Object.create(World.prototype) as World, {
+    group: new Group(), lazy: [], built: [], building: null, paused: [], recording: null, extents: new Map(), shownAt: Number.NaN, shownCount: 0, openRanges: [[-300, -100]],
+  });
+  const hall = new Mesh(new BoxGeometry(20, 20, 20), new MeshBasicMaterial());
+  hall.userData.underground = true;
+  world.group.add(hall);
+  world.ensureBuilt(-150);
+  expect(hall.visible).toBe(false);
+  world.ensureBuilt(0);
+  expect(hall.visible).toBe(true);
 });

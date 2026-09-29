@@ -16,7 +16,7 @@ const context = new Proxy({}, { get: (_, key) => (key === 'measureText' ? () => 
 const RISE = 21;
 const ESC_RUN = escalatorRun(RISE);
 const HALL_Y = PLATFORM_Y + RISE;
-const station = { index: 1, name: 'T-Centralen', cx: 0, exitDir: 1, rise: RISE, escalator: { rise: RISE, run: ESC_RUN }, hall: { x0: CAVE_HALF_L + ESC_RUN, x1: CAVE_HALF_L + ESC_RUN + 32, y: HALL_Y } } as StationInfo;
+const station = { index: 1, name: 'T-Centralen', cx: 0, exitDir: 1, rise: RISE, escalator: { rise: RISE, run: ESC_RUN }, hall: { x0: CAVE_HALF_L + ESC_RUN, x1: CAVE_HALF_L + ESC_RUN + 32, y: HALL_Y }, hallX: (a: number) => CAVE_HALF_L + ESC_RUN + a } as StationInfo;
 /** A point in the ticket hall, `a` meters along it from the escalator top. */
 const hall = (a: number, z = 3.4, y = HALL_Y) => new Vector3(CAVE_HALF_L + ESC_RUN + a, y, z);
 const inHall = { station: 1, area: 'hall' as const };

@@ -56,7 +56,7 @@ import { Hud } from './hud';
 import { cabinSeats, nearestSeat } from './journey';
 import { Crowd, occupiedSeatPoses, trainPassengerPoses } from './crowd';
 import { lang, setLang, text } from './i18n/text';
-import { CAVE_HALF_L, DOOR_HALF_W, PLATFORM_HALF_L, PLATFORM_HALF_W, PLATFORM_Y, TRAIN_HALF_L, TRAIN_HALF_W } from './layout';
+import { DOOR_HALF_W, PLATFORM_HALF_L, PLATFORM_HALF_W, PLATFORM_Y, TRAIN_HALF_L, TRAIN_HALF_W } from './layout';
 import { isLineTerminal, NETWORK, networkServices, networkSlots, ridership, serviceDestination, stationIndex as indexOf } from './line';
 import { Night, stationLight } from './night';
 import { Operations, startTime } from './operations';
@@ -430,7 +430,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   // Real boardings per station: T-Centralen fills up, Västra skogen stays quiet.
   const stationWeights = net.stations.map((_, i) => ridership(net, i));
   const escalatorBusy = stationWeights.map((w) => Math.min(1, busyness(time) * w));
-  const crowd = new Crowd(world.stationX, services.map(({ train }) => train), world.stations.map((s) => s.exitDir), indexOf(net, 'T-Centralen'), stationWeights, world.stations.map((s) => s.platforms), world.stations.map((s) => s.escalator));
+  const crowd = new Crowd(world.stationX, services.map(({ train }) => train), world.stations.map((s) => s.exitDir), indexOf(net, 'T-Centralen'), stationWeights, world.stations.map((s) => s.platforms), world.stations.map((s) => ({ rise: s.escalator.rise, run: s.escalator.run, foot: s.escalator.wallX - s.cx, base: s.escalator.base })));
   scene.add(crowd.group);
   let people = false;
   try { people = localStorage.getItem('under-stockholm:passengers') === 'on'; } catch { /* Storage can be disabled. */ }
@@ -612,7 +612,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     respawning = true;
     void hud.blackout(() => {
       const s = world.nearestStation(from.x);
-      player.teleport(new Vector3(s.cx + s.exitDir * (CAVE_HALF_L + s.escalator.run + 17.5), s.hall.y, 0), s.exitDir > 0 ? Math.PI / 2 : -Math.PI / 2);
+      player.teleport(new Vector3(s.hallX(17.5), s.hall.y, 0), s.exitDir > 0 ? Math.PI / 2 : -Math.PI / 2);
       hud.say(text.key.alarm, 7);
     }).then(() => (respawning = false));
   };
@@ -1757,6 +1757,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     lap('physics');
     if (riding && riding.isActive) player.carry(riding.delta);
     player.carry(world.escalatorVelocity(player.feet, escVel).multiplyScalar(dt));
+    player.carry(world.inclines(time, player.feet));
     const belt = world.travelatorVelocity(player.feet);
     if (belt) player.carry(escVel.set(0, 0, belt * dt));
     const rideService = services.find((s) => s.train === riding);
@@ -1958,15 +1959,17 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     lap('sound');
     night.update(dt, time, player.feet.x, out);
     const up = here.area === 'hall' || here.area === 'escalator' || here.area === 'street' ? here.station : null;
-    weather.update(dt, time, up, out);
+    // At a station with a hall at each end of its platform, the one nearest.
+    const upHall = up === null ? null : world.hallNear(up, player.feet.x);
+    weather.update(dt, time, up === null ? null : { index: up, hall: upHall! }, out);
     // Out of a door in the open the street only shows through it, so from the escalators its houses never float in view.
-    world.showStreet(up !== null && (here.area !== 'escalator' || world.stations[up].exit.cut > 0) ? up : null);
+    world.showStreet(up !== null && (here.area !== 'escalator' || upHall!.exit.cut > 0) ? up : null, player.feet.x);
     // Out in the open: the sky, daylight, a far horizon in the fog, and rain or snow. Up on a street too, and from its
     // hall the sky shows through the open top of the stairs.
-    const street = here.area === 'street' && here.station !== null ? world.stations[here.station].exit.street : null;
+    const street = here.area === 'street' ? upHall!.exit.street : null;
     const open = street ? world.streetOpen(here.station!, player.camera.position)
       : here.area === 'hall' || here.area === 'escalator' || here.area === 'service' ? 0 : world.outdoorAt(player.camera.position);
-    const skyAbove = here.area === 'hall' && here.station !== null && world.stations[here.station].exit.open > 0;
+    const skyAbove = here.area === 'hall' && upHall!.exit.open > 0;
     sky.update(player.camera.position, time, weather.state);
     setDaylight(sky.daylight);
     const fog = scene.fog as Fog;

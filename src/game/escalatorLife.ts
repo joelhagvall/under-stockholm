@@ -49,7 +49,7 @@ export function laneSpot(esc: EscalatorZone, p: Vector3): { lane: 1 | -1; s: num
   const along = (p.x - esc.wallX) * esc.dir;
   const z = p.z - esc.z;
   if (along < 0 || along > esc.run || !onEscalatorTread(z)) return null;
-  if (Math.abs(p.y - escalatorHeight(along, esc.rise)) > 0.6) return null;
+  if (Math.abs(p.y - escalatorHeight(along, esc.rise, esc.base)) > 0.6) return null;
   const lane: 1 | -1 = z > 0 ? 1 : -1;
   return { lane, s: lane > 0 ? along : esc.run - along, right: (z - lane * ESC_DESIGN.laneCenter) * rightSide(esc.dir, lane) };
 }
@@ -145,7 +145,7 @@ export class EscalatorLife {
       const phoning = !walking && !past && i % 3 === 0;
       drawFigure(this.mesh, i, {
         x: esc.wallX + esc.dir * along,
-        y: escalatorHeight(along, esc.rise),
+        y: escalatorHeight(along, esc.rise, esc.base),
         z: esc.z + r.lane * ESC_DESIGN.laneCenter + right * (walking ? -SIDE : SIDE),
         yaw: travel * Math.PI / 2,
         walking: stepping && blocker !== r,
@@ -173,7 +173,7 @@ export class EscalatorLife {
     const along = blocker.lane > 0 ? blocker.s : esc.run - blocker.s;
     if (out) {
       this.voice ??= new Spatial(out, 1.5, 1.3, 30);
-      this.voice.setPosition({ x: esc.wallX + esc.dir * along, y: escalatorHeight(along, esc.rise) + 1.6, z: esc.z + blocker.lane * ESC_DESIGN.laneCenter });
+      this.voice.setPosition({ x: esc.wallX + esc.dir * along, y: escalatorHeight(along, esc.rise, esc.base) + 1.6, z: esc.z + blocker.lane * ESC_DESIGN.laneCenter });
       this.voice.setLevel(1, 0.01);
     }
     if (step === 0) {

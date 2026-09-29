@@ -114,7 +114,7 @@ export class Critters {
   private spot(s: StationInfo, i: number): { x: number; z: number } {
     const a = 14 + Math.random() * 4.5;
     const z = (Math.random() - 0.5) * 12;
-    return { x: s.cx + s.exitDir * (CAVE_HALF_L + s.escalator.run + a) + (i % 2) * 0.1, z };
+    return { x: s.hallX(a) + (i % 2) * 0.1, z };
   }
 
   private updatePigeons(dt: number, hall: StationInfo | null, feet: Vector3, out: AudioOut | null): void {

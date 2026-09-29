@@ -162,14 +162,18 @@ export function crowdPose(index: number, time: number): { x: number; z: number; 
 
 /**
  * A Sunday jogger: along the platform to the exit end, then up the up
- * escalator two steps at a time, and gone. Local to the station center.
+ * escalator two steps at a time, and gone. Local to the station center:
+ * the escalator starts at `foot` (at the end wall without one), and one
+ * that climbs up to the platform from a hall below it has no jogger.
  */
-export function joggerPose(time: number, exitDir: 1 | -1, esc: { rise: number; run: number }): FigurePose | null {
+export function joggerPose(time: number, exitDir: 1 | -1, esc: { rise: number; run: number; foot?: number; base?: number }): FigurePose | null {
+  if (esc.base !== undefined && esc.base < PLATFORM_Y) return null;
   const period = 150;
   const run = 3.6;
   const t = ((time % period) + period) % period;
+  const foot = esc.foot ?? exitDir * CAVE_HALF_L;
   const start = -exitDir * 58;
-  const wall = exitDir * (CAVE_HALF_L - 0.6);
+  const wall = foot - exitDir * 0.6;
   const platform = Math.abs(wall - start) / run;
   const yaw = exitDir * Math.PI / 2;
   if (t < platform) {
@@ -180,7 +184,7 @@ export function joggerPose(time: number, exitDir: 1 | -1, esc: { rise: number; r
   }
   const along = (t - platform) * 1.9;
   if (along > esc.run) return null;
-  return { x: exitDir * (CAVE_HALF_L + along), y: escalatorHeight(along, esc.rise), z: ESC_DESIGN.laneCenter, yaw, walking: true, running: true };
+  return { x: foot + exitDir * along, y: escalatorHeight(along, esc.rise), z: ESC_DESIGN.laneCenter, yaw, walking: true, running: true };
 }
 
 /** Around a whole train, in its own frame: everyone aboard is inside it. */
@@ -265,7 +269,7 @@ interface StationCrowd {
   index: number;
   exitDir: 1 | -1;
   /** Its escalators' climb and reach, for the jogger. */
-  escalator: { rise: number; run: number };
+  escalator: { rise: number; run: number; foot?: number; base?: number };
   mesh: InstancedMesh;
   seed: number;
   /** Pets beside their owners; a walker's dog trots along. */
@@ -312,7 +316,7 @@ export class Crowd {
    * @param platforms per station, the middle of each island platform (a shared station has two); the crowd waits on the last
    * @param escalators per station, how far its escalators climb and reach
    */
-  constructor(stationX: number[], trains: CrowdTrain[] = [], exitDirs: Array<1 | -1> = [], suitcaseStation = -1, weights: number[] = [], private readonly platforms: number[][] = [], escalators: Array<{ rise: number; run: number }> = []) {
+  constructor(stationX: number[], trains: CrowdTrain[] = [], exitDirs: Array<1 | -1> = [], suitcaseStation = -1, weights: number[] = [], private readonly platforms: number[][] = [], escalators: Array<{ rise: number; run: number; foot?: number; base?: number }> = []) {
     this.group.name = 'passengers';
     this.group.visible = false;
     const makeMesh = (count: number, seed: number) => {

@@ -5,9 +5,9 @@ export function escalatorRun(rise: number): number {
   return rise / Math.tan(ESC_ANGLE) + ESC_LANDING * 2;
 }
 
-/** A level run-in and run-out, with the thirty-degree flight between them. */
-export function escalatorHeight(along: number, rise: number): number {
-  return PLATFORM_Y + Math.min(rise, Math.max(0, (along - ESC_LANDING) * Math.tan(ESC_ANGLE)));
+/** A level run-in and run-out, with the thirty-degree flight between them, from `base` (the platform, or a hall below it). */
+export function escalatorHeight(along: number, rise: number, base = PLATFORM_Y): number {
+  return base + Math.min(rise, Math.max(0, (along - ESC_LANDING) * Math.tan(ESC_ANGLE)));
 }
 
 export function escalatorSlope(along: number, rise: number): number {

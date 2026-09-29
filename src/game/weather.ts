@@ -23,7 +23,7 @@ import { fetchWeather, isWet, seasonalWeather, type WeatherKind, type WeatherSta
 import { isCold } from './calendar';
 import { glowTexture } from './gfx/textures';
 import { loopNoise, Spatial, type AudioOut } from './sfx';
-import type { StationInfo } from './world/station';
+import type { HallInfo, StationInfo } from './world/station';
 
 /**
  * What is happening up on the street, out of the exit: the
@@ -46,7 +46,10 @@ export function daylight(epoch: number): number {
  * Where falling snow and rain land, `d` meters in from the doorway: the flight up to the street out in the cut beyond
  * it (`d` below 0), the landing, the flight down, the hall floor.
  */
-function floorAt(e: StationInfo['exit'], d: number, z: number): number {
+/** The hall where the weather comes in: its station, its exit and its gates. */
+interface WeatherHall { index: number; exit: HallInfo['exit']; gates: HallInfo['gates'] }
+
+function floorAt(e: HallInfo['exit'], d: number, z: number): number {
   const hall = e.sillY - 3.4;
   if (d < 0 && e.cut > 0) return e.sillY + (e.top - e.sillY) * Math.min(1, -d / e.cut);
   return Math.abs(z) > 2.5 ? hall : d < 6 ? e.sillY : hall + 3.4 * Math.max(0, 1 - (d - 6) / 7);
@@ -107,7 +110,8 @@ export class Weather {
   private readonly snowData: Float32Array;
   private readonly snowVel: Float32Array;
   private readonly dummy = new Object3D();
-  private station = -1;
+  /** The hall the weather was last laid out at, as its station's index and which of its halls. */
+  private station = '';
   private patter: Spatial | null = null;
   private refresh = 0;
 
@@ -178,14 +182,15 @@ export class Weather {
     return this.wet || stockholm(epoch).month === 12;
   }
 
-  update(dt: number, time: number, playerHall: number | null, out: AudioOut | null): void {
+  /** @param at the hall the player is in, or at the street or escalators of, and its station's index */
+  update(dt: number, time: number, at: { index: number; hall: HallInfo } | null, out: AudioOut | null): void {
     this.refresh += dt;
     if (this.refresh > 1200 && this.state.source === 'live') { this.refresh = 0; void this.poll(); }
     // The street's lit windows and lamp come on as it gets dark; snow lies on it while it snows.
     const lights = 1 - daylight(time);
     const snow = this.state.kind === 'snow' ? 1 : this.state.kind === 'sleet' ? 0.5 : 0;
-    for (const s of this.stations) {
-      const street = s.exit.street;
+    for (const s of this.stations) for (const { exit } of s.halls) {
+      const street = exit.street;
       if (street?.snow) {
         const m = street.snow.material as MeshBasicMaterial;
         m.opacity = snow * 0.92;
@@ -194,7 +199,8 @@ export class Weather {
       if (street?.windows) (street.windows.material as MeshBasicMaterial).opacity = Math.min(1, lights * 1.4);
     }
 
-    const station = playerHall === null ? null : this.stations[playerHall];
+    // A hall whose stairs go out at its side, under a station in the open, has no rain or snow blowing in at its end.
+    const station = at && !at.hall.exit.across ? { index: at.index, exit: at.hall.exit, gates: at.hall.gates, key: `${at.index}:${at.hall.dir}` } : null;
     const kind = this.state.kind;
     const showRain = station !== null && (kind === 'rain' || kind === 'sleet');
     const showSnow = station !== null && (kind === 'snow' || kind === 'sleet');
@@ -205,8 +211,8 @@ export class Weather {
     // Warm tunnel air meets the cold at the top of the stairs.
     this.mist.visible = station !== null && isCold(this.state.temperature);
     this.leaves.visible = station !== null && season(time) === 'autumn';
-    if (station && station.index !== this.station) {
-      this.station = station.index;
+    if (station && station.key !== this.station) {
+      this.station = station.key;
       this.layPrints(station);
       this.layLeaves(station);
       this.seed(station);
@@ -276,7 +282,7 @@ export class Weather {
   }
 
   /** Scatters flakes and drops so the first frame is not empty. */
-  private seed(station: StationInfo): void {
+  private seed(station: WeatherHall): void {
     const e = station.exit;
     for (let i = 0; i < SNOW; i++) this.snowData.set([e.x - e.dir * Math.random() * 5, e.sillY + Math.random() * e.height, (Math.random() * 2 - 1) * e.halfWidth], i * 3);
     for (let i = 0; i < RAIN; i++) this.rainData.set([e.x - e.dir * 0.5, e.sillY - 1, 0, e.x, e.sillY - 1, 0], i * 6);
@@ -285,7 +291,7 @@ export class Weather {
   }
 
   /** Slow, pale mist hanging over the stairs below the doors. */
-  private driftMist(dt: number, time: number, station: StationInfo): void {
+  private driftMist(dt: number, time: number, station: WeatherHall): void {
     const e = station.exit;
     const inward = -e.dir;
     const d = this.mistData;
@@ -305,7 +311,7 @@ export class Weather {
   }
 
   /** Wet leaves carried in on shoes: on the landing, down the steps and a few across the hall floor. */
-  private layLeaves(station: StationInfo): void {
+  private layLeaves(station: WeatherHall): void {
     const e = station.exit;
     const inward = -e.dir;
     const hallY = e.sillY - 3.4;
@@ -330,7 +336,7 @@ export class Weather {
   }
 
   /** Two trails of wet prints from the foot of the stairs toward the gates. */
-  private layPrints(station: StationInfo): void {
+  private layPrints(station: WeatherHall): void {
     const e = station.exit;
     const inward = -e.dir;
     const start = e.stairX;

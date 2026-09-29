@@ -2,7 +2,6 @@ import { BoxGeometry, ConeGeometry, CylinderGeometry, Group, Mesh, MeshLambertMa
 import { BEAT, hallReverb, improvise, reed, saxPlaying } from './saxSolo';
 import { drawFigure, figureMesh, paintFigure } from './figures';
 import text from './i18n/sv.json';
-import { CAVE_HALF_L } from './layout';
 import { Spatial, thump, type AudioOut } from './sfx';
 import type { StationInfo } from './world/station';
 import type { Interactable } from './world/zones';
@@ -33,8 +32,7 @@ export class Saxophonist {
   private out: AudioOut | null = null;
 
   constructor(scene: Scene, station: StationInfo) {
-    const e = station.exitDir;
-    this.position = new Vector3(station.cx + e * (CAVE_HALF_L + station.escalator.run + 5), station.hall.y, 6.6);
+    this.position = new Vector3(station.hallX(5), station.hall.y, 6.6);
     this.yaw = Math.PI;
     paintFigure(this.figure, 0, { coat: 0x1b1d22, torso: 0x6b2430, skin: 0x634432, hair: 0x2b2b2b, bag: 0x1b1d22, trousers: 0x1b1d22, shoes: 0x0f0f10 });
     this.group.add(this.figure);

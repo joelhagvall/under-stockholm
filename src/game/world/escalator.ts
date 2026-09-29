@@ -1,7 +1,7 @@
 import { Curve, DynamicDrawUsage, ExtrudeGeometry, InstancedMesh, Matrix4, MeshBasicMaterial, Shape, TubeGeometry, Vector3, type BufferGeometry } from 'three';
 import { MeshBuilder } from '../gfx/builder';
 import { rgb } from '../gfx/color';
-import { ESC_DESIGN as E, ESC_HALF_W, ESC_HEADROOM, ESC_LANDING, HALL_H, PLATFORM_Y } from '../layout';
+import { ESC_DESIGN as E, ESC_HALF_W, ESC_HEADROOM, ESC_LANDING, HALL_H, PLATFORM_Y, SIDE_DOOR } from '../layout';
 import { escalatorHeight, escalatorRun, escalatorStepAlong } from '../escalatorMotion';
 import type { Physics } from '../physics';
 import type { Section } from './section';
@@ -14,6 +14,8 @@ export interface EscalatorZone {
   z: number;
   /** How far the flight climbs to the ticket hall, and how far along x it reaches (see `escalatorRun`). */
   rise: number;
+  /** Where the flight starts from: the platform, or a hall below it, climbing up to the platform. */
+  base: number;
   run: number;
   /** A lane that stands still today (-1 is the down lane), or 0. */
   stoppedLane: -1 | 0 | 1;
@@ -27,13 +29,13 @@ export interface EscalatorZone {
  * ceiling an arm's length above your head. In the open air the shaft stays a slim tube over the steps, which is all
  * that shows of it from outside.
  */
-const shaftTop = (rise: number) => PLATFORM_Y + rise + HALL_H;
+const shaftTop = (rise: number, base = PLATFORM_Y) => base + rise + HALL_H;
 const CEILING_RISE = 1.6;
 const INCLINE = 6;
-export const shaftCeiling = (a: number, rise: number, tall = true) => {
-  const low = escalatorHeight(a, rise) + ESC_HEADROOM;
+export const shaftCeiling = (a: number, rise: number, tall = true, base = PLATFORM_Y) => {
+  const low = escalatorHeight(a, rise, base) + ESC_HEADROOM;
   if (!tall) return low;
-  return Math.max(low, Math.min(shaftTop(rise), PLATFORM_Y + ESC_HEADROOM + a * CEILING_RISE, escalatorHeight(a, rise) + INCLINE));
+  return Math.max(low, Math.min(shaftTop(rise, base), base + ESC_HEADROOM + a * CEILING_RISE, escalatorHeight(a, rise, base) + INCLINE));
 };
 /** Where the ceiling bends along the flight, so its faces can run straight between them. */
 const ceilingBends = (rise: number, run: number): number[] => {
@@ -115,9 +117,9 @@ export function buildEscalators(s: Section, physics: Physics, wx: number, e: 1 |
  * @param rise how far the flight climbs to the hall (see `StationDef.rise`)
  * @param tall an underground shaft, open up to the hall's ceiling (see `shaftCeiling`)
  */
-export function* escalatorSteps(s: Section, physics: Physics, wx: number, e: 1 | -1, rise: number, tall = true): Generator<void, EscalatorZone> {
+export function* escalatorSteps(s: Section, physics: Physics, wx: number, e: 1 | -1, rise: number, tall = true, base = PLATFORM_Y): Generator<void, EscalatorZone> {
   const RUN = escalatorRun(rise);
-  const height = (a: number) => escalatorHeight(a, rise);
+  const height = (a: number) => escalatorHeight(a, rise, base);
   const point = (a: number, y: number, z: number) => new Vector3(wx + e * a, y, z);
   const floor = (a: number, z: number, lift = 0) => point(a, height(a) + lift, z);
   const metal = (_p: Vector3, n: Vector3) => rgb(Math.abs(n.y) > 0.6 ? 0xd8dee0 : Math.abs(n.x) > 0.5 ? 0x939da4 : 0xafb9c0);
@@ -135,20 +137,24 @@ export function* escalatorSteps(s: Section, physics: Physics, wx: number, e: 1 |
   };
   const UP = new Vector3(0, 1, 0);
   const DOWN = new Vector3(0, -1, 0);
+  /** Out of a shaft, the flight shows from below: a truss this deep under its steps. */
+  const truss = tall ? 0 : 0.9;
   // The ceiling and the walls up to it: straight between the steps' joints and where the ceiling levels out.
-  const top = (a: number, z: number) => point(a, shaftCeiling(a, rise, tall), z);
+  const top = (a: number, z: number) => point(a, shaftCeiling(a, rise, tall, base), z);
   const breaks = [...new Set([...joints, ...(tall ? ceilingBends(rise, RUN) : [])])].filter((a) => a >= 0 && a <= RUN).sort((a, b) => a - b);
   for (let i = 1; i < breaks.length; i++) {
     const a = breaks[i - 1], b = breaks[i];
     inward(top(a, -ESC_HALF_W), top(b, -ESC_HALF_W), top(b, ESC_HALF_W), top(a, ESC_HALF_W), DOWN, 0xe4e5e2, 1.5);
     for (const side of [-1, 1]) {
-      // Down to the floor under the steps, so no slit is left beside them.
-      inward(floor(a, side * ESC_HALF_W, -E.stepDepth), floor(b, side * ESC_HALF_W, -E.stepDepth), top(b, side * ESC_HALF_W), top(a, side * ESC_HALF_W), new Vector3(0, 0, -side), 0xc7cdd0, 1);
+      // Down to the floor under the steps, so no slit is left beside them; in the open, down to the truss under it.
+      inward(floor(a, side * ESC_HALF_W, -E.stepDepth - truss), floor(b, side * ESC_HALF_W, -E.stepDepth - truss), top(b, side * ESC_HALF_W), top(a, side * ESC_HALF_W), new Vector3(0, 0, -side), 0xc7cdd0, 1);
     }
   }
   for (let i = 1; i < joints.length; i++) {
     const a = joints[i - 1], b = joints[i];
     inward(floor(a, -ESC_HALF_W, -E.stepDepth), floor(b, -ESC_HALF_W, -E.stepDepth), floor(b, ESC_HALF_W, -E.stepDepth), floor(a, ESC_HALF_W, -E.stepDepth), UP, 0x313b42, 1);
+    // The truss's underside, where the flight can be seen from below.
+    if (truss) inward(floor(a, -ESC_HALF_W, -E.stepDepth - truss), floor(b, -ESC_HALF_W, -E.stepDepth - truss), floor(b, ESC_HALF_W, -E.stepDepth - truss), floor(a, ESC_HALF_W, -E.stepDepth - truss), DOWN, 0x4a5056, 1.5);
     // A smooth collider avoids camera judder while the visible steps circulate.
     const angle = Math.atan2(height(b) - height(a), b - a);
     const normal = new Vector3(-e * Math.sin(angle), Math.cos(angle), 0);
@@ -168,8 +174,8 @@ export function* escalatorSteps(s: Section, physics: Physics, wx: number, e: 1 |
     for (const side of [-1, 1]) {
       yield;
       const z = lane * E.laneCenter + side * (E.treadWidth / 2 + E.railWidth / 2);
-      s.lit.geometry(casing, new Matrix4().makeScale(e, 1, 1).setPosition(wx, PLATFORM_Y, z - E.railWidth / 2), metal);
-      s.lit.geometry(rubber, new Matrix4().makeScale(e, 1, 1).setPosition(wx, PLATFORM_Y, z - side * E.railWidth / 2), rgb(0x161b20));
+      s.lit.geometry(casing, new Matrix4().makeScale(e, 1, 1).setPosition(wx, base, z - E.railWidth / 2), metal);
+      s.lit.geometry(rubber, new Matrix4().makeScale(e, 1, 1).setPosition(wx, base, z - side * E.railWidth / 2), rgb(0x161b20));
       // Panel joints and the brush strip along the step edge.
       for (let a = ESC_LANDING; a < RUN - ESC_LANDING; a += E.panelLength) {
         const y = height(a);
@@ -204,12 +210,17 @@ export function* escalatorSteps(s: Section, physics: Physics, wx: number, e: 1 |
       s.unlit.box({ x: x - 0.45, y: y - 0.06, z: Math.min(z, side * ESC_HALF_W) }, { x: x + 0.45, y: y + 0.06, z: Math.max(z, side * ESC_HALF_W) }, rgb(0xf2f7ff));
       s.light(x, y - 0.2, side * (ESC_HALF_W - 0.5), rgb(0xf2f7ff), 0.55, E.lightSpacing * 2);
     }
-    const c = shaftCeiling(a, rise, tall);
+    const c = shaftCeiling(a, rise, tall, base);
     s.unlit.box({ x: x - E.fixtureDepth, y: c - E.fixtureDepth, z: -E.lightHalfWidth }, { x: x + E.fixtureDepth, y: c, z: E.lightHalfWidth }, rgb(0xf2f7ff));
     s.light(x, c - 0.6, 0, rgb(0xf2f7ff), 0.6, Math.max(E.lightSpacing * 2, c - height(a)));
   }
+  // The shaft's walls, down to the platform by the end wall and further up only to the steps' underside: a passage can
+  // cross under the flight there (see `SIDE_DOOR`).
+  const low = Math.min(RUN, SIDE_DOOR.turn - 1);
   for (const side of [-1, 1]) {
-    physics.box({ x: Math.min(wx, wx + e * RUN), y: PLATFORM_Y, z: side > 0 ? ESC_HALF_W : -ESC_HALF_W - E.railWidth }, { x: Math.max(wx, wx + e * RUN), y: shaftTop(rise), z: side > 0 ? ESC_HALF_W + E.railWidth : -ESC_HALF_W });
+    const [z0, z1] = side > 0 ? [ESC_HALF_W, ESC_HALF_W + E.railWidth] : [-ESC_HALF_W - E.railWidth, -ESC_HALF_W];
+    physics.box({ x: Math.min(wx, wx + e * low), y: base, z: z0 }, { x: Math.max(wx, wx + e * low), y: shaftTop(rise, base), z: z1 });
+    if (RUN > low) physics.box({ x: Math.min(wx + e * low, wx + e * RUN), y: height(low) - E.stepDepth - 0.3, z: z0 }, { x: Math.max(wx + e * low, wx + e * RUN), y: shaftTop(rise, base), z: z1 });
   }
   const count = Math.ceil(RUN / E.stepPitch) + 2;
   const flights = [-1, 1].map((lane) => {
@@ -223,7 +234,7 @@ export function* escalatorSteps(s: Section, physics: Physics, wx: number, e: 1 |
     return { lane, mesh };
   });
   const matrix = new Matrix4();
-  const zone: EscalatorZone = { wallX: wx, dir: e, z: 0, rise, run: RUN, stoppedLane: 0, update: () => {} };
+  const zone: EscalatorZone = { wallX: wx, dir: e, z: 0, rise, base, run: RUN, stoppedLane: 0, update: () => {} };
   zone.update = (time: number, playerX: number) => {
     for (const { lane, mesh } of flights) {
       mesh.visible = Math.abs(playerX - wx) < E.updateDistance;

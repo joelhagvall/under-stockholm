@@ -3,7 +3,6 @@ import { stockholm } from './clock';
 import { drawFigure, figureMesh, paintFigure } from './figures';
 import { glowTexture } from './gfx/textures';
 import text from './i18n/sv.json';
-import { CAVE_HALF_L } from './layout';
 import type { StationInfo } from './world/station';
 import type { Interactable } from './world/zones';
 
@@ -30,7 +29,7 @@ export interface HallEvents {
 export const hasVendor = (station: number) => station % 2 === 1;
 const vendorHours = (hours: number) => hours >= 8 && hours < 19;
 
-const hallX = (s: StationInfo, a: number) => s.cx + s.exitDir * (CAVE_HALF_L + s.escalator.run + a);
+const hallX = (s: StationInfo, a: number) => s.hallX(a);
 
 export class HallLife {
   readonly interactables: Interactable[] = [];

@@ -48,13 +48,31 @@ export function facadeTexture(): Texture {
  * Fenced ground from `x0` to `x1` on both sides of the tracks, with trees and buildings, by `seed`. Within the reach
  * of a station in `osm` the buildings are its real ones.
  */
-export function openGround(s: Section, physics: Physics, x0: number, x1: number, seed: number, fences = true, osm: readonly OsmPatch[] = []): void {
+/** Ground left to something else beside the tracks: where a ticket hall's stairs come up (see `station.ts`). */
+export interface Clearing { x0: number; x1: number; z0: number; z1: number }
+
+/** Is `x`, `z` within `margin` of a clearing? */
+export function inClearing(clear: readonly Clearing[], x: number, z: number, margin = 0): boolean {
+  return clear.some((c) => x > c.x0 - margin && x < c.x1 + margin && z > c.z0 - margin && z < c.z1 + margin);
+}
+
+/** @param clear ground left bare of grass, trees and houses, for what stands there instead */
+export function openGround(s: Section, physics: Physics, x0: number, x1: number, seed: number, fences = true, osm: readonly OsmPatch[] = [], clear: readonly Clearing[] = []): void {
   const F = OPEN.fenceZ;
   for (const side of [-1, 1]) {
-    // Grass from the fence out to the scenery's reach.
+    // Grass from the fence out to the scenery's reach, round any clearing on this side (which start at the fence).
     // Wound so the grass faces up on both sides: facing down, the bake left the +z side dark.
-    const [za, zb] = side > 0 ? [OPEN.reach, F] : [-F, -OPEN.reach];
-    s.lit.gridQuad(new Vector3(x0, -0.3, za), new Vector3(x1, -0.3, za), new Vector3(x1, -0.3, zb), new Vector3(x0, -0.3, zb), GRASS, 8);
+    const grass = (xa: number, xb: number, near: number) => {
+      const [za, zb] = side > 0 ? [OPEN.reach, near] : [-near, -OPEN.reach];
+      if (xb > xa) s.lit.gridQuad(new Vector3(xa, -0.3, za), new Vector3(xb, -0.3, za), new Vector3(xb, -0.3, zb), new Vector3(xa, -0.3, zb), GRASS, 8);
+    };
+    let from = x0;
+    for (const c of clear.filter((k) => Math.sign(k.z0 + k.z1) === side && k.x1 > x0 && k.x0 < x1).sort((p, q) => p.x0 - q.x0)) {
+      grass(from, Math.max(from, c.x0), F);
+      grass(Math.max(from, c.x0), Math.min(x1, c.x1), Math.max(Math.abs(c.z0), Math.abs(c.z1)));
+      from = Math.max(from, Math.min(x1, c.x1));
+    }
+    grass(from, x1, F);
     if (!fences) continue;
     // A fence you can see through: posts, a top rail and a rail at knee height.
     const zf = side * (F - 0.05);
@@ -62,12 +80,12 @@ export function openGround(s: Section, physics: Physics, x0: number, x1: number,
     for (let x = Math.ceil(x0 / 3) * 3; x < x1; x += 3) s.lit.box({ x: x - 0.035, y: -0.3, z: zf - 0.035 }, { x: x + 0.035, y: OPEN.fenceH, z: zf + 0.035 }, rgb(0x4a524e));
     physics.box({ x: x0, y: -1, z: Math.min(zf, zf + side) }, { x: x1, y: 4, z: Math.max(zf, zf + side) });
   }
-  scenery(s, x0, x1, seed, osm);
-  for (const patch of osm) buildOsm(s, s.artLayer(facadeTexture()), patch, x0, x1, OPEN.reach);
+  scenery(s, x0, x1, seed, osm, clear);
+  for (const patch of osm) buildOsm(s, s.artLayer(facadeTexture()), patch, x0, x1, OPEN.reach, clear);
 }
 
 /** Trees near the fences and buildings further off, the same wherever the same stretch is built; none where `osm` has real ones. */
-function scenery(s: Section, x0: number, x1: number, seed: number, osm: readonly OsmPatch[]): void {
+function scenery(s: Section, x0: number, x1: number, seed: number, osm: readonly OsmPatch[], clear: readonly Clearing[] = []): void {
   const facade = s.artLayer(facadeTexture());
   const trunk = new CylinderGeometry(0.2, 0.28, 2.6, 5);
   const pine = new ConeGeometry(2.1, 7.5, 7);
@@ -91,7 +109,7 @@ function scenery(s: Section, x0: number, x1: number, seed: number, osm: readonly
       if (x < x0 || x > x1) continue;
       // Trees, one in two cells, a little way from the fence.
       const z = side * (OPEN.fenceZ + 4 + r(3) * 26);
-      if (r(2) < 0.55 && !nearBuilding(osm, x, z, 2.5)) {
+      if (r(2) < 0.55 && !nearBuilding(osm, x, z, 2.5) && !inClearing(clear, x, z, 2.5)) {
         const isBirch = r(4) < 0.45;
         s.lit.geometry(trunk, m.makeTranslation(x, 1, z), isBirch ? rgb(0xe8e4d8) : rgb(0x5a4632));
         if (isBirch) s.lit.geometry(birch, m.makeScale(1, 1.3, 1).setPosition(x, 4.6, z), mix(rgb(0x6a9a3c), rgb(0x9ab84a), r(5)));
@@ -99,8 +117,9 @@ function scenery(s: Section, x0: number, x1: number, seed: number, osm: readonly
       }
       // A block of flats, unless it would run into one in the cells before it (they are up to three cells wide).
       const b = osm.some((p) => x > p.x0 - 20 && x < p.x1 + 20) ? null : block(cell, side);
-      const clear = (o: ReturnType<typeof block>) => !b || !o || Math.abs(o.x - b.x) > (o.w + b.w) / 2 + 1 || o.za > b.zb + 1 || o.zb < b.za - 1;
-      if (b && clear(block(cell - 1, side)) && clear(block(cell - 2, side)) && clear(block(cell - 3, side))) {
+      const clearOf = (o: ReturnType<typeof block>) => !b || !o || Math.abs(o.x - b.x) > (o.w + b.w) / 2 + 1 || o.za > b.zb + 1 || o.zb < b.za - 1;
+      const bare = !b || !clear.some((c) => b.x + b.w / 2 > c.x0 && b.x - b.w / 2 < c.x1 && b.zb > c.z0 && b.za < c.z1);
+      if (b && bare && clearOf(block(cell - 1, side)) && clearOf(block(cell - 2, side)) && clearOf(block(cell - 3, side))) {
         const { w, h, za, zb } = b;
         facade.box({ x: b.x - w / 2, y: -0.3, z: za }, { x: b.x + w / 2, y: h, z: zb }, rgb(b.colour), ['py', 'ny'], 3);
         s.lit.box({ x: b.x - w / 2 - 0.2, y: h, z: za - 0.2 }, { x: b.x + w / 2 + 0.2, y: h + 0.4, z: zb + 0.2 }, rgb(0x3a3634));

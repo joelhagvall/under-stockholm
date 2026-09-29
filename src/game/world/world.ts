@@ -10,9 +10,12 @@ import {
   ESC_HALF_W,
   ESC_HEADROOM,
   ESC_SPEED,
+  HALL_LEN,
   PLATFORM_HALF_L,
   PLATFORM_HALF_W,
   PLATFORM_Y,
+  STREET,
+  UNDERPASS_DEPTH,
   TAIL_TUBE,
   CAVERN_LEN,
   TRACK_Z,
@@ -21,7 +24,7 @@ import {
   TUBE_TOP,
   TUBE_WALL_H,
 } from '../layout';
-import { ghostX, isOutdoor, lineEnd, stationRise, type Network } from '../line';
+import { ghostX, hallDir, isOutdoor, lineEnd, stationRise, type HallDef, type Network } from '../line';
 import { buildOpenTrack, buildOpenTurnback, buildTunnelMouth, OPEN } from './outdoor';
 import { OSM_HALF_X, OsmData, type OsmPatch } from './osm';
 import { buildBridge, buildCity, cityAnchors } from './city';
@@ -33,10 +36,11 @@ import { buildGraffiti } from './graffiti';
 import { Section, sharedMaterials } from './section';
 import { shifted } from './shifted';
 import { Walkway } from './walkway';
-import { buildStation, stationSteps, type StationInfo } from './station';
+import { buildStation, stationSteps, type HallInfo, type ServiceDoor, type StationInfo } from './station';
 import { buildServiceWing, SERVICE_DOOR, type ServiceWing } from './service';
 import { buildKymlinge, kymlingeSteps, type KymlingeBuild } from './kymlinge';
 import { beltVelocity, setTravelatorTime } from './travelator';
+import { PASSABLE } from './incline';
 import { archProfile, wallWithHoles } from './shapes';
 import { inZone, type Area, type Interactable, type Zone } from './zones';
 
@@ -83,7 +87,11 @@ interface Lazy {
 
 /** How close the player must be before a lazy stretch is built. Riding at line speed, that is almost a minute ahead. */
 const BUILD_REACH = 1200;
-/** Rock kept between an escalator shaft's far end and the nearest open air, in meters. */
+/** How far into a tunnel the open air still reaches: its fog and light, and what is hidden from it. */
+const OPEN_FADE = 40;
+/** Within this along x an inclined lift is moved every frame; beyond it no one can see or ride it. */
+const INCLINE_REACH = 250;
+/** Rock kept between the top of a station's street stairs and the nearest open air, in meters. */
 const ESCALATOR_CLEARANCE = 10;
 /** Lazily built stretches this far from the player are taken down and their memory freed, to be built again on the way back. */
 const EVICT_REACH = 2600;
@@ -124,6 +132,7 @@ export class World {
   private readonly osmSites: Array<{ line: string; name: string; x: number }>;
   /** False at night, when the escalators stand still. */
   escalatorsRunning = true;
+  private readonly liftCarry = new Vector3();
   private readonly updaters: Array<(dt: number) => void> = [];
   private readonly lazy: Lazy[] = [];
   /**
@@ -228,8 +237,9 @@ export class World {
     let done = 0;
     const part = (weight: number) => (done += weight) / total;
 
-    // An underground station's escalator shaft runs out beyond its end wall: never toward open air that starts closer
-    // than that, where the tunnel mouth and the hill above it would cut through the shaft.
+    // An underground station's escalator shaft, the hall at its top and the stairwell up to the street run out beyond
+    // its end wall: never toward open air that starts closer than that, where the tunnel mouth and the hill above it
+    // would cut through them, or they would stand over the open tracks.
     const openBeyond = new Set<string>();
     for (const link of net.layout.links) {
       if (link.portal) continue;
@@ -238,53 +248,60 @@ export class World {
       const x1 = xs[b] - CAVE_HALF_L;
       const reach = (i: number) => net.stations[i].openReach ?? 160;
       const stretches = this.stretches(x0, x1, isOutdoor(net, a), isOutdoor(net, b), this.junctionOf(link) !== null, reach(a), reach(b));
-      const clear = (i: number) => escalatorRun(stationRise(net, i)) + ESCALATOR_CLEARANCE;
-      if (stretches.some((st) => st.open && st.from < x0 + clear(a))) openBeyond.add(`${a}:1`);
-      if (stretches.some((st) => st.open && st.to > x1 - clear(b))) openBeyond.add(`${b}:-1`);
+      const clear = (i: number, dir: 1 | -1) => hallReach(net, i, dir) + ESCALATOR_CLEARANCE;
+      if (stretches.some((st) => st.open && st.from < x0 + clear(a, 1))) openBeyond.add(`${a}:1`);
+      if (stretches.some((st) => st.open && st.to > x1 - clear(b, -1))) openBeyond.add(`${b}:-1`);
     }
 
+    // Every station's halls are checked before any is built, so a mistake in the data names all it breaks at once.
+    const problems = net.stations.flatMap((_, i) => hallProblems(net, i, openBeyond));
+    if (problems.length) throw new Error(`Halls that do not fit: ${problems.join('; ')}`);
     for (const [i, def] of net.stations.entries()) {
-      // Stations where the line ends toward +x turn trains back beyond their far end, so their escalators face -x;
-      // so do underground stations with open air just beyond their +x end.
       const end = lineEnd(net, i);
-      const toOpen = !isOutdoor(net, i) && openBeyond.has(`${i}:1`) && !openBeyond.has(`${i}:-1`) && end !== -1;
-      const exitDir = end === 1 || toOpen ? -1 : 1;
       const kind = end !== 0 ? 'cavern' : def.service ?? 'staff';
-      // Clues for the Silverpilen mystery, on the blue trunk.
-      const clue = def.line === 0 ? ({ 'T-Centralen': 'clipping', 'Rådhuset': 'logbook', 'Kungsträdgården': 'scratches' } as const)[def.name as 'T-Centralen'] : undefined;
+      const clue = def.line === 0 ? CLUES[def.name as keyof typeof CLUES] : undefined;
+      const ends = hallEnds(net, i, openBeyond);
+      // The staff door: at the end trains turn back beyond, or else the one without the main hall. Where a hall stands
+      // there too, it goes beside the escalators; a plain staff room with nothing the game needs is left out instead.
+      const main = def.halls ? hallDir(def.halls[0]) : ends[0];
+      const wingDir = kind === 'cavern' ? end as 1 | -1 : -main as 1 | -1;
+      const side = ends.includes(wingDir);
       const add = (station: StationInfo, wing: ServiceWing) => {
         this.stations.push(station);
         this.zones.push(...station.zones, ...wing.zones);
         this.interactables.push(...station.interactables, ...wing.interactables);
       };
       // A shared station has no staff door, so no service wing behind it; nor does one in the open.
-      const shared = def.lines.length > 1 || isOutdoor(net, i);
+      const shared = def.lines.length > 1 || isOutdoor(net, i) || (side && !needsWing(net, i));
+      const service: ServiceDoor | null = shared ? null : { dir: wingDir, side };
       if (isOutdoor(net, i)) this.openRanges.push([xs[i] - CAVE_HALF_L, xs[i] + CAVE_HALF_L]);
       const noWing: ServiceWing = { group: new Group(), zones: [], interactables: [] };
       if (eager(i)) {
-        const { group, info } = yield* stationSteps(physics, net, i, xs[i], exitDir);
+        const { group, extra, info } = yield* stationSteps(physics, net, i, xs[i], ends, service);
         this.group.add(group);
+        for (const g of extra) this.group.add(g);
         yield part(WEIGHT.station);
-        const wing = shared ? noWing : buildServiceWing(physics, i, xs[i], exitDir, kind, false, clue);
+        const wing = shared ? noWing : buildServiceWing(physics, i, xs[i], -wingDir as 1 | -1, kind, false, clue, side);
         this.group.add(wing.group);
         if (wing.update) this.updaters.push(wing.update);
         add(info, wing);
         yield part(WEIGHT.wing);
         continue;
       }
-      const { info } = withoutSigns(() => buildStation(physics, net, i, xs[i], exitDir, true));
-      const wing = shared ? noWing : withoutSigns(() => buildServiceWing(physics, i, xs[i], exitDir, kind, true));
+      const { info } = withoutSigns(() => buildStation(physics, net, i, xs[i], ends, service, true));
+      const wing = shared ? noWing : withoutSigns(() => buildServiceWing(physics, i, xs[i], -wingDir as 1 | -1, kind, true, clue, side));
       add(info, wing);
       // What the dry pass handed the station, to go back to when the built one is taken down, so its meshes can go.
-      const dry: StationInfo = { ...info, exit: { ...info.exit } };
+      const dry: StationInfo = { ...info, halls: info.halls.map((h) => ({ ...h, exit: { ...h.exit } })), inclines: [] };
       const open = isOutdoor(net, i) && !def.city;
       this.later(xs[i] - CAVE_HALF_L - 60, xs[i] + CAVE_HALF_L + 60, function* (this: World) {
         const osm = open ? this.osm.patch(net.lines[def.line].id, def.name, xs[i]) : null;
-        const built = yield* stationSteps(NO_PHYSICS, net, i, xs[i], exitDir, false, osm);
+        const built = yield* stationSteps(NO_PHYSICS, net, i, xs[i], ends, service, false, osm);
         adopt(info, built.info);
         yield* this.add(built.group);
+        for (const g of built.extra) yield* this.add(g);
         if (shared) return;
-        yield* this.add(buildServiceWing(NO_PHYSICS, i, xs[i], exitDir, kind).group);
+        yield* this.add(buildServiceWing(NO_PHYSICS, i, xs[i], -wingDir as 1 | -1, kind, false, clue, side).group);
       }.bind(this), () => adopt(info, dry), open ? this.osmReady(xs[i], xs[i]) : undefined);
       yield;
     }
@@ -383,9 +400,10 @@ export class World {
         yield;
         continue;
       }
+      // Colliders come from the dry pass, or from the one build of a turnback built at once.
       const make = (dry: boolean) => {
         const s = new Section(`turnback-${i}`, tunnelAmbient, dry);
-        buildTurnback(s, dry ? physics : NO_PHYSICS, wall, dir, TAIL_TUBE, CAVERN_LEN, 200 + i * 11, { door: SERVICE_DOOR });
+        buildTurnback(s, dry || eager(i) ? physics : NO_PHYSICS, wall, dir, TAIL_TUBE, CAVERN_LEN, 200 + i * 11, { door: SERVICE_DOOR });
         return s.finish();
       };
       if (eager(i)) {
@@ -497,25 +515,34 @@ export class World {
     let best = 0;
     for (const [x0, x1] of this.openRanges) {
       const d = Math.max(0, x0 - p.x, p.x - x1);
-      if (d < 40) best = Math.max(best, 1 - d / 40);
+      if (d < OPEN_FADE) best = Math.max(best, 1 - d / OPEN_FADE);
     }
     return best;
   }
 
+  /** The hall of `station` nearest `x`: its main one, or the second at the other end of the platform. */
+  hallNear(station: number, x: number): HallInfo {
+    const halls = this.stations[station].halls;
+    return halls.length > 1 && Math.abs(x - halls[1].bounds.x0) < Math.abs(x - halls[0].bounds.x0) ? halls[1] : halls[0];
+  }
+
   /** How much sky someone at `p` sees on the street over `station`: all of it up there, less down in the cut. */
   streetOpen(station: number, p: Vector3): number {
-    const e = this.stations[station].exit;
+    const e = this.hallNear(station, p.x).exit;
     // Out of a door in the open, the street is open all over.
     if (e.cut === 0) return 1;
     return Math.min(1, Math.max(0.4, 0.4 + (0.6 * (p.y - e.sillY)) / (e.top - e.sillY)));
   }
 
-  /** Shows the street over `station` (null for none) and hides the rest: only the one you are at is ever in view. */
-  showStreet(station: number | null): void {
+  /** Shows the street over `station` (null for none) nearest `x` and hides the rest: only the one you are at is ever in view. */
+  showStreet(station: number | null, x: number): void {
+    const near = station === null ? null : this.hallNear(station, x);
     // Every frame, as a street built on the way comes in hidden.
     for (const s of this.stations) {
-      const group = s.exit.street?.group;
-      if (group) group.visible = s.index === station;
+      for (const hall of s.halls) {
+        const group = hall.exit.street?.group;
+        if (group) group.visible = hall === near;
+      }
     }
   }
 
@@ -745,6 +772,7 @@ export class World {
     this.evict(x);
     this.shownAt = x;
     this.shownCount = this.group.children.length;
+    const open = this.openRanges.some(([x0, x1]) => x > x0 - OPEN_FADE && x < x1 + OPEN_FADE);
     for (const child of this.group.children) {
       let extent = this.extents.get(child);
       if (!extent) {
@@ -753,7 +781,9 @@ export class World {
         extent = box.isEmpty() ? [-Infinity, Infinity] : [box.min.x, box.max.x];
         this.extents.set(child, extent);
       }
-      child.visible = x > extent[0] - SHOW_REACH && x < extent[1] + SHOW_REACH;
+      // An underground station's second hall stands high over the tunnels: from the open air it would show over the
+      // hill at the tunnel mouth, where nothing of it could really be seen.
+      child.visible = x > extent[0] - SHOW_REACH && x < extent[1] + SHOW_REACH && !(child.userData.underground && open);
     }
   }
 
@@ -775,16 +805,22 @@ export class World {
   locate(p: Vector3): Location {
     for (const z of this.zones) if (inZone(z, p)) return { station: z.station, area: z.area, label: z.label };
     for (const s of this.stations) {
-      for (const { wallX, dir, z, run } of s.escalators) {
+      for (const { wallX, dir, z, run, base } of s.escalators) {
         const along = (p.x - wallX) * dir;
-        if (along > 0 && along < run && Math.abs(p.z - z) < ESC_HALF_W && p.y > PLATFORM_Y - 0.2) {
+        if (along > 0 && along < run && Math.abs(p.z - z) < ESC_HALF_W && p.y > base - 0.2) {
           return { station: s.index, area: 'escalator' };
         }
       }
-      // Up on the street, or on the flight up to it out beyond the hall's end wall.
-      const street = s.exit.street;
-      if (street && p.x >= street.x0 && p.x <= street.x1 && p.y > s.hall.y + 2 && (p.y > street.y - 1 || p.x < s.hall.x0 || p.x > s.hall.x1)) return { station: s.index, area: 'street' };
-      if (p.x >= s.hall.x0 && p.x <= s.hall.x1 && p.y > s.hall.y - 1) return { station: s.index, area: 'hall' };
+      for (const lift of s.inclines) if (lift.contains(p)) return { station: s.index, area: 'escalator' };
+      // Beyond an open-air station's fences, up the stairs from a hall under the tracks: the street.
+      if (s.outdoor && Math.abs(p.x - s.cx) <= CAVE_HALF_L && Math.abs(p.z) > OPEN.fenceZ + 0.2 && p.y > -1 && p.y < 9) return { station: s.index, area: 'street' };
+      for (const { exit, bounds, corridor } of s.halls) {
+        // Up on the street, or on the flight up to it out beyond the hall's end wall.
+        const street = exit.street;
+        if (street && p.x >= street.x0 && p.x <= street.x1 && p.y > bounds.y + 2 && (p.y > street.y - 1 || p.x < bounds.x0 || p.x > bounds.x1)) return { station: s.index, area: 'street' };
+        if (p.x >= bounds.x0 && p.x <= bounds.x1 && p.y > bounds.y - 1) return { station: s.index, area: 'hall' };
+        if (corridor && p.x >= corridor.x0 && p.x <= corridor.x1 && Math.abs(p.z) < corridor.halfWidth + 0.5 && p.y > bounds.y - 1) return { station: s.index, area: 'hall' };
+      }
       if (Math.abs(p.x - s.cx) <= CAVE_HALF_L && p.y < 9) {
         const onPlatform = s.platforms.some((zc) => Math.abs(p.z - zc) <= PLATFORM_HALF_W + 0.05) && p.y > PLATFORM_Y - 0.3;
         return { station: s.index, area: onPlatform ? 'platform' : 'track' };
@@ -837,7 +873,7 @@ export class World {
       const { wallX, dir } = esc;
       const along = (p.x - wallX) * dir;
       if (along <= 0.1 || along >= esc.run - 0.1 || !onEscalatorTread(p.z - esc.z)) continue;
-      const surface = escalatorHeight(along, esc.rise);
+      const surface = escalatorHeight(along, esc.rise, esc.base);
       if (p.y < surface - 0.4 || p.y > surface + 0.6) continue;
       const lane = p.z > esc.z ? 1 : -1;
       if (lane === esc.stoppedLane) return out;
@@ -855,6 +891,30 @@ export class World {
       return beltVelocity(p, pass.X, pass.bounds.y, pass.bounds.z0, this.escalatorsRunning);
     }
     return 0;
+  }
+
+  /**
+   * Moves the inclined lifts to `time` and returns how far the one someone with their feet at `feet` stands in
+   * carried them (zero outside every cabin). A lift far from them is left where it was: its cabin follows from the
+   * time alone, so it is right again when they come near.
+   */
+  inclines(time: number, feet: Vector3): Vector3 {
+    this.liftCarry.set(0, 0, 0);
+    for (const s of this.stations) {
+      for (const lift of s.inclines) {
+        if (Math.abs(feet.x - lift.wallX) > INCLINE_REACH) { lift.hide(); continue; }
+        const inside = lift.holds(feet);
+        const wasOpen = lift.pose.open > PASSABLE;
+        lift.update(time);
+        if (inside) this.liftCarry.copy(lift.delta);
+        // Doors closing on someone in the doorway see them in, as a lift's doors would open again for them.
+        else if (wasOpen && lift.pose.open <= PASSABLE) {
+          const at = lift.doorway(feet);
+          if (at !== 0) this.liftCarry.set(lift.dir * (at < 0 ? 0.6 : -0.6), 0, 0);
+        }
+      }
+    }
+    return this.liftCarry;
   }
 
   updateEscalators(time: number, playerX: number): void {
@@ -901,6 +961,85 @@ function freeMemory(group: Object3D): void {
 }
 
 /**
+ * Which ends of a station its halls stand at, the main one first: where its real plan has them (`StationDef.halls`),
+ * or else one where there is room for it (see `hallProblems`).
+ */
+function hallEnds(net: Network, i: number, openBeyond: ReadonlySet<string>): Array<1 | -1> {
+  const def = net.stations[i];
+  if (def.halls) return def.halls.filter((h) => h.from === undefined).map((h) => hallDir(h));
+  // Where the line ends toward +x, trains turn back beyond the far end, so the escalators face -x; so they do at an
+  // underground station with open air just beyond its +x end.
+  const end = lineEnd(net, i);
+  const toOpen = !isOutdoor(net, i) && openBeyond.has(`${i}:1`) && !openBeyond.has(`${i}:-1`) && end !== -1;
+  return [end === 1 || toOpen ? -1 : 1];
+}
+
+/**
+ * What is wrong with a station's halls as its data has them: underground, a hall never stands toward open air closer
+ * than its shaft, hall and street stairs reach. At the end of the staff door or a turnback, the door goes beside the
+ * escalators (`SIDE_DOOR`).
+ */
+function hallProblems(net: Network, i: number, openBeyond: ReadonlySet<string>): string[] {
+  const def = net.stations[i];
+  if (!def.halls) return [];
+  const underground = !isOutdoor(net, i);
+  const problems: string[] = [];
+  const at = (e: number) => (e > 0 ? 'outbound' : 'inbound');
+  for (const e of new Set(def.halls.map((h) => hallDir(h)))) {
+    if (underground && openBeyond.has(`${i}:${e}`)) problems.push(`${def.name}: a hall toward open air closer than its stairs reach (${at(e)})`);
+  }
+  const ends = def.halls.filter((h) => h.from === undefined).map((h) => hallDir(h));
+  if (new Set(ends).size < ends.length) problems.push(`${def.name}: two halls at one end`);
+  const downs = def.halls.filter((h) => h.down);
+  if (def.halls.some((h) => h.from !== undefined && !h.down) && (!underground || def.architecture !== 'tiles')) problems.push(`${def.name}: a way up from along the platform needs a tiled ceiling to climb through`);
+  if (downs.length && (underground || def.lines.length > 1 || def.city)) problems.push(`${def.name}: a hall under the tracks is for a line's own station in the open`);
+  if (downs.some((h) => h.from === undefined || Math.abs(h.from) > PLATFORM_HALF_L - 4)) problems.push(`${def.name}: a hall under the tracks needs its escalators' top on the platform`);
+  // Every hall and its street stand at one height: their stretches along x must not overlap; nor may two halls under
+  // the tracks, nor stand beyond the station's own ground.
+  const overlap = (spans: Array<[number, number]>) => spans.sort((p, q) => p[0] - q[0]).some((sp, k) => k > 0 && sp[0] < spans[k - 1][1]);
+  if (overlap(def.halls.filter((h) => !h.down).map((h) => hallSpan(net, i, h)))) problems.push(`${def.name}: two halls over each other`);
+  const under = downs.map((h) => underSpan(h));
+  if (overlap(under)) problems.push(`${def.name}: two halls under the tracks over each other`);
+  if (under.some(([a, b]) => a < -CAVE_HALF_L || b > CAVE_HALF_L)) problems.push(`${def.name}: a hall under the tracks beyond the station`);
+  return problems;
+}
+
+/** Where a hall and the street over it stand along x, from the station's middle, as meters from its center. */
+function hallSpan(net: Network, i: number, hall: HallDef): [number, number] {
+  const d = hallDir(hall);
+  const start = d * ((hall.from ?? CAVE_HALF_L) + escalatorRun(stationRise(net, i)) + (hall.corridor ?? 0));
+  const end = start + d * (HALL_LEN + STREET.road.far + STREET.depth);
+  return [Math.min(start - d * STREET.square.a0, end), Math.max(start - d * STREET.square.a0, end)];
+}
+
+/** Where a hall under the tracks lies along x, from the station's middle: from the foot of its escalators, the hall under the platform. */
+function underSpan(hall: HallDef): [number, number] {
+  const d = hallDir(hall);
+  const mouth = d * (hall.from! - escalatorRun(UNDERPASS_DEPTH));
+  return [Math.min(mouth, mouth - d * HALL_LEN), Math.max(mouth, mouth - d * HALL_LEN)];
+}
+
+/**
+ * How far past its end wall toward `dir` a station's halls reach, with their shafts and the stairs up to the street:
+ * where there is no hall that way, nothing (without a plan, the one hall the layout may put there).
+ */
+function hallReach(net: Network, i: number, dir: 1 | -1): number {
+  const run = escalatorRun(stationRise(net, i));
+  const halls = net.stations[i].halls ?? [{ end: dir > 0 ? 'outbound' : 'inbound' } as HallDef];
+  const reaches = halls.filter((h) => hallDir(h) === dir && !h.down).map((h) => (h.from ?? CAVE_HALF_L) + run + (h.corridor ?? 0) + STREET.stairTop - CAVE_HALF_L);
+  return Math.max(0, ...reaches);
+}
+
+/** Clues for the Silverpilen mystery, behind the staff doors on the blue trunk. */
+const CLUES = { 'T-Centralen': 'clipping', 'Rådhuset': 'logbook', 'Kungsträdgården': 'scratches' } as const;
+
+/** Does something stand behind the station's staff door that the game needs: a turnback, a shelter or a clue? */
+function needsWing(net: Network, i: number): boolean {
+  const def = net.stations[i];
+  return lineEnd(net, i) !== 0 || !!def.service || (def.line === 0 && def.name in CLUES);
+}
+
+/**
  * Hands the meshes of a late-built station to the info the rest of the game
  * already holds, and replays what was last drawn on its boards and clocks.
  */
@@ -909,7 +1048,9 @@ function adopt(info: StationInfo, built: StationInfo): void {
   info.escalators = built.escalators;
   info.escalator = built.escalator;
   for (const esc of info.escalators) esc.stoppedLane = stopped;
-  info.exit.street = built.exit.street;
+  // The halls' exits and the lifts' colliders are the dry pass's, which stay: the streets and cabins come and go.
+  info.halls.forEach((hall, k) => { hall.exit.street = built.halls[k].exit.street; });
+  info.inclines.forEach((lift, k) => { lift.view = built.inclines[k]?.view ?? null; });
   info.tube = built.tube;
   info.clutter = built.clutter;
   const departures = info.lastDepartures;

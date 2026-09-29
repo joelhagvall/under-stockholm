@@ -4,9 +4,11 @@ import { BoxGeometry, CircleGeometry, CylinderGeometry, DoubleSide, Group, Matri
 import { brokenTube } from '../calendar';
 import { buildClutter, type StationClutter } from './clutter';
 import { escalatorSteps, type EscalatorZone } from './escalator';
+import { inclineSteps, type InclineZone } from './incline';
+import { escalatorRun } from '../escalatorMotion';
 import { shiftZ } from './shifted';
 import { buildWalkway, WALKWAY, walkwayZones, type WalkwayEnd } from './walkway';
-import { openGround } from './outdoor';
+import { OPEN, openGround, type Clearing } from './outdoor';
 import type { OsmPatch } from './osm';
 import { buildCity, cityAnchors, cityHouse, railings } from './city';
 import type { BoxFace, MeshBuilder } from '../gfx/builder';
@@ -19,12 +21,18 @@ import {
   CAVE_HALF_W,
   CAVE_TOP,
   CAVE_WALL_H,
+  ESC_ANGLE,
+  ESC_DESIGN,
+  ESC_LANDING,
   ESC_HALF_W,
   ESC_HEADROOM,
   HALL_H,
   HALL_HALF_W,
   HALL_LEN,
+  INCLINE,
   PASSAGE_LAYOUT,
+  UNDERPASS_DEPTH,
+  SIDE_DOOR,
   STREET,
   TRANSFER_LAYOUT,
   PLATFORM_HALF_L,
@@ -40,7 +48,7 @@ import {
   TUBE_TOP,
   TUBE_WALL_H,
 } from '../layout';
-import { isOutdoor, onRoute, routeStations, stationRise, type LineDef, type Network } from '../line';
+import { hallDir, isOutdoor, onRoute, routeStations, stationRise, type HallDef, type LineDef, type Network } from '../line';
 import type { Physics } from '../physics';
 import { addTrack, PAINT } from './parts';
 import { Section } from './section';
@@ -140,6 +148,8 @@ export interface StreetExit {
   top: number;
   /** How far out the open cut of the second flight runs beyond the doorway, up to the street (0 without one). */
   cut: number;
+  /** The way out goes across the tracks' line instead, to this side, up stairs out of a hall under a station in the open. */
+  across?: 1 | -1;
 }
 
 /** A passage off the ticket hall toward the commuter trains, with a spot for a busker. */
@@ -157,10 +167,26 @@ export interface Passage {
   X: (a: number) => number;
 }
 
+/** A ticket hall, at one end of the platform (see `StationDef.halls`): the main one, or a station's second. */
+export interface HallInfo {
+  /** Which way along x the hall lies from the platform. */
+  dir: 1 | -1;
+  /** The hall's extent along x and its floor. */
+  bounds: { x0: number; x1: number; y: number };
+  gates: GateLine;
+  exit: StreetExit;
+  /** World x at `a` meters along the hall from its wall toward the platform. */
+  x(a: number): number;
+  /** The passage between the top of the escalators and the hall, where the station has a long one: along x, and its half width. */
+  corridor: { x0: number; x1: number; halfWidth: number } | null;
+}
+
 export interface StationInfo {
   index: number;
   name: string;
   cx: number;
+  /** Built in the open air: beyond its fences, where a hall under the tracks has its stairs come up, is the street. */
+  outdoor: boolean;
   exitDir: 1 | -1;
   /** The escalators up from the platform (the first of them where there are two). */
   escalator: EscalatorZone;
@@ -171,10 +197,16 @@ export interface StationInfo {
   platformTracks: Array<{ z: number; track: 1 | 2; line: number; number: number }>;
   /** How far the escalators climb from the platform to the ticket hall (see `StationDef.rise`). */
   rise: number;
-  /** The ticket hall's extent along x and its floor. */
+  /** The ticket halls, the main one first: a station with a hall at each end of the platform has two. */
+  halls: HallInfo[];
+  /** The main hall's extent along x and its floor (`halls[0].bounds`). */
   hall: { x0: number; x1: number; y: number };
   gates: GateLine;
   exit: StreetExit;
+  /** World x at `a` meters along the main hall (`halls[0].x`). */
+  hallX(a: number): number;
+  /** The inclined lifts beside the escalators, where the station has them. */
+  inclines: InclineZone[];
   passage: Passage | null;
   spawn: Vector3;
   zones: Zone[];
@@ -500,11 +532,19 @@ function artSign(station: string, title: string, body: string): CanvasSign {
 
 /**
  * Builds one cave station: rock vault, island platform, tracks, lamps, signs,
- * an escalator shaft at the exit end and a ticket hall at the top.
+ * an escalator shaft at the exit end and a ticket hall at the top; where the
+ * station has two halls (`ends`, the main one first), the same at the other
+ * end too.
  */
 /** @param dry lay colliders and work out positions only (see `Section`) */
-export function buildStation(physics: Physics, net: Network, index: number, cx: number, exitDir: 1 | -1, dry = false): StationBuild {
-  const steps = stationSteps(physics, net, index, cx, exitDir, dry);
+/** Where a station's staff door is: the platform end (`dir` along x), and whether it stands beside the escalators there. */
+export interface ServiceDoor {
+  dir: 1 | -1;
+  side: boolean;
+}
+
+export function buildStation(physics: Physics, net: Network, index: number, cx: number, ends: ReadonlyArray<1 | -1>, service: ServiceDoor | null, dry = false): StationBuild {
+  const steps = stationSteps(physics, net, index, cx, ends, service, dry);
   let r = steps.next();
   while (!r.done) r = steps.next();
   return r.value;
@@ -512,6 +552,11 @@ export function buildStation(physics: Physics, net: Network, index: number, cx: 
 
 export interface StationBuild {
   group: Group;
+  /**
+   * Every hall but the main one, with its escalators and street, a group of its own: shown by its own reach, so a
+   * neighbour's hall coming close does not bring the whole of its cave into view.
+   */
+  extra: Group[];
   info: StationInfo;
 }
 
@@ -521,20 +566,103 @@ export interface StationBuild {
  * rides toward it spreads its cost over several frames. `osm`, for a station
  * in the open, is the real buildings round it.
  */
-export function* stationSteps(physics: Physics, net: Network, index: number, cx: number, exitDir: 1 | -1, dry = false, osm: OsmPatch | null = null): Generator<void, StationBuild> {
+/** @param service the staff door, or null where there is none (a shared station, one in the open) */
+export function* stationSteps(physics: Physics, net: Network, index: number, cx: number, ends: ReadonlyArray<1 | -1>, service: ServiceDoor | null, dry = false, osm: OsmPatch | null = null): Generator<void, StationBuild> {
   const def = net.stations[index];
   const line = net.lines[def.line];
   // Above ground: a platform under a canopy, fences and the open air instead of a cave.
   const outdoor = isOutdoor(net, index);
   const s = new Section(def.name, outdoor ? OPEN_AMBIENT : def.theme.ambient, dry, outdoor);
-  const e = exitDir;
   const theme = def.theme;
+  // Each hall and the way up to it, from the station's plan (or the one end the layout picks): underground a long
+  // passage from the escalators to the hall, and an inclined lift beside them, not where two lines share the station
+  // (its escalators come up in wings). A hall reached from along the platform climbs up through the ceiling instead
+  // (`HallDef.from`). Every hall but the main one is built into a section of its own (see `StationBuild.extra`).
+  const plans: readonly HallDef[] = def.halls ?? [{ end: ends[0] > 0 ? 'outbound' : 'inbound' }];
+  const twin = def.lines.length > 1;
+  // Underground, as deep as the station lies; in the open air, up to a hall over the tracks.
+  const rise = stationRise(net, index);
+  const run = escalatorRun(rise);
+  const hallY = PLATFORM_Y + rise;
+  const downRun = escalatorRun(UNDERPASS_DEPTH);
+  const ways = plans.map((plan, k) => {
+    const dir = hallDir(plan);
+    const inner = !outdoor && plan.from !== undefined;
+    // In the open, down to a hall under the tracks, whose stairs come up at the side beyond the fences.
+    const down = outdoor && !twin && !def.city && !!plan.down;
+    const foot = cx + dir * (inner || down ? plan.from! : CAVE_HALF_L);
+    const corridor = outdoor || twin ? 0 : plan.corridor ?? 0;
+    // Up from the foot toward `dir` to a hall beyond the escalators; or from a hall under the tracks, back toward the
+    // middle of the platform, up to the foot.
+    const flight = down
+      ? { wx: foot - dir * downRun, rise: UNDERPASS_DEPTH, run: downRun, base: PLATFORM_Y - UNDERPASS_DEPTH }
+      : { wx: foot, rise, run, base: PLATFORM_Y };
+    return {
+      dir, inner, down, foot, corridor, flight,
+      /** Where the hall starts, which way it runs from there and its floor. */
+      hx: down ? flight.wx : foot + dir * (run + corridor),
+      hallDir: down ? -dir as 1 | -1 : dir,
+      hallY: down ? flight.base : hallY,
+      incline: !outdoor && !!plan.incline,
+      exits: plan.exits ?? def.exits,
+      /** The side a hall under the tracks has its stairs up on: the main one's +z, a second one's the other, unless its plan says. */
+      across: down ? (plan.beside === 2 ? -1 : plan.beside === 1 ? 1 : k === 0 ? 1 : -1) as 1 | -1 : undefined,
+      // Under the ground a hall is lit as underground, not by the sky.
+      section: down ? new Section(`${def.name}-under-${k + 1}`, theme.ambient, dry) : k === 0 ? s : new Section(`${def.name}-hall-${k + 1}`, outdoor ? OPEN_AMBIENT : theme.ambient, dry, outdoor),
+    };
+  });
+  /** Where a hall under the tracks has its stairs come up: a square beside them, bare of grass and trees. */
+  const squares: Clearing[] = ways.filter((w) => w.down).map((w) => {
+    const x = w.hx + w.hallDir * (ACROSS.a0 + ACROSS.a1) / 2;
+    const out = HALL_HALF_W + 0.5 + SIDE_STAIRS_OUT + SQUARE.beyond;
+    const [z0, z1] = [w.across! * OPEN.fenceZ, w.across! * out].sort((p, q) => p - q);
+    return { x0: x - SQUARE.halfX, x1: x + SQUARE.halfX, z0, z1 };
+  });
+  /** Where escalators go down from the island to a hall under the tracks, the island and its trackbed open round them. */
+  const openings = ways.filter((w) => w.down).map((w) => {
+    const { wx, base } = w.flight;
+    // From where the tube's roof sinks below the trackbed to the top of the flight.
+    const a = ESC_LANDING + (-0.5 - ESC_HEADROOM - base) / Math.tan(ESC_ANGLE);
+    const [x0, x1] = [wx + w.dir * a, w.foot].sort((p, q) => p - q);
+    return { x0, x1, way: w, a };
+  });
+  const OPENING = ESC_HALF_W + ESC_DESIGN.railWidth;
+  /** Calls `whole` for the stretches of `x0` to `x1` clear of openings, and `open` for those an opening takes. */
+  const around = (x0: number, x1: number, whole: (a: number, b: number) => void, open: (a: number, b: number) => void) => {
+    let from = x0;
+    for (const o of [...openings].sort((p, q) => p.x0 - q.x0)) {
+      if (o.x1 <= from || o.x0 >= x1) continue;
+      if (o.x0 > from) whole(from, o.x0);
+      open(Math.max(from, o.x0), Math.min(x1, o.x1));
+      from = Math.min(x1, o.x1);
+    }
+    if (from < x1) whole(from, x1);
+  };
+  /** The halls at the platform's ends, through their end walls. */
+  const endWays = ways.filter((w) => !w.inner && !w.down);
+  const hallEnds = endWays.map((w) => w.dir);
+  const e = ways[0].hallDir;
+  /** The platform's ends without a hall: fenced off, with a warning. */
+  const bares = ([-1, 1] as const).filter((d) => !hallEnds.includes(d));
+  /** Steps down from the fenced end to the staff door in the middle of its end wall. */
+  const steps = !!service && !service.side && bares.includes(service.dir);
+  /**
+   * Along x, where a way up or down from along the platform stands on it: the island kept clear, with room to walk on
+   * where its escalators start.
+   */
+  const innerSpans = ways.filter((w) => w.inner || w.down).map((w) => (w.inner
+    ? [w.foot - w.dir * 6, w.foot + w.dir * (run + 1)]
+    : [w.flight.wx - w.dir, w.foot + w.dir * 6]).sort((p, q) => p - q) as [number, number]);
+  /** Is the island clear for something `half` long either side of `x`? */
+  const free = (x: number, half = 0) => !innerSpans.some(([x0, x1]) => x + half > x0 && x - half < x1);
+  const benches = benchXs(cx).filter((x) => free(x, 2));
+  /** The information pillars along the island, as offsets from the middle. */
+  const pillars = PILLAR_DXS.filter((dx) => free(cx + dx, 0.4));
   const xa = cx - CAVE_HALF_L;
   const xb = cx + CAVE_HALF_L;
 
   // A station shared by two lines has four tracks and two island platforms:
   // its own line's tracks inside, the other's beyond them (see `LANE`).
-  const twin = def.lines.length > 1;
   const halfW = twin ? CAVE_HALF_W + LANE : CAVE_HALF_W;
   const islands = twin ? [-LANE, LANE] : [0];
   const trackZs = twin ? [-TRACK_Z - LANE, -TRACK_Z, TRACK_Z, TRACK_Z + LANE] : [-TRACK_Z, TRACK_Z];
@@ -557,18 +685,40 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     ? { step: 0.3, amplitude: 0, smooth: true, seed: index * 13 + 3 }
     : { step: 0.48, amplitude: 1.55, inset: STATION_ROCK_INSET, rounds: 4.8, seed: index * 13 + 3 };
   if (tiled && !outdoor) for (const side of [-1, 1]) physics.box({ x: xa, y: -1, z: Math.min(side * outer, side * halfW) }, { x: xb, y: 14, z: Math.max(side * outer, side * halfW) });
+  // Where a way up from along the platform climbs through the ceiling: from where its tube's roof meets the ceiling to
+  // where its floor has passed it, around the escalators (and a lift beside them). A collar closes the rest.
+  const ceilingY = vaulted ? VAULT_TOP : TILED_TOP;
+  const holes = ways.filter((w) => w.inner).flatMap((w) => islands.map((zi) => {
+    const a0 = ESC_LANDING + (ceilingY - 0.2 - ESC_HEADROOM - PLATFORM_Y) / Math.tan(ESC_ANGLE);
+    // Past where the truss under the flight has cleared the ceiling (see `escalatorSteps`).
+    const a1 = ESC_LANDING + (ceilingY + 0.2 + ESC_DESIGN.stepDepth + 0.9 - PLATFORM_Y) / Math.tan(ESC_ANGLE);
+    const [x0, x1] = [w.foot + w.dir * a0, w.foot + w.dir * a1].sort((p, q) => p - q);
+    const side = ESC_HALF_W + ESC_DESIGN.railWidth;
+    return { way: w, zi, x0, x1, low: w.foot + w.dir * a0, z0: zi - side - 0.4, z1: zi + (w.incline ? INCLINE.z1 : side) + 0.4, lift: w.incline ? INCLINE.z1 : ESC_HALF_W };
+  }));
+  for (const h of holes) {
+    // The collar: flat strips of ceiling beside the tube, a little past the opening's ragged edge, and a plate over
+    // its low end.
+    const paint = theme.paint;
+    const [x0, x1] = [h.x0 - 0.4, h.x1 + 0.4];
+    // Up to the tube's own walls, whose faces the collar's leave out.
+    s.lit.box({ x: x0, y: ceilingY - 0.02, z: h.z0 - 0.6 }, { x: x1, y: ceilingY + 0.3, z: h.zi - ESC_HALF_W }, paint, ['pz']);
+    s.lit.box({ x: x0, y: ceilingY - 0.02, z: h.zi + h.lift }, { x: x1, y: ceilingY + 0.3, z: h.z1 + 0.6 }, paint, ['nz']);
+    s.lit.box({ x: Math.min(h.low, h.low - h.way.dir * 0.35), y: ceilingY - 0.02, z: h.zi - ESC_HALF_W }, { x: Math.max(h.low, h.low - h.way.dir * 0.35), y: ceilingY + 0.3, z: h.zi + h.lift }, paint);
+  }
+  const cuts = holes.map((h) => ({ x0: h.x0, x1: h.x1, z0: h.z0, z1: h.z1 }));
   for (const profile of outdoor ? [] : profiles) {
     // The artwork is painted (and cached) in the dry pass already, behind the loading screen: painted on the way it
     // would hold up a frame for as long as 50 ms, and far longer on a phone.
     const art = theme.art?.(profileLength(profile), wallTop - CAVE_BOTTOM);
     if (dry) continue;
-    if (art) yield* extrudeRockSteps(s.artLayer(art.texture), profile, xa, xb, { ...rock, artPeriod: art.period }, rgb(0xf4f4f4));
-    else yield* extrudeRockSteps(s.lit, profile, xa, xb, rock, theme.paint);
+    if (art) yield* extrudeRockSteps(s.artLayer(art.texture), profile, xa, xb, { ...rock, artPeriod: art.period, cuts }, rgb(0xf4f4f4));
+    else yield* extrudeRockSteps(s.lit, profile, xa, xb, { ...rock, cuts }, theme.paint);
     yield;
   }
 
-  // In the open air, a station building stands over the escalator at the exit end.
-  if (outdoor) for (const zi of islands) {
+  // In the open air, a station building stands over the escalator at each hall's end.
+  if (outdoor) for (const zi of islands) for (const e of hallEnds) {
     const wx = cx + e * CAVE_HALF_L;
     const B = { half: PLATFORM_HALF_W - 0.4, top: PLATFORM_Y + ESC_HEADROOM + 2.2 };
     const front: ProfilePoint[] = [
@@ -583,15 +733,18 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     physics.box({ x: xo0, y: PLATFORM_Y + ESC_HEADROOM, z: zi - ESC_HALF_W }, { x: xo1, y: B.top, z: zi + ESC_HALF_W });
   }
 
-  // End walls: tunnel mouths on both, the escalator openings at the exit end.
+  // End walls: tunnel mouths on both, the escalator openings at each hall's end.
   for (const end of outdoor ? [] : [-1, 1] as const) {
     const wx = cx + end * CAVE_HALF_L;
     const holes = trackZs.map((zc) => archHole(zc, TUBE_HALF_W, TUBE_WALL_H, TUBE_TOP, TUBE_BOTTOM));
-    // Openings below the tubes' top: the escalators, or the staff door (a shared station has none).
+    // Openings below the tubes' top: the escalators (and an inclined lift's door), or the staff door (a shared station
+    // has none).
     const openings: Array<[number, number, number]> = [];
-    if (end === e) for (const zc of islands) openings.push([zc - ESC_HALF_W, zc + ESC_HALF_W, PLATFORM_Y + ESC_HEADROOM]);
-    else if (!twin) openings.push([-SERVICE_DOOR.halfWidth, SERVICE_DOOR.halfWidth, SERVICE_DOOR.height]);
-    for (const [z0, z1, top] of openings) holes.push(rectHole(z0, z1, end === e ? PLATFORM_Y : 0, top));
+    const way = endWays.find((w) => w.dir === end);
+    if (way) for (const zc of islands) openings.push([zc - ESC_HALF_W, zc + ESC_HALF_W, PLATFORM_Y + ESC_HEADROOM]);
+    if (service?.dir === end) openings.push(service.side ? [SIDE_DOOR.z0, SIDE_DOOR.z1, PLATFORM_Y + SIDE_DOOR.height] : [-SERVICE_DOOR.halfWidth, SERVICE_DOOR.halfWidth, SERVICE_DOOR.height]);
+    if (way?.incline) for (const zc of islands) openings.push([...liftAcross(zc), PLATFORM_Y + INCLINE.height - 0.15]);
+    for (const [z0, z1, top] of openings) holes.push(rectHole(z0, z1, way ? PLATFORM_Y : 0, top));
     // Each vault's end wall takes the openings within it.
     for (const profile of profiles) {
       const lo = Math.min(...profile.map((p) => p.z));
@@ -615,31 +768,39 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   // Each stage below ends with a yield, so a station built on the way stays within a frame per stage.
   yield;
   // Trackbed, tracks and the island platforms.
-  s.lit.box({ x: xa, y: -0.5, z: -halfW }, { x: xb, y: 0, z: halfW }, PAINT.ballast, ['ny']);
+  around(xa, xb, (a, b) => s.lit.box({ x: a, y: -0.5, z: -halfW }, { x: b, y: 0, z: halfW }, PAINT.ballast, ['ny']), (a, b) => {
+    for (const side of [-1, 1]) s.lit.box({ x: a, y: -0.5, z: Math.min(side * OPENING, side * halfW) }, { x: b, y: 0, z: Math.max(side * OPENING, side * halfW) }, PAINT.ballast, ['ny']);
+  });
   // In the city by the water, railings and Riddarfjärden; elsewhere fences and the suburbs.
   if (outdoor && def.city) {
     railings(s, physics, xa, xb, halfW);
     yield;
     buildCity(s, xa, xb, halfW, cityAnchors(net));
-  } else if (outdoor) openGround(s, physics, xa, xb, index * 17 + 5, true, osm ? [osm] : []);
+  } else if (outdoor) openGround(s, physics, xa, xb, index * 17 + 5, true, osm ? [osm] : [], squares);
   yield;
   for (const zc of trackZs) addTrack(s, xa, xb, zc, true);
   yield;
-  const p0 = e > 0 ? cx - PLATFORM_HALF_L : xa;
-  const p1 = e > 0 ? xb : cx + PLATFORM_HALF_L;
-  physics.box({ x: xa, y: -1, z: -halfW }, { x: xb, y: -0.02, z: halfW });
+  const p0 = hallEnds.includes(-1) ? xa : cx - PLATFORM_HALF_L;
+  const p1 = hallEnds.includes(1) ? xb : cx + PLATFORM_HALF_L;
+  around(xa, xb, (a, b) => physics.box({ x: a, y: -1, z: -halfW }, { x: b, y: -0.02, z: halfW }), (a, b) => {
+    for (const side of [-1, 1]) physics.box({ x: a, y: -1, z: Math.min(side * OPENING, side * halfW) }, { x: b, y: -0.02, z: Math.max(side * OPENING, side * halfW) });
+  });
   physics.box({ x: xa, y: -1, z: halfW }, { x: xb, y: 14, z: halfW + 1 });
   physics.box({ x: xa, y: -1, z: -halfW - 1 }, { x: xb, y: 14, z: -halfW });
-  const farEnd = e > 0 ? p0 : p1;
+  const farEnd = (bare: 1 | -1) => (bare > 0 ? p1 : p0);
   // Platform surface, from the center out: stone slabs, a tactile strip,
   // more slabs, then a pale edge line.
   const W = PLATFORM_HALF_W;
   for (const zi of islands) {
     const top = (b: MeshBuilder, z0: number, z1: number, paint: RGB) => {
       for (const side of [-1, 1]) {
-        const a = zi + side * z0;
-        const c = zi + side * z1;
-        b.box({ x: p0, y: PLATFORM_Y - 0.02, z: Math.min(a, c) }, { x: p1, y: PLATFORM_Y, z: Math.max(a, c) }, paint, ['ny', 'pz', 'nz', 'px', 'nx']);
+        const slab = (x0: number, x1: number, from: number) => {
+          if (from >= z1) return;
+          const a = zi + side * from;
+          const c = zi + side * z1;
+          b.box({ x: x0, y: PLATFORM_Y - 0.02, z: Math.min(a, c) }, { x: x1, y: PLATFORM_Y, z: Math.max(a, c) }, paint, ['ny', 'pz', 'nz', 'px', 'nx']);
+        };
+        around(p0, p1, (x0, x1) => slab(x0, x1, z0), (x0, x1) => slab(x0, x1, Math.max(z0, OPENING)));
       }
     };
     // Stone slabs, or poured terrazzo in the station's colour.
@@ -657,15 +818,19 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
       const z = zi + side * W;
       s.lit.box({ x: p0, y: 0, z: Math.min(z, z - side * 0.25) }, { x: p1, y: PLATFORM_Y - 0.25, z: Math.max(z, z - side * 0.25) }, rgb(0x1c1b1a), ['py']);
     }
-    physics.box({ x: p0, y: -1, z: zi - PLATFORM_HALF_W }, { x: p1, y: PLATFORM_Y, z: zi + PLATFORM_HALF_W });
+    around(p0, p1, (a, b) => physics.box({ x: a, y: -1, z: zi - PLATFORM_HALF_W }, { x: b, y: PLATFORM_Y, z: zi + PLATFORM_HALF_W }), (a, b) => {
+      for (const side of [-1, 1]) physics.box({ x: a, y: -1, z: Math.min(zi + side * OPENING, zi + side * PLATFORM_HALF_W) }, { x: b, y: PLATFORM_Y, z: Math.max(zi + side * OPENING, zi + side * PLATFORM_HALF_W) });
+    });
+    for (const o of openings) buildPlatformOpening(s, physics, o.way.flight, o.way.dir, o.a, OPENING);
 
     // Fence and warning at the far platform end. On a station's own island a
     // gate in the middle stands open onto steps down to the staff door.
-    for (const side of [-1, 1]) {
+    for (const bare of bares) for (const side of [-1, 1]) {
+      const fx = farEnd(bare);
       const z0 = zi + side * PLATFORM_HALF_W;
-      const z1 = zi + side * (twin || outdoor ? 0 : SERVICE_GATE + 0.04);
-      s.lit.box({ x: farEnd - 0.05, y: PLATFORM_Y, z: Math.min(z0, z1) }, { x: farEnd + 0.05, y: PLATFORM_Y + 1.1, z: Math.max(z0, z1) }, rgb(0xd9b93b));
-      physics.box({ x: farEnd - 0.1, y: PLATFORM_Y, z: Math.min(z0, z1) }, { x: farEnd + 0.1, y: PLATFORM_Y + 2.2, z: Math.max(z0, z1) });
+      const z1 = zi + side * (steps && service!.dir === bare ? SERVICE_GATE + 0.04 : 0);
+      s.lit.box({ x: fx - 0.05, y: PLATFORM_Y, z: Math.min(z0, z1) }, { x: fx + 0.05, y: PLATFORM_Y + 1.1, z: Math.max(z0, z1) }, rgb(0xd9b93b));
+      physics.box({ x: fx - 0.1, y: PLATFORM_Y, z: Math.min(z0, z1) }, { x: fx + 0.1, y: PLATFORM_Y + 2.2, z: Math.max(z0, z1) });
     }
   }
   if (twin && !outdoor) {
@@ -674,11 +839,12 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     physics.box({ x: xa, y: -1, z: -inner }, { x: xb, y: 14, z: inner });
   }
   yield;
-  if (!twin && !outdoor) buildServiceAccess(s, physics, cx, e);
+  if (steps) buildServiceAccess(s, physics, cx, -service!.dir as 1 | -1);
   const warn = textSign('Obehöriga äga ej tillträde', 768, 128, '#f2f2f2', '#b3261e');
-  for (const zi of islands) {
-    place(s, warn, 2.8, 0.47, new Vector3(farEnd + e * 0.08, PLATFORM_Y + 1.5, zi), new Vector3(e, 0, 0));
-    if (!twin && !outdoor) for (const z of [-1.3, 1.3]) s.lit.box({ x: farEnd - 0.03, y: PLATFORM_Y + 1.1, z: z - 0.03 }, { x: farEnd + 0.03, y: PLATFORM_Y + 1.28, z: z + 0.03 }, rgb(0xd9b93b));
+  for (const bare of bares) for (const zi of islands) {
+    const fx = farEnd(bare);
+    place(s, warn, 2.8, 0.47, new Vector3(fx - bare * 0.08, PLATFORM_Y + 1.5, zi), new Vector3(-bare, 0, 0));
+    if (steps && service!.dir === bare) for (const z of [-1.3, 1.3]) s.lit.box({ x: fx - 0.03, y: PLATFORM_Y + 1.1, z: z - 0.03 }, { x: fx + 0.03, y: PLATFORM_Y + 1.28, z: z + 0.03 }, rgb(0xd9b93b));
   }
 
   // Paired continuous fluorescent troughs frame each boarding side.
@@ -686,8 +852,12 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   const RAIL = STATION_DESIGN.lightingY;
   const tubeXs: number[] = [];
   for (let x = p0 + 3; x < p1 - 2; x += 4.5) tubeXs.push(x);
+  // An inclined lift beside a way up from along the platform takes the +z trough's place over it.
+  const liftSpans = ways.filter((w) => w.inner && w.incline).map((w) => [Math.min(w.foot, w.foot + w.dir * run) - 2.5, Math.max(w.foot, w.foot + w.dir * run) + 1] as const);
+  const lit = (x: number, side: number, half = 0) => side < 0 || !liftSpans.some(([x0, x1]) => x + half > x0 && x - half < x1);
   // One tube flickers and hums: it has its own material instead of the baked layer.
-  const broken = brokenTube(index, tubeXs.length);
+  let broken = brokenTube(index, tubeXs.length);
+  while (!lit(tubeXs[broken], 1, 2)) broken = (broken + 1) % tubeXs.length;
   const tube = new Mesh(new BoxGeometry(3.9, 0.045, 0.19), new MeshBasicMaterial({ color: 0xf2f5ee }));
   tube.name = 'flickering-tube';
   tube.position.set(tubeXs[broken], RAIL - 0.0225, islands[islands.length - 1] + STATION_DESIGN.lightingZ);
@@ -695,14 +865,22 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   for (const [k0, zi] of islands.entries()) {
     for (const side of [-1, 1]) {
       const z = zi + side * STATION_DESIGN.lightingZ;
-      s.lit.box({ x: p0, y: RAIL, z: z - 0.19 }, { x: p1, y: RAIL + 0.2, z: z + 0.19 }, rgb(0x555b5b));
+      // The trough, in pieces round a lift's shaft.
+      let from = p0;
+      for (const [x0, x1] of side > 0 ? [...liftSpans].sort((a, b) => a[0] - b[0]) : []) {
+        if (x0 > from) s.lit.box({ x: from, y: RAIL, z: z - 0.19 }, { x: Math.min(x0, p1), y: RAIL + 0.2, z: z + 0.19 }, rgb(0x555b5b));
+        from = Math.max(from, x1);
+      }
+      if (from < p1) s.lit.box({ x: from, y: RAIL, z: z - 0.19 }, { x: p1, y: RAIL + 0.2, z: z + 0.19 }, rgb(0x555b5b));
       for (const [k, x] of tubeXs.entries()) {
+        if (!lit(x, side, 2)) continue;
         if (side > 0 && k === broken && k0 === islands.length - 1) { s.light(x, RAIL - 0.2, z, lampColor, 0.4, 8); continue; }
         s.unlit.box({ x: x - 1.95, y: RAIL - 0.045, z: z - 0.095 }, { x: x + 1.95, y: RAIL, z: z + 0.095 }, rgb(0xf2f5ee));
         s.light(x, RAIL - 0.2, z, lampColor, 0.62, 8);
         s.light(x, RAIL + 0.6, z, lampColor, 0.65, 10);
       }
       for (let x = p0 + 5; x < p1; x += 14) {
+        if (!lit(x, side, 0.2)) continue;
         s.lit.box({ x: x - 0.025, y: RAIL + 0.2, z: z - 0.025 }, { x: x + 0.025, y: CAVE_TOP, z: z + 0.025 }, PAINT.fixture);
         s.lit.box({ x: x - 0.15, y: RAIL - 0.28, z: z - 0.12 }, { x: x + 0.15, y: RAIL, z: z + 0.12 }, rgb(0x24282d));
       }
@@ -732,7 +910,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
         s.lit.box({ x: p0 + 4, y: roofY - 0.35, z: zi - 4.35 }, { x: p1 - 4, y: roofY + 0.22, z: zi - 4.25 }, rgb(0x2f3438));
         s.lit.box({ x: p0 + 4, y: roofY - 0.35, z: zi + 4.25 }, { x: p1 - 4, y: roofY + 0.22, z: zi + 4.35 }, rgb(0x2f3438));
       }
-      for (const dx of STATION_DESIGN.pierXs) {
+      for (const dx of STATION_DESIGN.pierXs.filter((d) => free(cx + d, 0.3))) {
         const geo = new CylinderGeometry(0.12, 0.12, roofY - PLATFORM_Y, 10);
         s.lit.geometry(geo, new Matrix4().setPosition(cx + dx, (roofY + PLATFORM_Y) / 2, zi), post);
         geo.dispose();
@@ -747,6 +925,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     for (const zi of islands) {
       for (const dx of kind === 'none' ? [] : STATION_DESIGN.pierXs) {
         const x = cx + dx;
+        if (!free(x, 0.5)) continue;
         if (kind === 'round') {
           const geo = new CylinderGeometry(0.22, 0.22, top - PLATFORM_Y, 16);
           s.lit.geometry(geo, new Matrix4().setPosition(x, (top + PLATFORM_Y) / 2, zi), paint);
@@ -763,7 +942,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   yield;
   // Benches along each platform's center.
   for (const zi of islands) {
-    for (const bx of benchXs(cx)) {
+    for (const bx of benches) {
       for (let slat = -4; slat <= 4; slat++) {
         s.lit.box({ x: bx - 1.1, y: PLATFORM_Y + 0.42, z: zi + slat * 0.12 - 0.045 }, { x: bx + 1.1, y: PLATFORM_Y + 0.5, z: zi + slat * 0.12 + 0.045 }, BENCH_WOOD);
       }
@@ -786,7 +965,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   s.extras.userData.lineMap = pillarMap;
   const phone = textSign('Nödtelefon', 256, 64, '#1f7a3d');
   for (const zi of islands) {
-    for (const dx of PILLAR_DXS) {
+    for (const dx of pillars) {
       const px = cx + dx;
       s.lit.box({ x: px - 0.3, y: PLATFORM_Y, z: zi - 0.3 }, { x: px + 0.3, y: PLATFORM_Y + 2.6, z: zi + 0.3 }, rgb(0x27313c));
       physics.box({ x: px - 0.3, y: PLATFORM_Y, z: zi - 0.3 }, { x: px + 0.3, y: PLATFORM_Y + 2.6, z: zi + 0.3 });
@@ -803,7 +982,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   const plaque = artWalk.plaque(def.name);
   const artInteractables: Interactable[] = [];
   if (plaque) {
-    const ax = cx + 4.5;
+    const ax = [cx + 4.5, cx - 4.5, cx + 24].find((x) => free(x, 0.6)) ?? cx + 4.5;
     const zi = islands[0];
     s.lit.box({ x: ax - 0.04, y: PLATFORM_Y, z: zi - 0.04 }, { x: ax + 0.04, y: PLATFORM_Y + 1.9, z: zi + 0.04 }, rgb(0x2a2c30));
     s.lit.box({ x: ax - 0.5, y: PLATFORM_Y + 0.9, z: zi - 0.05 }, { x: ax + 0.5, y: PLATFORM_Y + 2.2, z: zi + 0.05 }, rgb(0x1d2a3a));
@@ -816,7 +995,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   // Hanging clocks showing the real time.
   const clocks: CanvasSign[] = [];
   for (const zi of islands) {
-    for (const dx of [-18, 18]) {
+    for (const dx of [-18, 18].filter((d) => free(cx + d, 0.5))) {
       const face = createCanvasSign(256, 256);
       clocks.push(face);
       const x = cx + dx;
@@ -838,9 +1017,10 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     const text = def.transfer.replace(/^Byte till /, 'Byte: ').replace(/\.$/, '');
     const sign = textSign(`↑ ${text}`, 1024, 128, '#f2f2f2', '#10325f');
     for (const zi of islands) {
-      place(s, sign, 5, 0.62, new Vector3(cx + e * 6, 3.75, zi), new Vector3(-e, 0, 0));
-      s.lit.box({ x: cx + e * 6 + e * 0.01 - 0.01, y: 3.44, z: zi - 2.5 }, { x: cx + e * 6 + e * 0.01 + 0.01, y: 4.06, z: zi + 2.5 }, rgb(0x2a2c30));
-      s.lit.box({ x: cx + e * 6 - 0.02, y: 4.06, z: zi - 0.02 }, { x: cx + e * 6 + 0.02, y: RAIL, z: zi + 0.02 }, PAINT.fixture);
+      const tx = [cx + e * 6, cx - e * 6, cx + e * 30].find((x) => free(x, 0.3)) ?? cx + e * 6;
+      place(s, sign, 5, 0.62, new Vector3(tx, 3.75, zi), new Vector3(-e, 0, 0));
+      s.lit.box({ x: tx + e * 0.01 - 0.01, y: 3.44, z: zi - 2.5 }, { x: tx + e * 0.01 + 0.01, y: 4.06, z: zi + 2.5 }, rgb(0x2a2c30));
+      s.lit.box({ x: tx - 0.02, y: 4.06, z: zi - 0.02 }, { x: tx + 0.02, y: RAIL, z: zi + 0.02 }, PAINT.fixture);
     }
   }
 
@@ -854,8 +1034,13 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     place(s, stopMark(), 0.5, 0.62, new Vector3(x, 2.55, z), new Vector3(-track, 0, 0));
   }
 
-  const exitBoard = textSign('↑ ' + def.exits, 1024, 128, '#f4d03f', '#1c2025');
-  for (const zi of islands) place(s, exitBoard, 5.8, 0.72, new Vector3(cx + e * 62, 3.8, zi), new Vector3(-e, 0, 0));
+  for (const way of ways) {
+    // Toward an end, near its wall; toward a way up from along the platform, over the escalators' foot.
+    const bx = way.inner ? way.foot - way.dir * 1.5 : cx + way.dir * 62;
+    if (!way.inner && !free(bx, 0.3)) continue;
+    const exitBoard = textSign('↑ ' + way.exits, 1024, 128, '#f4d03f', '#1c2025');
+    for (const zi of islands) place(s, exitBoard, 5.8, 0.72, new Vector3(bx, 3.8, zi), new Vector3(-way.dir, 0, 0));
+  }
 
   yield;
   // Station name boards on the walls above the tracks (and on the middle wall of a shared station).
@@ -892,7 +1077,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     // Seen looking toward +x, -z is on the viewer's left.
     const facePosX = directionFace(`← Spår ${R.number}  ${R.where}`, `${L.where}  Spår ${L.number} →`);
     // Halfway between the piers at 28 and 56, clear of their flared tops and of the canopy posts.
-    for (const dx of [-42, 42]) {
+    for (const dx of [-42, 42].filter((d) => free(cx + d, 3.3))) {
       const pos = new Vector3(cx + dx, 3.7, zi);
       place(s, faceNegX, 6.4, 0.8, pos.clone().add(new Vector3(0.02, 0, 0)), new Vector3(1, 0, 0));
       place(s, facePosX, 6.4, 0.8, pos.clone().add(new Vector3(-0.02, 0, 0)), new Vector3(-1, 0, 0));
@@ -908,7 +1093,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   const displays: Array<{ sign: CanvasSign; tracks: number[] }> = [];
   for (const zi of islands) {
     const tracks = platformTracks.flatMap((t, k) => (islandOf(t.z) === zi ? [k] : []));
-    for (const dx of [-48, 48]) {
+    for (const dx of [-48, 48].filter((d) => free(cx + d, 1.4))) {
       // Tall enough for two trains a track and a line of notices under them.
       const disp = createCanvasSign(1024, 320);
       displays.push({ sign: disp, tracks: tracks.map((k) => platformTracks[k].number) });
@@ -923,43 +1108,79 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   }
 
   yield;
-  // An escalator up from each island; a shared station's are built in sections of their own and moved out to its islands.
+  // An escalator up from each island at each hall's end; a shared station's are built in sections of their own and
+  // moved out to its islands.
   const escalators: EscalatorZone[] = [];
-  const escalatorGroups: Group[] = [];
-  // Underground, as deep as the station lies; in the open air, up to a hall over the tracks.
-  const rise = stationRise(net, index);
-  const hallY = PLATFORM_Y + rise;
-  for (const zi of islands) {
-    if (zi === 0) { escalators.push(yield* escalatorSteps(s, physics, cx + e * CAVE_HALF_L, e, rise, !outdoor)); continue; }
-    const es = new Section(`${def.name}-escalator`, theme.ambient, dry);
-    const zone = yield* escalatorSteps(es, shiftZ(physics, zi), cx + e * CAVE_HALF_L, e, rise, !outdoor);
-    zone.z = zi;
-    escalators.push(zone);
-    const g = yield* es.finishSteps();
-    g.position.z = zi;
-    escalatorGroups.push(g);
+  /** What goes with each hall's group: the main one's with the station's. */
+  const wayGroups: Group[][] = ways.map(() => []);
+  const inclines: InclineZone[] = [];
+  for (const [k, way] of ways.entries()) {
+    const { wx, rise, run, base } = way.flight;
+    const ws = way.section;
+    // Through an end wall an inclined shaft; from along the platform a slim tube up through the ceiling, or down
+    // through a hole in the platform.
+    const tall = !outdoor && !way.inner;
+    for (const zi of islands) {
+      if (zi === 0) { escalators.push(yield* escalatorSteps(ws, physics, wx, way.dir, rise, tall, base)); continue; }
+      const es = new Section(`${def.name}-escalator`, theme.ambient, dry);
+      const zone = yield* escalatorSteps(es, shiftZ(physics, zi), wx, way.dir, rise, tall, base);
+      zone.z = zi;
+      escalators.push(zone);
+      const g = yield* es.finishSteps();
+      g.position.z = zi;
+      wayGroups[k].push(g);
+    }
+    for (const [n, zi] of (way.incline ? islands : []).entries()) {
+      inclines.push(yield* inclineSteps(ws, physics, wx, way.dir, rise, hash01(index * 3 + k, 811 + n), way.corridor > 0 ? 0.5 : 0, zi, zi < 0 ? -1 : 1));
+    }
+    // A long way from the top of the escalators to the hall: a tiled passage.
+    if (way.corridor > 0) buildCorridor(ws, physics, wx + way.dir * run, way.dir, way.corridor, way.hallY, way.incline);
   }
   const escalator = escalators[0];
-  const hx = cx + e * (CAVE_HALF_L + escalator.run);
   yield;
   // The same station on another line, where it lies elsewhere along x: a walkway leads there.
   const partners = net.stations.flatMap((o, oi) => (o.name === def.name && oi !== index && !o.lines.includes(def.line) && !def.lines.includes(o.line) ? [oi] : []));
   const doorA = twin ? 8.2 : 5;
-  const hall = buildHall(s, physics, line, def, index, hx, hallY, e, islands.filter((z) => z !== 0), partners.length && !def.passage ? doorA : null);
-  // Up the stairs from the hall, the street: a section of its own in the open air, shown only at the station. In the open
-  // the hall's door opens straight onto it.
-  const ss = new Section(`${def.name}-street`, OPEN_AMBIENT, dry, true);
-  const street = buildStreet(ss, physics, index, def.exits, hx, hallY, e, outdoor ? def.name : null);
-  yield;
-  const streetGroup = yield* ss.finishSteps();
-  streetGroup.visible = false;
-  hall.exit.street = { ...street, group: dry ? null : streetGroup };
-  yield;
+  const halls: HallInfo[] = [];
+  let passage: Passage | null = null;
+  for (const [k, way] of ways.entries()) {
+    const d = way.hallDir;
+    const { hx, hallY } = way;
+    // The main hall has the walkway to the other line and the passage; the second hall only its gates and stairs.
+    const main = k === 0;
+    const hall = buildHall(way.section, physics, line, def, index, hx, hallY, d, islands.filter((z) => z !== 0), main && partners.length && !def.passage ? doorA : null,
+      { main, exits: way.exits, mouth: hallMouth(way), incline: way.incline, across: way.across });
+    if (main) passage = hall.passage;
+    if (way.across) {
+      // Its stairs come up on a little square beside the tracks, beyond the fence.
+      buildSquare(s, physics, squares[ways.filter((w) => w.down).indexOf(way)], way.across, def.name);
+    } else {
+      // Up the stairs from the hall, the street: a section of its own in the open air, shown only at the station. In
+      // the open the hall's door opens straight onto it.
+      const ss = new Section(`${def.name}-street${main ? '' : `-${k + 1}`}`, OPEN_AMBIENT, dry, true);
+      const street = buildStreet(ss, physics, index, way.exits, hx, hallY, d, outdoor ? def.name : null, k);
+      yield;
+      const streetGroup = yield* ss.finishSteps();
+      streetGroup.visible = false;
+      wayGroups[k].push(streetGroup);
+      hall.exit.street = { ...street, group: dry ? null : streetGroup };
+    }
+    halls.push({
+      dir: d, bounds: hall.bounds, gates: hall.gates, exit: hall.exit,
+      x: (a) => hx + d * a,
+      corridor: way.corridor > 0 ? { x0: Math.min(hx, hx - d * way.corridor), x1: Math.max(hx, hx - d * way.corridor), halfWidth: corridorHalfWidth(way.incline) } : null,
+    });
+    // In the city the hall over the tracks is a low building of its own, standing on the station roof.
+    if (outdoor && def.city) cityHouse(way.section, physics, cx + d * CAVE_HALF_L, hx + d * (HALL_LEN + 0.6), islands.map((z) => [z - ESC_HALF_W - 0.4, z + ESC_HALF_W + 0.4] as [number, number]),
+      { y0: hallY + STREET.door, y1: hallY + STREET.door + STREET.doorHeight, halfW: STREET.doorHalfW });
+    yield;
+  }
+  const hall = halls[0];
   const walkways = partners.map((to) => {
     // Out through the City passage's side opening, or a door in the hall's +z wall.
-    const end: WalkwayEnd = hall.passage
-      ? { door: new Vector3(hall.passage.X(PASSAGE_LAYOUT.a0), hallY, (TRANSFER_LAYOUT.corridor.z0 + TRANSFER_LAYOUT.corridor.z1) / 2), u: new Vector3(-e, 0, 0), side: 1 }
-      : { door: new Vector3(hx + e * doorA, hallY, HALL_HALF_W), u: new Vector3(0, 0, 1), side: 1, wall: 0.5 };
+    const end: WalkwayEnd = passage
+      ? { door: new Vector3(passage.X(PASSAGE_LAYOUT.a0), hallY, (TRANSFER_LAYOUT.corridor.z0 + TRANSFER_LAYOUT.corridor.z1) / 2), u: new Vector3(-e, 0, 0), side: 1 }
+      : { door: new Vector3(hall.x(doorA), hallY, HALL_HALF_W), u: new Vector3(0, 0, 1), side: 1, wall: 0.5 };
     const there = net.stations[to];
     const names = there.lines.map((li) => net.lines[li].name.toLowerCase());
     // From the blue line's T-Centralen, and back to it, the way is Blå gången, painted blue.
@@ -968,31 +1189,32 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     return { to, end };
   });
   yield;
-  const clutter = buildClutter(s, { index, cx, exitDir: e, benches: benchXs(cx), pillars: PILLAR_DXS, hallX: (a) => hx + e * a, hallY, hallHalfW: HALL_HALF_W, platformZ: islands[islands.length - 1], wallZ: boardZ, posters: !outdoor });
+  const clutter = buildClutter(s, { index, cx, exitDir: e, benches, pillars, hallX: hall.x, hallY, hallHalfW: HALL_HALF_W, platformZ: islands[islands.length - 1], wallZ: boardZ, posters: !outdoor });
   yield;
-  // In the city the hall over the tracks is a low building of its own, standing on the station roof.
-  if (outdoor && def.city) cityHouse(s, physics, cx + e * CAVE_HALF_L, hx + e * (HALL_LEN + 0.6), islands.map((z) => [z - ESC_HALF_W - 0.4, z + ESC_HALF_W + 0.4] as [number, number]),
-    { y0: hallY + STREET.door, y1: hallY + STREET.door + STREET.doorHeight, halfW: STREET.doorHalfW });
 
   let departureKey = '';
   const info: StationInfo = {
     index,
     name: def.name,
     cx,
+    outdoor,
     exitDir: e,
     escalator,
     escalators,
     platforms: islands,
     platformTracks,
     rise,
+    halls,
     hall: hall.bounds,
     gates: hall.gates,
     exit: hall.exit,
-    passage: hall.passage,
+    hallX: hall.x,
+    inclines,
+    passage,
     walkways,
-    spawn: new Vector3(cx - e * 20, PLATFORM_Y, islands[islands.length - 1] + 2.2),
-    zones: [...(hall.passage ? [hall.passage.zone] : []), ...walkways.flatMap((w) => walkwayZones(w.end, index, def.passage ? text.transfer.blueWay : `${text.transfer.way} ${net.stations[w.to].lines.map((li) => net.lines[li].name.toLowerCase()).join(` ${text.transfer.and} `)}`))],
-    interactables: [...(hall.passage ? hall.passage.interactables : []), ...artInteractables],
+    spawn: new Vector3([cx - e * 20, cx + e * 20, cx - e * 40].find((x) => free(x, 1)) ?? cx - e * 20, PLATFORM_Y, islands[islands.length - 1] + 2.2),
+    zones: [...(passage ? [passage.zone] : []), ...walkways.flatMap((w) => walkwayZones(w.end, index, def.passage ? text.transfer.blueWay : `${text.transfer.way} ${net.stations[w.to].lines.map((li) => net.lines[li].name.toLowerCase()).join(` ${text.transfer.and} `)}`))],
+    interactables: [...(passage ? passage.interactables : []), ...artInteractables],
     clutter,
     tube,
     setDepartures(rows, notice, banner) {
@@ -1008,9 +1230,19 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     },
   };
   const group = yield* s.finishSteps();
-  for (const g of escalatorGroups) group.add(g);
-  group.add(streetGroup);
-  return { group, info };
+  for (const g of wayGroups[0]) group.add(g);
+  const extra: Group[] = [];
+  for (const [k, way] of ways.entries()) {
+    if (way.section === s) continue;
+    const g = yield* way.section.finishSteps();
+    for (const c of wayGroups[k]) g.add(c);
+    // A hall under the tracks goes with the station, whose platform it opens from.
+    if (way.down) { group.add(g); continue; }
+    // Up at an underground station's hall level it would float over a neighbour's open air (see `World.show`).
+    if (!outdoor) g.userData.underground = true;
+    extra.push(g);
+  }
+  return { group, extra, info };
 }
 
 interface HallBuild {
@@ -1022,7 +1254,182 @@ interface HallBuild {
 
 const PASSAGE = PASSAGE_LAYOUT;
 
-function buildHall(s: Section, physics: Physics, line: LineDef, def: Network['stations'][number], index: number, hx: number, hallY: number, e: 1 | -1, wings: number[] = [], walkwayDoor: number | null = null): HallBuild {
+/**
+ * How the way up opens into a hall's wall toward the platform, as openings across it (z from, z to, height): the
+ * escalators and an inclined lift's door, or the passage that leads from them.
+ */
+function hallMouth(way: { corridor: number; incline: boolean }): Array<[number, number, number]> {
+  if (way.corridor > 0) {
+    const w = corridorHalfWidth(way.incline);
+    return [[-w, w, ESC_HEADROOM]];
+  }
+  return [[-ESC_HALF_W, ESC_HALF_W, ESC_HEADROOM], ...(way.incline ? [[INCLINE.z0, INCLINE.z1, INCLINE.height - 0.15] as [number, number, number]] : [])];
+}
+
+/** Across z, where an inclined lift runs beside the escalators of the island at `zc`: away from the tracks between two islands. */
+function liftAcross(zc: number): [number, number] {
+  return zc < 0 ? [zc - INCLINE.z1, zc - INCLINE.z0] : [zc + INCLINE.z0, zc + INCLINE.z1];
+}
+
+/** A passage from the escalators to the hall: as wide as the shaft and a little more, and over the inclined lift beside it too. */
+function corridorHalfWidth(incline: boolean): number {
+  return incline ? INCLINE.z1 : ESC_HALF_W + 0.4;
+}
+
+/**
+ * A long tiled passage at the hall's level, from the top of the escalators at `x0` a `length` along `e` to the hall,
+ * as at the stations whose halls lie far from their platforms. A lintel closes the escalator shaft's high end over it.
+ */
+function buildCorridor(s: Section, physics: Physics, x0: number, e: 1 | -1, length: number, Y: number, incline: boolean): void {
+  const W = corridorHalfWidth(incline);
+  const H = ESC_HEADROOM;
+  const X = (a: number) => x0 + e * a;
+  const WALL = hallWall(Y);
+  const box = (a0: number, a1: number, y0: number, y1: number, z0: number, z1: number, paint: Parameters<typeof s.lit.box>[2], collide = true, skip: BoxFace[] = [], cell?: number) => {
+    const min = { x: Math.min(X(a0), X(a1)), y: y0, z: z0 };
+    const max = { x: Math.max(X(a0), X(a1)), y: y1, z: z1 };
+    s.lit.box(min, max, paint, skip, cell);
+    if (collide) physics.box(min, max);
+  };
+  box(0, length, Y - 0.5, Y, -W, W, HALL_FLOOR, true, [], 3);
+  box(0, length, Y + H, Y + H + 0.3, -W, W, rgb(0xe9e6de), true, [], 3);
+  for (const side of [-1, 1]) box(0, length, Y, Y + H, Math.min(side * W, side * (W + 0.3)), Math.max(side * W, side * (W + 0.3)), WALL, true, [], 3);
+  // Where the escalators (and the lift) come in: the wall between them and the lintel over the shaft's high end. Its
+  // faces along the shafts' own walls are left out, as at the hall.
+  const L = 0.5;
+  box(0, L, Y + H, Y + HALL_H, -ESC_HALF_W, ESC_HALF_W, WALL, true, ['pz', 'nz']);
+  box(0, L, Y, Y + H, -W, -ESC_HALF_W, WALL, true, ['pz']);
+  if (incline) {
+    box(0, L, Y, Y + H, ESC_HALF_W, INCLINE.z0, WALL, true, ['pz', 'nz']);
+    box(0, L, Y + INCLINE.height - 0.15, Y + H, INCLINE.z0, INCLINE.z1, WALL, true, ['ny', 'pz', 'nz']);
+  } else box(0, L, Y, Y + H, ESC_HALF_W, W, WALL, true, ['nz']);
+  for (let a = 3; a < length - 1; a += 6) {
+    s.unlit.box({ x: X(a) - 1, y: Y + H - 0.06, z: -0.3 }, { x: X(a) + 1, y: Y + H, z: 0.3 }, PAINT.lampCool);
+    s.light(X(a), Y + H - 0.7, 0, rgb(0xf4f6ff), 0.85, 10);
+  }
+}
+
+/** The square the side stairs come up on: this far either side of them along x, and on past their top. */
+const SQUARE = { halfX: 10, beyond: 8 };
+
+/**
+ * Round an opening in the island where escalators go down to a hall under the tracks: railings along it, from where
+ * the flight's tube sinks below the trackbed (`a` along the flight from `flight.wx`, climbing toward `dir`) to where
+ * its roof stands a meter over the platform, and a barrier across its far end.
+ */
+function buildPlatformOpening(s: Section, physics: Physics, flight: { wx: number; base: number }, dir: 1 | -1, a: number, half: number): void {
+  const x = (along: number) => flight.wx + dir * along;
+  const end = ESC_LANDING + (PLATFORM_Y + 1 - ESC_HEADROOM - flight.base) / Math.tan(ESC_ANGLE);
+  const steel = rgb(0x8e969c);
+  const [x0, x1] = [x(a), x(end)].sort((p, q) => p - q);
+  const H = 1.1;
+  for (const side of [-1, 1]) {
+    const z = side * (half + 0.05);
+    for (const y of [0.5, H - 0.05]) s.lit.box({ x: x0, y: PLATFORM_Y + y, z: z - 0.03 }, { x: x1, y: PLATFORM_Y + y + 0.05, z: z + 0.03 }, steel);
+    for (let px = x0; px <= x1 + 0.01; px += 1.5) s.lit.box({ x: px - 0.03, y: PLATFORM_Y, z: z - 0.03 }, { x: px + 0.03, y: PLATFORM_Y + H, z: z + 0.03 }, steel);
+  }
+  const xe = x(a);
+  for (const y of [0.5, H - 0.05]) s.lit.box({ x: xe - 0.03, y: PLATFORM_Y + y, z: -half }, { x: xe + 0.03, y: PLATFORM_Y + y + 0.05, z: half }, steel);
+  physics.box({ x: xe - 0.05, y: PLATFORM_Y, z: -half }, { x: xe + 0.05, y: PLATFORM_Y + H, z: half });
+}
+
+/**
+ * The square a hall under the tracks has its side stairs come up on (`square`, on `side`): paving round the stairs'
+ * cut, a fence along its three outer edges, a lamp and a sign with the station's name.
+ */
+function buildSquare(s: Section, physics: Physics, square: Clearing, side: 1 | -1, name: string): void {
+  const Y = -0.28;
+  const mid = (square.x0 + square.x1) / 2;
+  const half = (ACROSS.a1 - ACROSS.a0) / 2;
+  const land = HALL_HALF_W + 0.5 + SIDE_STAIRS.first * SIDE_STAIRS.run + SIDE_STAIRS.landing;
+  const out = HALL_HALF_W + 0.5 + SIDE_STAIRS_OUT;
+  const [cz0, cz1] = [side * land, side * out].sort((p, q) => p - q);
+  const paving = (p: Vector3): RGB => ((Math.floor(p.x / 0.8) + Math.floor(p.z / 0.8)) & 1 ? rgb(0x8f8b83) : rgb(0x9d9990));
+  const slab = (x0: number, x1: number, z0: number, z1: number) => {
+    if (x1 <= x0 || z1 <= z0) return;
+    s.lit.box({ x: x0, y: Y - 0.3, z: z0 }, { x: x1, y: Y, z: z1 }, paving, ['ny'], 2);
+    physics.box({ x: x0, y: Y - 0.3, z: z0 }, { x: x1, y: Y, z: z1 });
+  };
+  slab(square.x0, square.x1, square.z0, cz0);
+  slab(square.x0, square.x1, cz1, square.z1);
+  slab(square.x0, mid - half, cz0, cz1);
+  slab(mid + half, square.x1, cz0, cz1);
+  // A fence round the outer edges, the tracks' own along the inner one.
+  const far = side > 0 ? square.z1 : square.z0;
+  const fence = rgb(0x6a746e);
+  const post = rgb(0x4a524e);
+  const edge = (x0: number, x1: number, z0: number, z1: number) => {
+    for (const y of [0.55, OPEN.fenceH - 0.05]) s.lit.box({ x: x0 - 0.03, y: Y + y, z: z0 - 0.03 }, { x: x1 + 0.03, y: Y + y + 0.06, z: z1 + 0.03 }, fence);
+    physics.box({ x: x0 - 0.1, y: Y, z: z0 - 0.1 }, { x: x1 + 0.1, y: Y + OPEN.fenceH, z: z1 + 0.1 });
+    const length = Math.hypot(x1 - x0, z1 - z0);
+    for (let k = 0; k <= length; k += 3) {
+      const [px, pz] = [x0 + (x1 - x0) * k / length, z0 + (z1 - z0) * k / length];
+      s.lit.box({ x: px - 0.035, y: Y, z: pz - 0.035 }, { x: px + 0.035, y: Y + OPEN.fenceH, z: pz + 0.035 }, post);
+    }
+  };
+  edge(square.x0, square.x0, square.z0, square.z1);
+  edge(square.x1, square.x1, square.z0, square.z1);
+  edge(square.x0, square.x1, far, far);
+  // A lamp over the stairs' top, and a sign on a post by them.
+  const lampZ = side * (out + 3);
+  s.lit.box({ x: mid + half + 2 - 0.06, y: Y, z: lampZ - 0.06 }, { x: mid + half + 2 + 0.06, y: Y + 4.5, z: lampZ + 0.06 }, rgb(0x3b4046));
+  s.unlit.box({ x: mid + half + 1.6, y: Y + 4.4, z: lampZ - 0.15 }, { x: mid + half + 2.4, y: Y + 4.5, z: lampZ + 0.15 }, rgb(0xfff2d8));
+  s.light(mid + half + 2, Y + 4, lampZ, rgb(0xfff2d8), 1, 12);
+  s.lit.box({ x: mid - half - 1 - 0.05, y: Y, z: lampZ - 0.05 }, { x: mid - half - 1 + 0.05, y: Y + 2.6, z: lampZ + 0.05 }, rgb(0x3b4046));
+  if (!s.dry) {
+    const sign = textSign(`T  ${name}`, 768, 128, '#1c63c4', '#ffffff');
+    for (const f of [-1, 1]) place(s, sign, 2.4, 0.4, new Vector3(mid - half - 1 + f * 0.06, Y + 2.9, lampZ), new Vector3(f, 0, 0));
+  }
+}
+
+/** A hall's way out at its side, under a station in the open: a door from `a0` to `a1` along it, `door` high (see `buildSideStairs`). */
+const ACROSS = { a0: 20, a1: 25, door: 3.5 };
+/** The side stairs: a first flight to a landing under a ceiling, then a second in an open cut up to the ground. */
+const SIDE_STAIRS = { first: 20, landing: 2, second: 30, run: 0.35, riser: 0.17, headroom: 3.2 };
+
+/** How far out from a hall's side wall its side stairs reach, where they come up. */
+export const SIDE_STAIRS_OUT = (SIDE_STAIRS.first + SIDE_STAIRS.second) * SIDE_STAIRS.run + SIDE_STAIRS.landing;
+
+/**
+ * Stairs out of the side of a hall under the tracks, from its wall at `zw` on `side` up to the ground beyond the
+ * fences: a flight to a landing under the ground, and a second flight in an open cut, with a parapet round its top.
+ * `X` maps meters along the hall to x; the hall's floor is at `Y`, the ground `Y + 8.5` over it.
+ */
+function buildSideStairs(s: Section, physics: Physics, X: (a: number) => number, Y: number, zw: number, side: 1 | -1): void {
+  const S = SIDE_STAIRS;
+  const [a0, a1] = [ACROSS.a0 + 0.3, ACROSS.a1 - 0.3];
+  const Z = (d: number) => side * (zw + d);
+  const box = (d0: number, d1: number, y0: number, y1: number, b0: number, b1: number, paint: Parameters<typeof s.lit.box>[2], collide = true) => {
+    const min = { x: Math.min(X(b0), X(b1)), y: y0, z: Math.min(Z(d0), Z(d1)) };
+    const max = { x: Math.max(X(b0), X(b1)), y: y1, z: Math.max(Z(d0), Z(d1)) };
+    s.lit.box(min, max, paint);
+    if (collide) physics.box(min, max);
+  };
+  const concrete = rgb(0x9a9ea3);
+  const wall = hallWall(Y);
+  const first = S.first * S.run;
+  const land = first + S.landing;
+  const out = land + S.second * S.run;
+  const ground = Y + STREET.above;
+  for (let k = 0; k < S.first; k++) box(k * S.run, (k + 1) * S.run, Y - 0.5, Y + (k + 1) * S.riser, a0, a1, STEP);
+  box(first, land, Y - 0.5, Y + S.first * S.riser, a0, a1, STEP);
+  const riser = (ground - (Y + S.first * S.riser)) / S.second;
+  for (let k = 0; k < S.second; k++) box(land + k * S.run, land + (k + 1) * S.run, Y, Y + S.first * S.riser + (k + 1) * riser, a0, a1, STEP);
+  // The walls either side: up to the ceiling over the first flight and the landing, and on past the ground as a
+  // parapet round the cut.
+  const ceiling = Y + S.first * S.riser + S.headroom;
+  for (const [b0, b1] of [[ACROSS.a0, a0], [a1, ACROSS.a1]]) {
+    box(0, land, Y - 0.5, ceiling, b0, b1, wall);
+    box(land, out, Y + 2, ground + 1, b0, b1, concrete);
+  }
+  box(0, land, ceiling, ceiling + 0.3, ACROSS.a0, ACROSS.a1, rgb(0xe9e6de));
+  // Across the cut's inner end, from the ceiling up past the ground.
+  box(land - 0.3, land, ceiling, ground + 1, a0, a1, concrete);
+  for (const d of [first / 2, land - 1, land + 4]) s.light(X((ACROSS.a0 + ACROSS.a1) / 2), Math.min(ceiling - 0.4, ground - 1), Z(d), rgb(0xeef3ff), 0.8, 9);
+}
+
+function buildHall(s: Section, physics: Physics, line: LineDef, def: Network['stations'][number], index: number, hx: number, hallY: number, e: 1 | -1, wings: number[], walkwayDoor: number | null,
+  opts: { main: boolean; exits: string; mouth: Array<[number, number, number]>; incline?: boolean; across?: 1 | -1 }): HallBuild {
   const Y = hallY;
   const HALL_WALL = hallWall(Y);
   const W = HALL_HALF_W;
@@ -1036,15 +1443,16 @@ function buildHall(s: Section, physics: Physics, line: LineDef, def: Network['st
 
   box(0, HALL_LEN, Y - 0.5, Y, -W, W, HALL_FLOOR);
   // The ceiling, open over the top of the exit stairs underground (see below). Above ground the hall is a building of
-  // its own, and its roof stays whole.
-  const well = !s.outdoor;
+  // its own, and its roof stays whole; so does the ceiling of a hall under the tracks, whose stairs go out at its side.
+  const across = opts.across;
+  const well = !s.outdoor && !across;
   // The slab stops at the stairwell's walls, which run down through it: no two faces in one plane.
   box(0, well ? OPEN_A - 0.3 : HALL_LEN, Y + HALL_H, Y + HALL_H + 0.5, -W, W, rgb(0xe9e6de));
   if (well) for (const side of [-1, 1]) box(OPEN_A - 0.3, HALL_LEN, Y + HALL_H, Y + HALL_H + 0.5, Math.min(side * 2.8, side * W), Math.max(side * 2.8, side * W), rgb(0xe9e6de));
   // A shared station's escalators come up in wings off either side of the hall, from `0` to `ARM` along it.
   const ARM = 6;
   const wing = (side: number) => wings.some((z) => Math.sign(z) === side);
-  if (def.passage) {
+  if (def.passage && opts.main) {
     box(0, PASSAGE.a0, Y, Y + HALL_H, W, W + 0.5, HALL_WALL);
     box(PASSAGE.a1, HALL_LEN, Y, Y + HALL_H, W, W + 0.5, HALL_WALL);
     box(PASSAGE.a0, PASSAGE.a1, Y + PASSAGE.height, Y + HALL_H, W, W + 0.5, HALL_WALL);
@@ -1054,35 +1462,55 @@ function buildHall(s: Section, physics: Physics, line: LineDef, def: Network['st
     box(wing(1) ? ARM + 0.5 : 0, d0, Y, Y + HALL_H, W, W + 0.5, HALL_WALL);
     box(d1, HALL_LEN, Y, Y + HALL_H, W, W + 0.5, HALL_WALL);
     box(d0, d1, Y + WALKWAY.height, Y + HALL_H, W, W + 0.5, HALL_WALL);
-  } else box(wing(1) ? ARM + 0.5 : 0, HALL_LEN, Y, Y + HALL_H, W, W + 0.5, HALL_WALL);
+  } else if (across !== 1) box(wing(1) ? ARM + 0.5 : 0, HALL_LEN, Y, Y + HALL_H, W, W + 0.5, HALL_WALL);
   // Beside a wing, the side wall starts behind the wing's end wall, so their faces do not share its plane.
-  box(wing(-1) ? ARM + 0.5 : 0, HALL_LEN, Y, Y + HALL_H, -W - 0.5, -W, HALL_WALL);
+  if (across !== -1) box(wing(-1) ? ARM + 0.5 : 0, HALL_LEN, Y, Y + HALL_H, -W - 0.5, -W, HALL_WALL);
+  // Out at the side: a door in the side wall onto stairs that climb away from the tracks, up to the ground beside them.
+  const side = across ?? 0;
+  if (across) {
+    const [z0, z1] = [Math.min(side * W, side * (W + 0.5)), Math.max(side * W, side * (W + 0.5))];
+    box(0, ACROSS.a0, Y, Y + HALL_H, z0, z1, HALL_WALL);
+    box(ACROSS.a1, HALL_LEN, Y, Y + HALL_H, z0, z1, HALL_WALL);
+    box(ACROSS.a0, ACROSS.a1, Y + ACROSS.door, Y + HALL_H, z0, z1, HALL_WALL);
+    buildSideStairs(s, physics, X, Y, W + 0.5, across);
+  }
   // Underground the end wall is open over the landing, where the stairs go on up to the street; in the open a door in it
-  // opens onto the street, level with the landing.
+  // opens onto the street, level with the landing. With the way out at the side, it is whole.
   const D = STREET.doorHalfW;
   for (const side of [-1, 1]) box(HALL_LEN, HALL_LEN + 0.5, Y, Y + HALL_H, side * D, side * W, HALL_WALL);
   // Under the door the landing fills the wall (below).
-  if (!well) box(HALL_LEN, HALL_LEN + 0.5, Y + STREET.door + STREET.doorHeight, Y + HALL_H, -D, D, HALL_WALL);
+  if (!well) box(HALL_LEN, HALL_LEN + 0.5, across ? Y : Y + STREET.door + STREET.doorHeight, Y + HALL_H, -D, D, HALL_WALL);
   if (wings.length) box(-0.5, 0, Y, Y + HALL_H, -W, W, HALL_WALL);
   else {
-    // The escalator shaft's own walls and ceiling line the opening, so the jambs and the lintel leave those faces out.
-    box(-0.5, 0, Y, Y + HALL_H, -W, -ESC_HALF_W, HALL_WALL, true, ['pz']);
-    box(-0.5, 0, Y, Y + HALL_H, ESC_HALF_W, W, HALL_WALL, true, ['nz']);
-    box(-0.5, 0, Y + ESC_HEADROOM, Y + HALL_H, -ESC_HALF_W, ESC_HALF_W, HALL_WALL, true, ['ny']);
+    // The shafts' (or the passage's) own walls and ceiling line the openings, so the jambs and the lintels leave those
+    // faces out.
+    const mouths = [...opts.mouth].sort((p, q) => p[0] - q[0]);
+    let z = -W;
+    for (const [z0, z1, top] of mouths) {
+      if (z0 > z) box(-0.5, 0, Y, Y + HALL_H, z, z0, HALL_WALL, true, z > -W ? ['nz', 'pz'] : ['pz']);
+      box(-0.5, 0, Y + top, Y + HALL_H, z0, z1, HALL_WALL, true, ['ny']);
+      z = z1;
+    }
+    box(-0.5, 0, Y, Y + HALL_H, z, W, HALL_WALL, true, ['nz']);
   }
   for (const zw of wings) {
     const side = Math.sign(zw);
-    const outer = zw + side * (ESC_HALF_W + 1);
+    // Wide enough for an inclined lift beside the escalators, on the wing's outer side.
+    const outer = zw + side * (opts.incline ? INCLINE.z1 + 0.3 : ESC_HALF_W + 1);
     const [z0, z1] = [Math.min(side * W, outer), Math.max(side * W, outer)];
     box(0, ARM, Y - 0.5, Y, z0, z1, HALL_FLOOR);
     box(0, ARM, Y + HALL_H, Y + HALL_H + 0.5, z0, z1, rgb(0xe9e6de));
     box(0, ARM, Y, Y + HALL_H, Math.min(outer, outer + side * 0.5), Math.max(outer, outer + side * 0.5), HALL_WALL);
     box(ARM, ARM + 0.5, Y, Y + HALL_H, z0, z1, HALL_WALL);
-    // The wing's end wall, open where the escalator comes up.
-    const [e0, e1] = [zw - ESC_HALF_W, zw + ESC_HALF_W];
-    box(-0.5, 0, Y, Y + HALL_H, z0, Math.max(z0, Math.min(e0, e1)), HALL_WALL);
-    box(-0.5, 0, Y, Y + HALL_H, Math.min(z1, Math.max(e0, e1)), z1, HALL_WALL);
-    box(-0.5, 0, Y + ESC_HEADROOM, Y + HALL_H, Math.min(e0, e1), Math.max(e0, e1), HALL_WALL);
+    // The wing's end wall, open where the escalator (and the lift) comes up.
+    const openings: Array<[number, number, number]> = [[zw - ESC_HALF_W, zw + ESC_HALF_W, ESC_HEADROOM], ...(opts.incline ? [[...liftAcross(zw), INCLINE.height - 0.15] as [number, number, number]] : [])];
+    let z = z0;
+    for (const [o0, o1, top] of openings.sort((p, q) => p[0] - q[0])) {
+      if (o0 > z) box(-0.5, 0, Y, Y + HALL_H, z, o0, HALL_WALL, true, z > z0 ? ['nz', 'pz'] : ['pz']);
+      box(-0.5, 0, Y + top, Y + HALL_H, o0, o1, HALL_WALL, true, ['ny']);
+      z = o1;
+    }
+    if (z < z1) box(-0.5, 0, Y, Y + HALL_H, z, z1, HALL_WALL, true, ['nz']);
     for (const a of [1.5, 4.5]) {
       s.unlit.box({ x: X(a) - 1, y: Y + HALL_H - 0.08, z: zw - 0.3 }, { x: X(a) + 1, y: Y + HALL_H - 0.02, z: zw + 0.3 }, PAINT.lampCool);
       s.light(X(a), Y + HALL_H - 0.8, zw, rgb(0xf4f6ff), 0.9, 13);
@@ -1119,16 +1547,16 @@ function buildHall(s: Section, physics: Physics, line: LineDef, def: Network['st
   glass.position.set(X((ga + gb) / 2), Y + 1.725, 7.8);
   s.extras.add(glass);
 
-  buildKiosk(s, physics, X, Y);
+  if (opts.main) buildKiosk(s, physics, X, Y);
 
   // Stairs up to a landing; underground a second flight goes on up to the street, in the open doorway a painted street.
-  const steps = 20;
+  const steps = across ? 0 : 20;
   for (let k = 0; k < steps; k++) {
     box(19 + k * 0.35, 19 + (k + 1) * 0.35, Y, Y + (k + 1) * 0.17, -2.5, 2.5, STEP);
   }
   // The landing, and in the open its threshold through the door.
-  box(26, well ? HALL_LEN : HALL_LEN + 0.5, Y, Y + 3.4, -2.5, 2.5, STEP);
-  for (const side of [-1, 1]) {
+  if (!across) box(26, well ? HALL_LEN : HALL_LEN + 0.5, Y, Y + 3.4, -2.5, 2.5, STEP);
+  for (const side of across ? [] : [-1, 1]) {
     box(19, HALL_LEN, Y + 3.4, Y + 4.4, side * 2.5 - 0.04, side * 2.5 + 0.04, rgb(0x6b6f75), false);
   }
   // Over the top of the stairs the ceiling is open to the sky, as at a street entrance: concrete walls rise past the
@@ -1165,7 +1593,7 @@ function buildHall(s: Section, physics: Physics, line: LineDef, def: Network['st
   const away = new Vector3(e, 0, 0);
   const name = nameBoard(def.name, line);
   place(s, name, 6.4, 1.2, new Vector3(X(12), Y + 4.6, 0), toward);
-  const exit = textSign('↑ Utgång · ' + def.exits, 1024, 128, '#f3cd36', '#181c23');
+  const exit = textSign('↑ Utgång · ' + opts.exits, 1024, 128, '#f3cd36', '#181c23');
   place(s, exit, 6.4, 0.8, new Vector3(X(18.8), Y + 5.2, 0), toward);
   const trains = textSign(`Till tågen  ·  ${line.bullets.join(' ')}`, 768, 128);
   place(s, trains, 4, 0.67, new Vector3(X(12), Y + 4.6, 0), away);
@@ -1173,7 +1601,7 @@ function buildHall(s: Section, physics: Physics, line: LineDef, def: Network['st
   const booth = textSign('Spärrexpedition', 512, 96, '#1f2a36');
   place(s, booth, 2.4, 0.45, new Vector3(X(12), Y + 2.9, 7.65), new Vector3(0, 0, -1));
 
-  const passage = def.passage ? buildPassage(s, physics, def.passage, index, X, Y, W) : null;
+  const passage = def.passage && opts.main ? buildPassage(s, physics, def.passage, index, X, Y, W) : null;
 
   return {
     bounds: { x0: Math.min(X(0), X(HALL_LEN)), x1: Math.max(X(0), X(HALL_LEN)), y: Y },
@@ -1181,7 +1609,9 @@ function buildHall(s: Section, physics: Physics, line: LineDef, def: Network['st
       paidX: X(ga), unpaidX: X(gb), y: Y,
       passages: Array.from({ length: 10 }, (_, k) => -6.75 + k * 1.5), halfWidth: 0.575, flapHeight: 0.92,
     },
-    exit: { street: null, x: doorX, dir: e, sillY: Y + 3.4, halfWidth: 2.2, height: top - (Y + 3.4), stairX: X(19), open: well ? HALL_LEN - OPEN_A : 0, top, cut: well ? STREET.stairTop - HALL_LEN : 0 },
+    exit: across
+      ? { street: null, x: X((ACROSS.a0 + ACROSS.a1) / 2), dir: e, sillY: Y + STREET.above, halfWidth: 2.2, height: 3, stairX: X(ACROSS.a0), open: 0, top: Y + STREET.above + 3, cut: 0, across }
+      : { street: null, x: doorX, dir: e, sillY: Y + 3.4, halfWidth: 2.2, height: top - (Y + 3.4), stairX: X(19), open: well ? HALL_LEN - OPEN_A : 0, top, cut: well ? STREET.stairTop - HALL_LEN : 0 },
     passage,
   };
 }

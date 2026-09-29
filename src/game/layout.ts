@@ -80,6 +80,27 @@ export const ESC_DESIGN = {
   updateDistance: 170, indicatorRadius: 0.055,
 };
 
+/**
+ * An inclined lift (snedbanehiss) in a narrow shaft of its own beside the escalators, on their +z side, from the
+ * escalators' wall (`z0`) to just short of the track tube (`z1`). Its cabin (`length` along x) keeps a level floor on
+ * the escalators' line, so it stands level with the platform and the hall at its two stops (see `world/incline.ts`).
+ */
+export const INCLINE = {
+  z0: ESC_HALF_W + ESC_DESIGN.railWidth, z1: 4, length: 2.4, height: 2.3, wall: 0.1,
+  /** Top speed along x, and how fast it gets there. */
+  speed: 1.6, accel: 0.5,
+  /** Seconds the doors stand open at each stop, and how long they take to move. */
+  dwell: 12, doors: 0.8,
+};
+
+/**
+ * The staff door beside the escalators, where a ticket hall's take the end wall's middle (see `world/service.ts`): on
+ * the platform across `z0` to `z1`, the side away from an inclined lift, onto a narrow passage that steps down to the
+ * trackbed from `down` to `flat` and turns in under the rising escalator shaft at `turn` to the service corridor, which
+ * starts `start` from the end wall.
+ */
+export const SIDE_DOOR = { z0: -3.85, z1: -2.9, height: 2.2, down: 3, flat: 4.6, turn: 7, start: 8.8 };
+
 export const CABIN_DESIGN = {
   seatAisle: 0.46, seatEdge: 0.04, cushionDepth: 0.59, cushionHeight: 0.14,
   cushionY: 0.43, seatRadius: 0.055, backThickness: 0.12, backHeight: 0.78,
@@ -130,6 +151,12 @@ export const STREET = {
   doorHeight: 3.2,
   doorHalfW: 2.5,
 };
+
+/**
+ * How far below the platform a hall under the tracks lies, at a station in the open: its stairs, as deep as an
+ * underground hall's under its street, come up to the grass beside the tracks (see `world/station.ts`).
+ */
+export const UNDERPASS_DEPTH = PLATFORM_Y + STREET.above + 0.3;
 
 /**
  * The tiled passage off T-Centralen's ticket hall toward the commuter trains

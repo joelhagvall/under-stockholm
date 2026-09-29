@@ -52,15 +52,17 @@ const WINDOW_LIGHT = [0xffd89a, 0xfff0c8, 0xffc574, 0xf4e6d0];
  * Builds the street into `s` (an outdoor section) for the hall that starts at `hx` and runs in `e`, with its floor at
  * `hallY`, with colliders in `physics`, and a street sign naming the first of `exits`. Over an underground hall the
  * street lies `STREET.above` over it; with `door` (a hall in the open) it lies level with the landing at the top of the
- * hall's stairs, and the square starts at the hall's end wall, `door` naming the station over it.
+ * hall's stairs, and the square starts at the hall's end wall, `door` naming the station over it. `hall` is 0 for a
+ * station's main hall and 1 for its second.
  */
-export function buildStreet(s: Section, physics: Physics, index: number, exits: string, hx: number, hallY: number, e: 1 | -1, door: string | null = null): Street {
+export function buildStreet(s: Section, physics: Physics, index: number, exits: string, hx: number, hallY: number, e: 1 | -1, door: string | null = null, hall = 0): Street {
   const { square: SQ, road: R } = STREET;
   const G = hallY + (door !== null ? STREET.door : STREET.above);
   // Measured along the hall, as underground; out of a door the square starts at the end wall's outer face.
   const shift = door !== null ? HALL_LEN + 0.5 - SQ.a0 : 0;
   const X = (a: number) => hx + e * (a + shift);
-  const r = (k: number) => hash01(index * 131 + k, 600);
+  // A station's second hall comes up among houses of its own.
+  const r = (k: number) => hash01(index * 131 + hall * 7919 + k, 600);
   const box = (b: MeshBuilder, a0: number, a1: number, y0: number, y1: number, z0: number, z1: number, paint: Parameters<MeshBuilder['box']>[2], collide = false, skip: BoxFace[] = [], cell = 2.5) => {
     const min = { x: Math.min(X(a0), X(a1)), y: y0, z: Math.min(z0, z1) };
     const max = { x: Math.max(X(a0), X(a1)), y: y1, z: Math.max(z0, z1) };

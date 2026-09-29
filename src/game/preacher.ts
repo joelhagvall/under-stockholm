@@ -4,7 +4,7 @@ import { hash01, serviceOpen, stockholm } from './clock';
 import { drawFigure, figureMesh, paintFigure } from './figures';
 import { createCanvasSign, fitText } from './gfx/signs';
 import text from './i18n/sv.json';
-import { CAVE_HALF_L, TRAIN_HALF_W } from './layout';
+import { TRAIN_HALF_W } from './layout';
 import { noiseBurst, Spatial, type AudioOut } from './sfx';
 import type { Train } from './train';
 import type { StationInfo } from './world/station';
@@ -157,7 +157,7 @@ export class Preacher {
 
   private x(a: number): number {
     const s = this.hall!;
-    return s.cx + s.exitDir * (CAVE_HALF_L + s.escalator.run + a);
+    return s.hallX(a);
   }
 
   /** Takes a leaflet: she beams, blesses you and goes back to her spot. */

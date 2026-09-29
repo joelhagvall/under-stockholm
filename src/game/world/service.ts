@@ -3,7 +3,7 @@ import text from '../i18n/sv.json';
 import type { Paint } from '../gfx/builder';
 import { rgb, type RGB } from '../gfx/color';
 import { createCanvasSign, fitText, FONT } from '../gfx/signs';
-import { CAVE_HALF_L, PLATFORM_HALF_L, PLATFORM_Y, TAIL_TUBE } from '../layout';
+import { CAVE_HALF_L, PLATFORM_HALF_L, PLATFORM_Y, SIDE_DOOR, TAIL_TUBE } from '../layout';
 import type { Physics } from '../physics';
 import { Section } from './section';
 import { archProfile, extrudeRock, rectHole, wallWithHoles } from './shapes';
@@ -18,10 +18,13 @@ import { mystery, type Clue } from '../mystery';
  * Staff-only spaces behind the far end of each platform: a gate in the end
  * fence, steps down to the trackbed and a steel door in the end wall. Behind
  * it, a service corridor leads to a turnback cavern, a staff room with an
- * emergency exit, or a civil defence shelter deep under the tracks.
+ * emergency exit, or a civil defence shelter deep under the tracks. Where a
+ * ticket hall's escalators take that end of the platform, a narrow door beside
+ * them leads the same way (`SIDE_DOOR`).
  */
 
 export const SERVICE_DOOR = { halfWidth: 0.7, height: 2.2 };
+
 
 /** A handwritten note on a square of paper. */
 function noteSign(note: string, paper: string) {
@@ -252,8 +255,11 @@ function clueNote(title: string, scratched = false) {
   });
 }
 
-/** @param clue a clue for the Silverpilen mystery to leave in this wing */
-export function buildServiceWing(physics: Physics, index: number, cx: number, e: 1 | -1, kind: 'cavern' | 'staff' | 'shelter', dry = false, clue?: Clue): ServiceWing {
+/**
+ * @param clue a clue for the Silverpilen mystery to leave in this wing
+ * @param side reached by the door beside the escalators (`SIDE_DOOR`), where a ticket hall's take the end wall
+ */
+export function buildServiceWing(physics: Physics, index: number, cx: number, e: 1 | -1, kind: 'cavern' | 'staff' | 'shelter', dry = false, clue?: Clue, side = false): ServiceWing {
   const s = new Section(`service-${index}`, rgb(0x1b1c1d), dry);
   const wallX = cx - e * CAVE_HALF_L;
   const X = (a: number) => wallX - e * a;
@@ -320,10 +326,64 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
     for (let a = a0 + 1.5; a < a1; a += 3.2) lamp(a, y0 + (y1 - y0) * (a - a0) / (a1 - a0) + CORRIDOR.height + 0.1, halfW - 0.2, LAMP, 0.7, 6);
   };
 
+  /** Where the service corridor starts: at the end wall, or past the passage from the door beside the escalators. */
+  const start = side ? SIDE_DOOR.start : 0;
+  if (side) {
+    const D = SIDE_DOOR;
+    const W = CORRIDOR.wall;
+    const paint = corridorPaint(0);
+    const high = corridorPaint(PLATFORM_Y);
+    // A box across z from `z0` to `z1`, the side passage's own (the helpers above are centred on the corridor).
+    const wall = (a0: number, a1: number, y0: number, y1: number, z0: number, z1: number, p: Paint, collide = true) => box(a0, a1, y0, y1, z0, z1, p, collide);
+    // At the platform's level through the end wall, then steps down to the trackbed.
+    wall(0, D.down, PLATFORM_Y - 0.2, PLATFORM_Y, D.z0, D.z1, high);
+    wall(0, D.down, PLATFORM_Y + CORRIDOR.height, PLATFORM_Y + CORRIDOR.height + 0.2, D.z0 - W, D.z1 + W, high);
+    const steps = 5;
+    const run = (D.flat - D.down) / steps;
+    for (let k = 0; k < steps; k++) {
+      const top = PLATFORM_Y - (k + 1) * (PLATFORM_Y / steps);
+      wall(D.down + k * run, D.down + (k + 1) * run, -0.2, Math.max(0, top), D.z0, D.z1, (_p, n) => (n.y > 0.5 ? STEEL : rgb(0x30343a)), false);
+      wall(D.down + k * run, D.down + k * run + 0.05, top - 0.01, top + 0.004, D.z0, D.z1, YELLOW, false);
+    }
+    const along = Math.hypot(D.flat - D.down, PLATFORM_Y);
+    const tilt = Math.atan2(PLATFORM_Y, D.flat - D.down);
+    physics.tiltedBox({ x: X((D.down + D.flat) / 2), y: PLATFORM_Y / 2 - 0.15, z: (D.z0 + D.z1) / 2 }, { x: along / 2 + 0.1, y: 0.15, z: (D.z1 - D.z0) / 2 }, e * tilt);
+    wall(D.down, D.turn, PLATFORM_Y + CORRIDOR.height, PLATFORM_Y + CORRIDOR.height + 0.2, D.z0 - W, D.z1 + W, high);
+    wall(D.flat, D.turn, -0.2, 0, D.z0, D.z1, paint);
+    for (const [z0, z1] of [[D.z0 - W, D.z0], [D.z1, D.z1 + W]]) wall(0, D.turn, -0.2, PLATFORM_Y + CORRIDOR.height, z0, z1, high);
+    // Across under the escalator shaft to the corridor, its walls closing either end.
+    // A lintel where the high passage meets the low one.
+    wall(D.turn - W, D.turn, CORRIDOR.height, PLATFORM_Y + CORRIDOR.height + 0.2, D.z0, D.z1, paint);
+    const [c0, c1] = [D.turn, D.start];
+    const zc = CORRIDOR.halfWidth;
+    wall(c0, c1, -0.2, 0, D.z0, zc, paint);
+    wall(c0, c1, CORRIDOR.height, CORRIDOR.height + 0.2, D.z0 - W, zc + W, paint);
+    wall(c0 - W, c0, 0, CORRIDOR.height, D.z1, zc + W, paint);
+    wall(c1, c1 + W, 0, CORRIDOR.height, D.z0 - W, -zc, paint);
+    wall(c0, c1, 0, CORRIDOR.height, zc, zc + W, paint);
+    wall(c0, c1, 0, CORRIDOR.height, D.z0 - W, D.z0, paint);
+    lamp(1.5, PLATFORM_Y + CORRIDOR.height - 0.02, (D.z0 + D.z1) / 2, LAMP, 0.7, 5);
+    lamp(D.flat + 0.6, CORRIDOR.height + 0.8, (D.z0 + D.z1) / 2, LAMP, 0.7, 5);
+    lamp((c0 + c1) / 2, CORRIDOR.height - 0.02, -1.6, LAMP, 0.7, 6);
+    const zoneBox = (a0: number, a1: number, y0: number, y1: number, z0: number, z1: number) => zones.push({
+      min: { x: Math.min(X(a0), X(a1)), y: y0, z: z0 }, max: { x: Math.max(X(a0), X(a1)), y: y1, z: z1 }, station: index, area: 'service', label: text.service.corridor,
+    });
+    zoneBox(0, D.turn, -0.5, PLATFORM_Y + 3, D.z0, D.z1);
+    zoneBox(c0, c1, -0.5, 3, D.z0, zc);
+    // The door frame on the platform, a staff-only sign by it and an exit sign over it.
+    const facingOut = new Vector3(e, 0, 0);
+    for (const z of [D.z0, D.z1]) wall(-0.12, 0, PLATFORM_Y, PLATFORM_Y + D.height + 0.12, Math.min(z, z + (z === D.z0 ? -0.1 : 0.1)), Math.max(z, z + (z === D.z0 ? -0.1 : 0.1)), STEEL, false);
+    wall(-0.12, 0, PLATFORM_Y + D.height, PLATFORM_Y + D.height + 0.12, D.z0, D.z1, STEEL, false);
+    if (!s.dry) {
+      place(s, exitSign(), 0.7, 0.26, new Vector3(X(-0.14), PLATFORM_Y + D.height + 0.35, (D.z0 + D.z1) / 2), facingOut);
+      place(s, textSign(text.service.staffOnly, 512, 96, '#f2f2f2', '#b3261e'), 0.9, 0.17, new Vector3(X(-0.02), PLATFORM_Y + 1.5, D.z0 - 0.62), facingOut);
+    }
+  }
+
   if (kind === 'cavern') {
     // A short bypass between the tail tubes into the turnback cavern.
-    corridor(0, TAIL_TUBE, 0);
-    zone(0, TAIL_TUBE, -0.5, 3, CORRIDOR.halfWidth + 0.1, text.service.corridor);
+    corridor(start, TAIL_TUBE, 0);
+    zone(start, TAIL_TUBE, -0.5, 3, CORRIDOR.halfWidth + 0.1, text.service.corridor);
     const sign = textSign(text.service.turnback, 768, 112, '#f2f2f2', '#10325f');
     place(s, sign, 1.6, 0.23, new Vector3(X(0.4), 2.25, -CORRIDOR.halfWidth + 0.02), new Vector3(0, 0, 1));
     if (clue === 'scratches') {
@@ -335,8 +395,8 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
   }
 
   if (kind === 'staff') {
-    corridor(0, 12, 0);
-    zone(0, 12, -0.5, 3, CORRIDOR.halfWidth + 0.1, text.service.corridor);
+    corridor(start, 12, 0);
+    zone(start, 12, -0.5, 3, CORRIDOR.halfWidth + 0.1, text.service.corridor);
     // Staff room: table, chairs, lockers, a coffee machine and a notice board.
     const R = { a0: 12, a1: 20, halfW: 3.2, height: 2.8 };
     const paint = corridorPaint(0);
@@ -420,8 +480,8 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
   }
 
   if (kind === 'shelter') {
-    corridor(0, 10, 0);
-    zone(0, 10, -0.5, 3, CORRIDOR.halfWidth + 0.1, text.service.corridor);
+    corridor(start, 10, 0);
+    zone(start, 10, -0.5, 3, CORRIDOR.halfWidth + 0.1, text.service.corridor);
     const floor = -6;
     stairs(10, 20, 0, floor, 0.9);
     zone(10, 20, floor - 0.5, 3, 1, text.service.shelterStairs);

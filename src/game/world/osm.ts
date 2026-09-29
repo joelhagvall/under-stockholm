@@ -131,7 +131,8 @@ export function nearBuilding(patches: readonly OsmPatch[], x: number, z: number,
  * Builds a patch's buildings in `s`, their walls in `facade` (those whose middle lies from `x0` to `x1`, so
  * neighbouring sections share them out), and the ground under them beyond `reach`, where the usual ground ends.
  */
-export function buildOsm(s: Section, facade: MeshBuilder, patch: OsmPatch, x0: number, x1: number, reach: number): void {
+/** @param clear ground where no house may stand: a ticket hall's stairs come up there (see `openGround`) */
+export function buildOsm(s: Section, facade: MeshBuilder, patch: OsmPatch, x0: number, x1: number, reach: number, clear: ReadonlyArray<{ x0: number; x1: number; z0: number; z1: number }> = []): void {
   if (s.dry) return;
   // The ground runs on halfway to the next station (500 m off at the least), so two neighbours' grounds meet.
   const ga = Math.max(x0, patch.x0 - 20);
@@ -154,6 +155,7 @@ export function buildOsm(s: Section, facade: MeshBuilder, patch: OsmPatch, x0: n
   patch.buildings.forEach((bd, k) => {
     const mid = (bd.min[0] + bd.max[0]) / 2;
     if (mid < x0 || mid >= x1) return;
+    if (clear.some((c) => bd.max[0] > c.x0 && bd.min[0] < c.x1 && bd.max[1] > c.z0 && bd.min[1] < c.z1)) return;
     const { ring } = bd;
     const pick = (list: number[], salt: number) => list[Math.floor(hash01(k * 13 + Math.round(patch.x0), salt) * list.length)];
     const colour = rgb(bd.colour ?? pick(bd.pitched ? HOUSE_FACADES : FACADES, 71));

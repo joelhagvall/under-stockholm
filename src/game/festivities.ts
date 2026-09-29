@@ -27,7 +27,7 @@ import { LUCIA_STYLE, LUCIA_TUNE, PARTY_STYLE, PARTY_TUNE, sing, STUDENT_STYLE, 
 import { drawFigure, figureMesh, paintFigure } from './figures';
 import { glowTexture } from './gfx/textures';
 import text from './i18n/sv.json';
-import { CAVE_HALF_L, PLATFORM_HALF_L, PLATFORM_Y } from './layout';
+import { PLATFORM_HALF_L, PLATFORM_Y } from './layout';
 import { MeshBuilder } from './gfx/builder';
 import { rgb } from './gfx/color';
 import { propMaterial } from './props';
@@ -51,7 +51,7 @@ const LUCIA = 7;
 /** Seconds between walks of the Lucia procession along the platform. */
 const LUCIA_SPEED = 0.45;
 
-const hallX = (s: StationInfo, a: number) => s.cx + s.exitDir * (CAVE_HALF_L + s.escalator.run + a);
+const hallX = (s: StationInfo, a: number) => s.hallX(a);
 
 export interface FestiveEvents {
   say(message: string, seconds: number): void;

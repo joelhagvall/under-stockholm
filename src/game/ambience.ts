@@ -178,9 +178,12 @@ export class Ambience {
     const up = station && (area === 'hall' || area === 'escalator' || area === 'street') && !input.location.label;
     this.street!.setLevel(up ? (area === 'street' ? 0.9 : 0.5) : 0, 0.6);
     if (!up || !station) return;
-    const e = station.exit;
+    // The nearest hall's, where the station has one at each end.
+    const x = input.listener.x;
+    const e = station.halls.reduce((best, h) => (Math.abs(h.exit.x - x) < Math.abs(best.exit.x - x) ? h : best)).exit;
     // Out of the doorway, or up on the street from the road across the square.
-    this.street!.setPosition(area === 'street' ? { x: e.x + e.dir * 22, y: (e.street?.y ?? e.top) + 1.6, z: 0 } : { x: e.x, y: e.sillY + 1.6, z: 0 });
+    // Out at the side of a hall under the tracks, the street is beside them.
+    this.street!.setPosition(e.across ? { x: e.x, y: e.sillY + 1.6, z: e.across * 30 } : area === 'street' ? { x: e.x + e.dir * 22, y: (e.street?.y ?? e.top) + 1.6, z: 0 } : { x: e.x, y: e.sillY + 1.6, z: 0 });
     const dest = this.street!.input;
     const c = stockholm(input.time);
     if (this.clock > this.nextBus) {
@@ -340,7 +343,7 @@ export class Ambience {
     if (k === this.lastSqueak) return;
     this.lastSqueak = k;
     const esc = station.escalator;
-    this.squeak!.setPosition({ x: esc.wallX + esc.dir * esc.run * 0.45, y: PLATFORM_Y + esc.rise * 0.45 + 0.4, z: esc.z + ESC_DESIGN.laneCenter });
+    this.squeak!.setPosition({ x: esc.wallX + esc.dir * esc.run * 0.45, y: esc.base + esc.rise * 0.45 + 0.4, z: esc.z + ESC_DESIGN.laneCenter });
     tone(this.out!, this.squeak!.input, 2250, 0.035, 0.12, { type: 'triangle', glideTo: 1850 });
   }
 

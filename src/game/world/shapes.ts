@@ -51,6 +51,8 @@ export interface ExtrudeOptions {
   artPeriod?: number;
   /** A finished wall, not rock: no displacement at all. */
   smooth?: boolean;
+  /** Openings left in the surface, as ranges along x and across z: where an escalator climbs up through a ceiling. */
+  cuts?: ReadonlyArray<{ x0: number; x1: number; z0: number; z1: number }>;
 }
 
 /** Length of a profile along its points, in meters. */
@@ -170,6 +172,10 @@ export function* extrudeRockSteps(b: MeshBuilder, profile: ProfilePoint[], x0: n
     const ring = colors(i), next = colors(i + 1);
     for (let j = 0; j < cols - 1; j++) {
       const a = grid[i][j], bb = grid[i + 1][j], c = grid[i + 1][j + 1], d = grid[i][j + 1];
+      if (opts.cuts) {
+        const mx = (a.x + c.x) / 2, mz = (a.z + c.z) / 2;
+        if (opts.cuts.some((k) => mx > k.x0 && mx < k.x1 && mz > k.z0 && mz < k.z1)) continue;
+      }
       const na = normals[i][j], nb = normals[i + 1][j], nc = normals[i + 1][j + 1], nd = normals[i][j + 1];
       const ca = ring[j], cb = next[j], cc = next[j + 1], cd = ring[j + 1];
       if (opts.artPeriod) {

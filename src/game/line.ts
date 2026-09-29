@@ -42,6 +42,13 @@ export interface StationDef extends StationData {
   /** The station's build: most are rock caves, `tiles` a tiled box from the 1950s. */
   architecture: 'garden' | 'vines' | 'strata' | 'harbour' | 'sport' | 'forest' | 'rock' | 'redSky' | 'cubes' | 'drawings' | 'kinship' | 'tiles';
   exits: string;
+  /**
+   * The station's ticket halls as its real plan has them, the main one first (see `HallDef`): at most one at each end
+   * of the platform, and any number reached from along it. Without them the layout picks an end for one hall. Where a
+   * hall takes the end the staff door would have, the door moves beside its escalators (`SIDE_DOOR`), or a plain staff
+   * room is left out.
+   */
+  halls?: readonly HallDef[];
   /** Spoken after the station name on arrival. */
   transfer?: string;
   /** What lies behind the staff door at the far platform end (end stations lead to the turnback cavern). */
@@ -49,6 +56,35 @@ export interface StationDef extends StationData {
   /** A pedestrian passage off the ticket hall, where a busker plays. */
   passage?: string;
   theme: Theme;
+}
+
+/** A ticket hall, and the way up to it (see `StationDef.halls`). */
+export interface HallDef {
+  /**
+   * Which way its escalators climb: toward the line's inbound terminus (-x) or its outbound one (+x). They start from
+   * that end of the platform, through its end wall, unless `from` says otherwise.
+   */
+  end: 'inbound' | 'outbound';
+  /**
+   * Where the escalators start instead, out on the platform: this many meters from its middle toward `end` (negative on
+   * the other side of the middle). They climb up through the ceiling to a hall over the station, as to a mezzanine.
+   * Tiled stations only, whose smooth ceiling can open for them. In the open, where the hall is `down`, where the
+   * escalators go down from instead.
+   */
+  from?: number;
+  /**
+   * In the open: the hall is under the tracks, as at most stations out there. From `from` the escalators go down
+   * toward the middle of the platform, to a hall whose stairs come up beside the tracks, beyond the fences.
+   */
+  down?: boolean;
+  /** Which track's side a hall under the tracks has its stairs up on (1: +z, 2: -z). */
+  beside?: 1 | 2;
+  /** Meters of level passage from the top of the escalators to the hall, where the real walk is long. */
+  corridor?: number;
+  /** An inclined lift, a snedbanehiss, running beside the escalators. */
+  incline?: boolean;
+  /** What its exit signs name, when not the station's `exits`. */
+  exits?: string;
 }
 
 /** An earlier line's station that this line's trains call at too (see `LANE`). */
@@ -193,6 +229,16 @@ export function isOutdoor(net: Network, station: number): boolean {
 /** How far a station's escalators climb to its ticket hall (see `StationDef.rise`): an open station's, the usual. */
 export function stationRise(net: Network, station: number): number {
   return isOutdoor(net, station) ? ESC_RISE : net.stations[station].rise ?? ESC_RISE;
+}
+
+/** Which way along x a hall's end of the platform lies. */
+export function hallDir(hall: HallDef): 1 | -1 {
+  return hall.end === 'outbound' ? 1 : -1;
+}
+
+/** A station's hall at one end of its platform (`dir` along x), if its plan has one there. */
+export function hallAt(net: Network, station: number, dir: 1 | -1): HallDef | undefined {
+  return net.stations[station].halls?.find((h) => hallDir(h) === dir);
 }
 
 /** The routes that serve a station. */
@@ -401,7 +447,7 @@ export const BLUE_LINE: LineDef = {
   ],
   ghost: { name: 'Kymlinge', route: '11', from: 'Hallonbergen', after: KYMLINGE_AFTER },
   stations: [
-    { name: 'Kungsträdgården', map: [0.565, 0.445], sl: 9340, riders: 9850, rise: 30, architecture: 'garden', exits: 'Kungsträdgården · Arsenalsgatan', theme: garden },
+    { name: 'Kungsträdgården', map: [0.565, 0.445], sl: 9340, riders: 9850, rise: 30, architecture: 'garden', exits: 'Kungsträdgården · Arsenalsgatan', halls: [{ end: 'outbound', incline: true }, { end: 'inbound', corridor: 35, incline: true }], theme: garden },
     {
       name: 'T-Centralen',
       map: [0.5, 0.45],
@@ -410,31 +456,32 @@ export const BLUE_LINE: LineDef = {
       rise: 21,
       architecture: 'vines',
       exits: 'Vasagatan · Centralstation',
+      halls: [{ end: 'outbound' }, { end: 'inbound', incline: true }],
       transfer: text.announcements.tCentralenTransfer,
       service: 'staff',
       passage: text.busker.passage,
       theme: vines,
     },
-    { name: 'Rådhuset', map: [0.455, 0.455], sl: 9309, riders: 13100, rise: 19, architecture: 'strata', exits: 'Kungsholmsgatan · Stadshuset', service: 'shelter', theme: strata },
-    { name: 'Fridhemsplan', map: [0.41, 0.445], sl: 9115, riders: 20250, rise: 21, architecture: 'harbour', exits: 'Drottningholmsvägen · S:t Eriksgatan', transfer: text.announcements.fridhemsplanTransfer, theme: harbour },
-    { name: 'Stadshagen', map: [0.38, 0.415], sl: 9307, riders: 14050, rise: 11, architecture: 'sport', exits: 'Stadshagsvägen · Mariedalsvägen', theme: sport },
-    { name: 'Västra skogen', map: [0.35, 0.385], sl: 9306, riders: 7850, rise: 33, architecture: 'forest', exits: 'Västra skogen · Solna', theme: forest },
+    { name: 'Rådhuset', map: [0.455, 0.455], sl: 9309, riders: 13100, rise: 19, architecture: 'strata', exits: 'Kungsholmsgatan · Stadshuset', halls: [{ end: 'outbound', incline: true }, { end: 'inbound', corridor: 60 }], service: 'shelter', theme: strata },
+    { name: 'Fridhemsplan', map: [0.41, 0.445], sl: 9115, riders: 20250, rise: 21, architecture: 'harbour', exits: 'Drottningholmsvägen · S:t Eriksgatan', halls: [{ end: 'outbound', corridor: 15, incline: true }], transfer: text.announcements.fridhemsplanTransfer, theme: harbour },
+    { name: 'Stadshagen', map: [0.38, 0.415], sl: 9307, riders: 14050, rise: 11, architecture: 'sport', exits: 'Stadshagsvägen · Mariedalsvägen', halls: [{ end: 'outbound', incline: true }, { end: 'inbound', incline: true }], theme: sport },
+    { name: 'Västra skogen', map: [0.35, 0.385], sl: 9306, riders: 7850, rise: 33, architecture: 'forest', exits: 'Västra skogen · Solna', halls: [{ end: 'inbound' }], theme: forest },
     // The branches. Their `riders` are estimates in the same spirit, not SL's figures.
-    { name: 'Solna centrum', map: [0.345, 0.33], sl: 9305, riders: 11000, rise: 23, architecture: 'redSky', exits: 'Solna centrum · Solna stadshus', branch: '11', gap: JUNCTION_RUN, theme: redSky },
-    { name: 'Näckrosen', map: [0.335, 0.285], sl: 9304, riders: 4000, rise: 13, architecture: 'rock', exits: 'Filmstaden · Råsundavägen', branch: '11', theme: lilies },
-    { name: 'Hallonbergen', map: [0.32, 0.24], sl: 9303, riders: 6000, rise: 20, architecture: 'drawings', exits: 'Hallonbergens centrum', branch: '11', theme: crayons },
+    { name: 'Solna centrum', map: [0.345, 0.33], sl: 9305, riders: 11000, rise: 23, architecture: 'redSky', exits: 'Solna centrum · Solna stadshus', halls: [{ end: 'outbound', incline: true }, { end: 'inbound' }], branch: '11', gap: JUNCTION_RUN, theme: redSky },
+    { name: 'Näckrosen', map: [0.335, 0.285], sl: 9304, riders: 4000, rise: 13, architecture: 'rock', exits: 'Filmstaden · Råsundavägen', halls: [{ end: 'outbound', incline: true }, { end: 'inbound', corridor: 40, incline: true }], branch: '11', theme: lilies },
+    { name: 'Hallonbergen', map: [0.32, 0.24], sl: 9303, riders: 6000, rise: 20, architecture: 'drawings', exits: 'Hallonbergens centrum', halls: [{ end: 'outbound', incline: true }], branch: '11', theme: crayons },
     // Up on its viaduct in the open, between the tunnels from Hallonbergen and to Husby.
-    { name: 'Kista', map: [0.3, 0.19], sl: 9302, riders: 16000, architecture: 'rock', exits: 'Kista Galleria · Kista centrum', branch: '11', gap: KYMLINGE_RUN, open: true, theme: circuit },
-    { name: 'Husby', map: [0.28, 0.15], sl: 9301, riders: 5500, rise: 30, architecture: 'rock', exits: 'Husby centrum', branch: '11', theme: meadow },
-    { name: 'Akalla', map: [0.26, 0.11], sl: 9300, riders: 5000, rise: 12, architecture: 'rock', exits: 'Akalla centrum', branch: '11', theme: tiles },
-    { name: 'Huvudsta', map: [0.315, 0.37], sl: 9327, riders: 4500, rise: 17, architecture: 'rock', exits: 'Huvudsta centrum', branch: '10', gap: JUNCTION_RUN, theme: goldBand },
-    { name: 'Solna strand', map: [0.29, 0.355], sl: 9326, riders: 3000, rise: 20, architecture: 'cubes', exits: 'Solna strand · Huvudstaleden', branch: '10', theme: sky },
-    { name: 'Sundbybergs centrum', map: [0.26, 0.335], sl: 9325, riders: 10000, rise: 18, architecture: 'rock', exits: 'Sundbybergs torg · Pendeltåg', branch: '10', transfer: text.announcements.sundbybergTransfer, theme: sunny },
-    { name: 'Duvbo', map: [0.23, 0.315], sl: 9324, riders: 2500, rise: 30, architecture: 'rock', exits: 'Duvbo', branch: '10', theme: underwater },
-    { name: 'Rissne', map: [0.2, 0.295], sl: 9323, riders: 4500, rise: 24, architecture: 'rock', exits: 'Rissne centrum', branch: '10', theme: timeline },
-    { name: 'Rinkeby', map: [0.17, 0.275], sl: 9322, riders: 8000, rise: 21, architecture: 'rock', exits: 'Rinkeby torg', branch: '10', theme: treasure },
-    { name: 'Tensta', map: [0.14, 0.255], sl: 9321, riders: 7000, rise: 13, architecture: 'kinship', exits: 'Tensta centrum', branch: '10', theme: mural },
-    { name: 'Hjulsta', map: [0.11, 0.235], sl: 9320, riders: 3000, rise: 13, architecture: 'rock', exits: 'Hjulsta', branch: '10', theme: wheels },
+    { name: 'Kista', map: [0.3, 0.19], sl: 9302, riders: 16000, architecture: 'rock', exits: 'Kista Galleria · Kista centrum', halls: [{ end: 'outbound', from: 60, down: true }, { end: 'inbound', from: 60, down: true }], branch: '11', gap: KYMLINGE_RUN, open: true, theme: circuit },
+    { name: 'Husby', map: [0.28, 0.15], sl: 9301, riders: 5500, rise: 30, architecture: 'rock', exits: 'Husby centrum', halls: [{ end: 'outbound', incline: true }, { end: 'inbound', incline: true }], branch: '11', theme: meadow },
+    { name: 'Akalla', map: [0.26, 0.11], sl: 9300, riders: 5000, rise: 12, architecture: 'rock', exits: 'Akalla centrum', halls: [{ end: 'outbound', incline: true }, { end: 'inbound', incline: true }], branch: '11', theme: tiles },
+    { name: 'Huvudsta', map: [0.315, 0.37], sl: 9327, riders: 4500, rise: 17, architecture: 'rock', exits: 'Huvudsta centrum', halls: [{ end: 'outbound', incline: true }], branch: '10', gap: JUNCTION_RUN, theme: goldBand },
+    { name: 'Solna strand', map: [0.29, 0.355], sl: 9326, riders: 3000, rise: 20, architecture: 'cubes', exits: 'Solna strand · Huvudstaleden', halls: [{ end: 'outbound', incline: true }], branch: '10', theme: sky },
+    { name: 'Sundbybergs centrum', map: [0.26, 0.335], sl: 9325, riders: 10000, rise: 18, architecture: 'rock', exits: 'Sundbybergs torg · Pendeltåg', halls: [{ end: 'inbound', corridor: 30, incline: true }, { end: 'outbound', incline: true }], branch: '10', transfer: text.announcements.sundbybergTransfer, theme: sunny },
+    { name: 'Duvbo', map: [0.23, 0.315], sl: 9324, riders: 2500, rise: 30, architecture: 'rock', exits: 'Duvbo', halls: [{ end: 'inbound', incline: true }], branch: '10', theme: underwater },
+    { name: 'Rissne', map: [0.2, 0.295], sl: 9323, riders: 4500, rise: 24, architecture: 'rock', exits: 'Rissne centrum', halls: [{ end: 'outbound', incline: true }], branch: '10', theme: timeline },
+    { name: 'Rinkeby', map: [0.17, 0.275], sl: 9322, riders: 8000, rise: 21, architecture: 'rock', exits: 'Rinkeby torg', halls: [{ end: 'inbound', incline: true }], branch: '10', theme: treasure },
+    { name: 'Tensta', map: [0.14, 0.255], sl: 9321, riders: 7000, rise: 13, architecture: 'kinship', exits: 'Tensta centrum', halls: [{ end: 'outbound', incline: true }, { end: 'inbound' }], branch: '10', theme: mural },
+    { name: 'Hjulsta', map: [0.11, 0.235], sl: 9320, riders: 3000, rise: 13, architecture: 'rock', exits: 'Hjulsta', halls: [{ end: 'inbound', corridor: 15, incline: true }], branch: '10', theme: wheels },
   ],
   trains: 4,
   summerRest: [2, 5],
