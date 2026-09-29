@@ -196,7 +196,8 @@ export function vineTexture(period: number, arcLength: number): Texture {
     const fullH = arcLength * pxPerM;
     const rnd = mulberry32(1975);
 
-    ctx.fillStyle = '#eef0f1';
+    // Cream, as Ultvedt's vaults are, not white.
+    ctx.fillStyle = '#ebe3cc';
     ctx.fillRect(0, 0, W * S, H * S);
     ctx.setTransform(S, 0, 0, S * ky, 0, 0);
 
@@ -206,7 +207,7 @@ export function vineTexture(period: number, arcLength: number): Texture {
       const y = rnd() * fullH;
       const r = 20 + rnd() * 120;
       const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-      const tone = rnd() < 0.5 ? '205, 212, 222' : '255, 255, 252';
+      const tone = rnd() < 0.5 ? '214, 204, 180' : '250, 245, 230';
       g.addColorStop(0, `rgba(${tone}, 0.18)`);
       g.addColorStop(1, `rgba(${tone}, 0)`);
       ctx.fillStyle = g;
@@ -604,56 +605,6 @@ export function columnTexture(): Texture {
     t.colorSpace = SRGBColorSpace;
     t.anisotropy = 4;
     return t;
-  });
-}
-
-/** Kungsträdgården's red, green and pale terrazzo, generated in world units. */
-export function gardenFloorTexture(): Texture {
-  return cached('garden-floor', () => {
-    // Kungsträdgården: green terrazzo crossed by red and white bands (the artist's
-    // stylized baroque tree), with a large white fossil painted here and there.
-    const size = 1024;
-    const [c, ctx] = canvas(size, size);
-    ctx.fillStyle = '#2f6a45';
-    ctx.fillRect(0, 0, size, size);
-    const rnd = mulberry32(1977);
-    for (let i = 0; i < 60000; i++) {
-      ctx.fillStyle = ['#ffffff33', '#15301f44', '#8fbf8a33', '#c9c2a833'][i % 4];
-      ctx.fillRect(rnd() * size, rnd() * size, 1 + rnd() * 3, 1 + rnd() * 3);
-    }
-    // The bands run along the platform and branch like a tree.
-    const band = (y: number, color: string, width: number, wave: number) => {
-      ctx.strokeStyle = color;
-      ctx.lineWidth = width;
-      ctx.beginPath();
-      for (let x = 0; x <= size; x += 8) {
-        const yy = y + Math.sin((x / size) * Math.PI * 2 * 2) * wave;
-        if (x === 0) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
-      }
-      ctx.stroke();
-    };
-    band(300, '#b8322a', 46, 0);
-    band(352, '#f2efe6', 22, 0);
-    band(700, '#f2efe6', 22, 60);
-    band(752, '#b8322a', 46, 60);
-    // A branch leaving the trunk band.
-    ctx.strokeStyle = '#b8322a';
-    ctx.lineWidth = 30;
-    ctx.beginPath(); ctx.moveTo(420, 330); ctx.quadraticCurveTo(520, 480, 640, 720); ctx.stroke();
-    ctx.strokeStyle = '#f2efe6';
-    ctx.lineWidth = 14;
-    ctx.beginPath(); ctx.moveTo(470, 350); ctx.quadraticCurveTo(570, 490, 690, 725); ctx.stroke();
-    // A white fossil: a spiral shell.
-    ctx.strokeStyle = '#f2efe6';
-    ctx.lineWidth = 9;
-    ctx.beginPath();
-    for (let t = 0; t < 26; t += 0.1) {
-      const r = 6 + t * 5.2;
-      const x = 180 + Math.cos(t) * r, y = 520 + Math.sin(t) * r;
-      if (t === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-    return finish(c, 8);
   });
 }
 

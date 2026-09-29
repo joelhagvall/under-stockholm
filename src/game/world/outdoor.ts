@@ -1,3 +1,4 @@
+import { buildViaduct } from './canopy';
 import { ConeGeometry, CylinderGeometry, Matrix4, SphereGeometry, type Texture, Vector3 } from 'three';
 import { hash01 } from '../clock';
 import { mix, rgb, type RGB } from '../gfx/color';
@@ -51,20 +52,30 @@ export function facadeTexture(): Texture {
 /** Ground left to something else beside the tracks: where a ticket hall's stairs come up (see `station.ts`). */
 export interface Clearing { x0: number; x1: number; z0: number; z1: number }
 
+/** How far the ground at `x` lies below its usual level (`-0.3`), as under a viaduct: 0, or a negative number of meters. */
+export type Ground = (x: number) => number;
+export const FLAT: Ground = () => 0;
+/** The grass in pieces this long along x, so it can follow the ground where it slopes. */
+const GROUND_STEP = 12;
+
 /** Is `x`, `z` within `margin` of a clearing? */
 export function inClearing(clear: readonly Clearing[], x: number, z: number, margin = 0): boolean {
   return clear.some((c) => x > c.x0 - margin && x < c.x1 + margin && z > c.z0 - margin && z < c.z1 + margin);
 }
 
 /** @param clear ground left bare of grass, trees and houses, for what stands there instead */
-export function openGround(s: Section, physics: Physics, x0: number, x1: number, seed: number, fences = true, osm: readonly OsmPatch[] = [], clear: readonly Clearing[] = []): void {
+export function openGround(s: Section, physics: Physics, x0: number, x1: number, seed: number, fences = true, osm: readonly OsmPatch[] = [], clear: readonly Clearing[] = [], ground: Ground = FLAT): void {
   const F = OPEN.fenceZ;
   for (const side of [-1, 1]) {
     // Grass from the fence out to the scenery's reach, round any clearing on this side (which start at the fence).
     // Wound so the grass faces up on both sides: facing down, the bake left the +z side dark.
     const grass = (xa: number, xb: number, near: number) => {
       const [za, zb] = side > 0 ? [OPEN.reach, near] : [-near, -OPEN.reach];
-      if (xb > xa) s.lit.gridQuad(new Vector3(xa, -0.3, za), new Vector3(xb, -0.3, za), new Vector3(xb, -0.3, zb), new Vector3(xa, -0.3, zb), GRASS, 8);
+      for (let x = xa; x < xb; x += GROUND_STEP) {
+        const x2 = Math.min(xb, x + GROUND_STEP);
+        const [ya, yb] = [-0.3 + ground(x), -0.3 + ground(x2)];
+        s.lit.gridQuad(new Vector3(x, ya, za), new Vector3(x2, yb, za), new Vector3(x2, yb, zb), new Vector3(x, ya, zb), GRASS, 8);
+      }
     };
     let from = x0;
     for (const c of clear.filter((k) => Math.sign(k.z0 + k.z1) === side && k.x1 > x0 && k.x0 < x1).sort((p, q) => p.x0 - q.x0)) {
@@ -75,17 +86,22 @@ export function openGround(s: Section, physics: Physics, x0: number, x1: number,
     grass(from, x1, F);
     if (!fences) continue;
     // A fence you can see through: posts, a top rail and a rail at knee height.
+    // Up on a viaduct the deck's parapet stands in its place (`canopy.ts`); its collider is the same.
     const zf = side * (F - 0.05);
-    for (const y of [0.55, OPEN.fenceH - 0.05]) s.lit.box({ x: x0, y, z: zf - 0.03 }, { x: x1, y: y + 0.06, z: zf + 0.03 }, rgb(0x6a746e), [], 6);
-    for (let x = Math.ceil(x0 / 3) * 3; x < x1; x += 3) s.lit.box({ x: x - 0.035, y: -0.3, z: zf - 0.035 }, { x: x + 0.035, y: OPEN.fenceH, z: zf + 0.035 }, rgb(0x4a524e));
+    const low = (x: number) => ground(x) >= -1;
+    for (let x = x0; x < x1; x += GROUND_STEP) {
+      const x2 = Math.min(x1, x + GROUND_STEP);
+      if (low((x + x2) / 2)) for (const y of [0.55, OPEN.fenceH - 0.05]) s.lit.box({ x, y, z: zf - 0.03 }, { x: x2, y: y + 0.06, z: zf + 0.03 }, rgb(0x6a746e), [], 6);
+    }
+    for (let x = Math.ceil(x0 / 3) * 3; x < x1; x += 3) if (low(x)) s.lit.box({ x: x - 0.035, y: -0.3, z: zf - 0.035 }, { x: x + 0.035, y: OPEN.fenceH, z: zf + 0.035 }, rgb(0x4a524e));
     physics.box({ x: x0, y: -1, z: Math.min(zf, zf + side) }, { x: x1, y: 4, z: Math.max(zf, zf + side) });
   }
-  scenery(s, x0, x1, seed, osm, clear);
-  for (const patch of osm) buildOsm(s, s.artLayer(facadeTexture()), patch, x0, x1, OPEN.reach, clear);
+  scenery(s, x0, x1, seed, osm, clear, ground);
+  for (const patch of osm) buildOsm(s, s.artLayer(facadeTexture()), patch, x0, x1, OPEN.reach, clear, ground);
 }
 
 /** Trees near the fences and buildings further off, the same wherever the same stretch is built; none where `osm` has real ones. */
-function scenery(s: Section, x0: number, x1: number, seed: number, osm: readonly OsmPatch[], clear: readonly Clearing[] = []): void {
+function scenery(s: Section, x0: number, x1: number, seed: number, osm: readonly OsmPatch[], clear: readonly Clearing[] = [], ground: Ground = FLAT): void {
   const facade = s.artLayer(facadeTexture());
   const trunk = new CylinderGeometry(0.2, 0.28, 2.6, 5);
   const pine = new ConeGeometry(2.1, 7.5, 7);
@@ -111,17 +127,20 @@ function scenery(s: Section, x0: number, x1: number, seed: number, osm: readonly
       const z = side * (OPEN.fenceZ + 4 + r(3) * 26);
       if (r(2) < 0.55 && !nearBuilding(osm, x, z, 2.5) && !inClearing(clear, x, z, 2.5)) {
         const isBirch = r(4) < 0.45;
-        s.lit.geometry(trunk, m.makeTranslation(x, 1, z), isBirch ? rgb(0xe8e4d8) : rgb(0x5a4632));
-        if (isBirch) s.lit.geometry(birch, m.makeScale(1, 1.3, 1).setPosition(x, 4.6, z), mix(rgb(0x6a9a3c), rgb(0x9ab84a), r(5)));
-        else s.lit.geometry(pine, m.makeTranslation(x, 5.5, z), mix(rgb(0x1f4028), rgb(0x345a34), r(5)));
+        const g = ground(x);
+        s.lit.geometry(trunk, m.makeTranslation(x, 1 + g, z), isBirch ? rgb(0xe8e4d8) : rgb(0x5a4632));
+        if (isBirch) s.lit.geometry(birch, m.makeScale(1, 1.3, 1).setPosition(x, 4.6 + g, z), mix(rgb(0x6a9a3c), rgb(0x9ab84a), r(5)));
+        else s.lit.geometry(pine, m.makeTranslation(x, 5.5 + g, z), mix(rgb(0x1f4028), rgb(0x345a34), r(5)));
       }
       // A block of flats, unless it would run into one in the cells before it (they are up to three cells wide).
       const b = osm.some((p) => x > p.x0 - 20 && x < p.x1 + 20) ? null : block(cell, side);
       const clearOf = (o: ReturnType<typeof block>) => !b || !o || Math.abs(o.x - b.x) > (o.w + b.w) / 2 + 1 || o.za > b.zb + 1 || o.zb < b.za - 1;
       const bare = !b || !clear.some((c) => b.x + b.w / 2 > c.x0 && b.x - b.w / 2 < c.x1 && b.zb > c.z0 && b.za < c.z1);
       if (b && bare && clearOf(block(cell - 1, side)) && clearOf(block(cell - 2, side)) && clearOf(block(cell - 3, side))) {
-        const { w, h, za, zb } = b;
-        facade.box({ x: b.x - w / 2, y: -0.3, z: za }, { x: b.x + w / 2, y: h, z: zb }, rgb(b.colour), ['py', 'ny'], 3);
+        const { w, za, zb } = b;
+        const g = ground(b.x);
+        const h = b.h + g;
+        facade.box({ x: b.x - w / 2, y: -0.3 + g, z: za }, { x: b.x + w / 2, y: h, z: zb }, rgb(b.colour), ['py', 'ny'], 3);
         s.lit.box({ x: b.x - w / 2 - 0.2, y: h, z: za - 0.2 }, { x: b.x + w / 2 + 0.2, y: h + 0.4, z: zb + 0.2 }, rgb(0x3a3634));
       }
     }
@@ -132,12 +151,13 @@ function scenery(s: Section, x0: number, x1: number, seed: number, osm: readonly
 }
 
 /** Open track from `x0` to `x1`: ballast, both tracks, the fences and the ground beyond (see `openGround` for `osm`). */
-export function buildOpenTrack(s: Section, physics: Physics, x0: number, x1: number, seed: number, osm: readonly OsmPatch[] = []): void {
+export function buildOpenTrack(s: Section, physics: Physics, x0: number, x1: number, seed: number, osm: readonly OsmPatch[] = [], ground: Ground = FLAT): void {
   const F = OPEN.fenceZ;
   s.lit.box({ x: x0, y: -0.5, z: -F }, { x: x1, y: 0, z: F }, PAINT.ballast, ['ny'], 4);
   for (const zc of [-TRACK_Z, TRACK_Z]) addTrack(s, x0, x1, zc, true);
   physics.box({ x: x0, y: -1, z: -F }, { x: x1, y: -0.02, z: F });
-  openGround(s, physics, x0, x1, seed, true, osm);
+  openGround(s, physics, x0, x1, seed, true, osm, [], ground);
+  buildViaduct(s, physics, x0, x1, ground);
 }
 
 /**
@@ -180,10 +200,10 @@ export function buildTunnelMouth(s: Section, physics: Physics, x: number, dir: 1
 
 
 /** Beyond a station at the end of the line in the open: the tracks run on to buffer stops, where trains turn. */
-export function buildOpenTurnback(s: Section, physics: Physics, wallX: number, dir: 1 | -1, length: number, seed: number, osm: readonly OsmPatch[] = []): void {
+export function buildOpenTurnback(s: Section, physics: Physics, wallX: number, dir: 1 | -1, length: number, seed: number, osm: readonly OsmPatch[] = [], ground: Ground = FLAT): void {
   const far = wallX + dir * length;
   const [x0, x1] = [Math.min(wallX, far), Math.max(wallX, far)];
-  buildOpenTrack(s, physics, x0, x1, seed, osm);
+  buildOpenTrack(s, physics, x0, x1, seed, osm, ground);
   for (const zc of [-TRACK_Z, TRACK_Z]) {
     const bx = far - dir * 1.2;
     s.lit.box({ x: bx - 0.4, y: 0, z: zc - 1.2 }, { x: bx + 0.4, y: 1.4, z: zc + 1.2 }, PAINT.buffer);

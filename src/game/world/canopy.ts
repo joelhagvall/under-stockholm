@@ -2,8 +2,8 @@ import { BoxGeometry, Matrix4, SphereGeometry } from 'three';
 import { mix, rgb, type RGB } from '../gfx/color';
 import { fbm3 } from '../gfx/noise';
 import { hash01 } from '../clock';
-import { CANOPY, PLATFORM_Y, STATION_DESIGN } from '../layout';
-import { OPEN, type Clearing } from './outdoor';
+import { CANOPY, PLATFORM_Y, STATION_DESIGN, VIADUCT } from '../layout';
+import { OPEN, type Clearing, type Ground } from './outdoor';
 import type { Physics } from '../physics';
 import type { Section } from './section';
 
@@ -41,6 +41,11 @@ export interface CanopyDef {
    * concrete, on both sides or only on one (+1 or -1 across).
    */
   cutting?: { kind: 'rock' | 'concrete'; side?: 1 | -1; height?: number };
+  /**
+   * Up on a viaduct: the ground far below the tracks (`VIADUCT`), a deck on piers under them with parapets for
+   * fences, and a hall under the tracks standing on the ground and opening straight out.
+   */
+  viaduct?: true;
   /** A great white globe in view, as the arena beside Globen: its middle from the station's (along, across), radius and height. */
   globe?: readonly [number, number, number, number];
 }
@@ -210,5 +215,48 @@ export function buildCutting(s: Section, physics: Physics, c: NonNullable<Canopy
       s.lit.box({ x, y: -0.3, z: za }, { x: xb, y: h, z: zb }, c.kind === 'rock' ? ROCK : BOARDED, [], 3);
       physics.box({ x, y: -0.3, z: za }, { x: xb, y: h, z: zb });
     }
+  }
+}
+
+/** A place along a viaduct where its deck is left open or no pier may stand (escalators down through it, a hall under it). */
+export interface ViaductGap { x0: number; x1: number; z0: number; z1: number }
+
+/**
+ * The deck under the tracks from `x0` to `x1` wherever the ground lies more than a meter below its usual level: a
+ * slab under the trackbed out to the fences, a concrete parapet at each edge instead of the fence, and a pair of piers
+ * every `VIADUCT.pierStep` down to the ground. `holes` are left open in the deck, and no pier stands in `keep`.
+ */
+export function buildViaduct(s: Section, physics: Physics, x0: number, x1: number, ground: Ground, holes: readonly ViaductGap[] = [], keep: readonly ViaductGap[] = []): void {
+  const F = OPEN.fenceZ;
+  const concrete = (p: { x: number; y: number; z: number }): RGB => mix(rgb(0x8e8b84), rgb(0xaaa69c), fbm3(p.x * 0.3, p.y * 0.3, p.z * 0.3, 3, 334));
+  const high = (x: number) => ground(x) < -1;
+  const step = 4;
+  for (let x = x0; x < x1; x += step) {
+    const xb = Math.min(x1, x + step);
+    if (!high((x + xb) / 2)) continue;
+    // The slab, round any hole in it: whole across where none is, else in pieces either side.
+    const cuts = holes.filter((h) => h.x1 > x && h.x0 < xb).sort((p, q) => p.z0 - q.z0);
+    let z = -F - 0.3;
+    for (const h of cuts) {
+      if (h.z0 > z) s.lit.box({ x, y: VIADUCT.deckBottom, z }, { x: xb, y: -0.5, z: h.z0 }, concrete, [], 4);
+      z = Math.max(z, h.z1);
+    }
+    if (z < F + 0.3) s.lit.box({ x, y: VIADUCT.deckBottom, z }, { x: xb, y: -0.5, z: F + 0.3 }, concrete, [], 4);
+    for (const side of [-1, 1]) {
+      const [za, zb] = [Math.min(side * F, side * (F + 0.3)), Math.max(side * F, side * (F + 0.3))];
+      s.lit.box({ x, y: -0.5, z: za }, { x: xb, y: VIADUCT.parapet, z: zb }, concrete, [], 4);
+    }
+  }
+  for (let x = Math.ceil(x0 / VIADUCT.pierStep) * VIADUCT.pierStep; x < x1; x += VIADUCT.pierStep) {
+    const g = -0.3 + ground(x);
+    if (g > VIADUCT.deckBottom - 0.5) continue;
+    if (keep.some((k) => x + VIADUCT.pierHalf > k.x0 && x - VIADUCT.pierHalf < k.x1)) continue;
+    for (const side of [-1, 1]) {
+      const z = side * VIADUCT.pierZ;
+      s.lit.box({ x: x - VIADUCT.pierHalf, y: g - 0.3, z: z - VIADUCT.pierHalf }, { x: x + VIADUCT.pierHalf, y: VIADUCT.deckBottom, z: z + VIADUCT.pierHalf }, concrete, [], 2);
+      physics.box({ x: x - VIADUCT.pierHalf, y: g - 0.3, z: z - VIADUCT.pierHalf }, { x: x + VIADUCT.pierHalf, y: VIADUCT.deckBottom, z: z + VIADUCT.pierHalf });
+    }
+    // A crossbeam under the deck, from pier to pier.
+    s.lit.box({ x: x - VIADUCT.pierHalf, y: VIADUCT.deckBottom - 0.8, z: -VIADUCT.pierZ - VIADUCT.pierHalf }, { x: x + VIADUCT.pierHalf, y: VIADUCT.deckBottom, z: VIADUCT.pierZ + VIADUCT.pierHalf }, concrete, [], 2);
   }
 }

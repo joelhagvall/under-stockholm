@@ -165,6 +165,24 @@ export const STREET = {
 export const UNDERPASS_DEPTH = PLATFORM_Y + STREET.above + 0.3;
 
 /**
+ * A station up on a viaduct (`CanopyDef.viaduct`): the ground lies as far below the tracks as a hall under them, so
+ * that hall stands on it and opens straight out, and the deck runs on over the neighbouring stretches, the ground
+ * rising back to the tracks' level within `ramp` meters (or by a tunnel mouth, if one comes sooner).
+ */
+export const VIADUCT = {
+  /** How far the ground lies below its usual level (`-0.3`, just under the rails). */
+  drop: STREET.above,
+  ramp: 160,
+  /** The deck's underside, and the parapet's top over the rails. */
+  deckBottom: -1.4,
+  parapet: 1.0,
+  /** Piers this far apart along the deck, a pair across it, each this far from the middle and this thick. */
+  pierStep: 20,
+  pierZ: 7.5,
+  pierHalf: 0.6,
+};
+
+/**
  * The tiled passage off T-Centralen's ticket hall toward the commuter trains
  * at City. `a0`/`a1` are measured along the hall, `length` out from its side
  * wall. The gate line to the commuter trains stands `gateSetback` before the

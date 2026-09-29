@@ -56,7 +56,7 @@ import { Hud } from './hud';
 import { cabinSeats, nearestSeat } from './journey';
 import { Crowd, occupiedSeatPoses, trainPassengerPoses } from './crowd';
 import { lang, setLang, text } from './i18n/text';
-import { DOOR_HALF_W, PLATFORM_HALF_L, PLATFORM_HALF_W, PLATFORM_Y, TRAIN_HALF_L, TRAIN_HALF_W, trackSide } from './layout';
+import { DOOR_HALF_W, PLATFORM_HALF_L, PLATFORM_HALF_W, PLATFORM_Y, TRAIN_HALF_L, TRAIN_HALF_W, trackSide, UNDERPASS_DEPTH } from './layout';
 import { isLineTerminal, NETWORK, networkServices, networkSlots, ridership, serviceDestination, stationIndex as indexOf } from './line';
 import { Night, stationLight } from './night';
 import { Operations, startTime } from './operations';
@@ -97,6 +97,8 @@ const REAL_SLOTS = [14, 44, 60];
 const LOADING_MIN = 4.5;
 /** Larger clock differences jump instead of slewing. */
 const CLOCK_JUMP = 20;
+/** Below this the player has fallen out of the world: a few meters under the lowest floor, a hall under the tracks. */
+const FALL_Y = PLATFORM_Y - UNDERPASS_DEPTH - 3;
 /** The most frames drawn a second, and in battery saver. */
 const FPS_MOST = 60;
 const FPS_BATTERY = 30;
@@ -1915,7 +1917,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
 
     // Hazards.
     const here = world.locate(player.feet);
-    if (player.feet.y < -8) respawn('Du föll. Tillbaka på perrongen.');
+    if (player.feet.y < FALL_Y) respawn('Du föll. Tillbaka på perrongen.');
     if (services.some((s) => s.active && s.train.hits(player.feet)) || (expressState && expressTrain.hits(player.feet))) {
       respawn('Du blev påkörd. Håll dig borta från spåret.');
     }

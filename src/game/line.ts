@@ -234,6 +234,12 @@ export function isOutdoor(net: Network, station: number): boolean {
   return !!net.stations[station].open;
 }
 
+/** Up on a viaduct (`CanopyDef.viaduct`): an open station of one line, away from the city by the water. */
+export function viaductAt(net: Network, station: number): boolean {
+  const s = net.stations[station];
+  return !!s.open && s.lines.length === 1 && !s.city && !!s.canopy?.viaduct;
+}
+
 /** How far a station's escalators climb to its ticket hall (see `StationDef.rise`): an open station's, the usual. */
 export function stationRise(net: Network, station: number): number {
   return isOutdoor(net, station) ? ESC_RISE : net.stations[station].rise ?? ESC_RISE;
@@ -276,7 +282,7 @@ const vines: Theme = {
   ambient: rgb(0x555b68),
   lamp: coolLamp,
   // The vault itself is textured (see `art`); this paints end walls and trims.
-  paint: (p) => (p.y < 2.1 ? rgb(0x1a4b95) : rgb(0xeef0f2)),
+  paint: (p) => (p.y < 2.1 ? rgb(0x1a4b95) : rgb(0xebe3cc)),
   art: (arcLength) => ({ texture: vineTexture(20, arcLength), period: 20 }),
 };
 

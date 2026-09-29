@@ -50,6 +50,8 @@ export interface ClutterPlace {
   wallZ?: number;
   /** False where there are no walls beside the tracks to hang posters on (in the open air). */
   posters?: boolean;
+  /** False where the escalators start out on the platform instead of at its end wall: no notice hangs there. */
+  endWall?: boolean;
 }
 
 /**
@@ -175,7 +177,7 @@ export function buildClutter(s: Section, place: ClutterPlace): StationClutter {
 
   // Notices over the escalator, at the bottom (facing the platform) and at the top (facing the hall).
   const wallX = cx + e * CAVE_HALF_L;
-  decal(layer, new Vector3(wallX - e * 0.03, PLATFORM_Y + ESC_HEADROOM + 0.45, pz), new Vector3(-e, 0, 0), 3.2, 0.3, 0, NOTICE.y, NOTICE.w, NOTICE.h);
+  if (place.endWall !== false) decal(layer, new Vector3(wallX - e * 0.03, PLATFORM_Y + ESC_HEADROOM + 0.45, pz), new Vector3(-e, 0, 0), 3.2, 0.3, 0, NOTICE.y, NOTICE.w, NOTICE.h);
   decal(layer, new Vector3(hx(0) + e * 0.03, place.hallY + ESC_HEADROOM + 0.4, 0), new Vector3(e, 0, 0), 3.2, 0.3, NOTICE.w, NOTICE.y, NOTICE.w, NOTICE.h);
 
   // A-frame signs beside the stopped down escalator (the -z lane), top and bottom.

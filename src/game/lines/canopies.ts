@@ -5,21 +5,21 @@ import type { CanopyDef } from '../world/canopy';
  * platform it covers (from the end with the main hall), the colours of its underside and steel, and the platform's
  * surface. The 1950s stations mostly have a roof of sheet or boarding on one row of posts over part of the platform,
  * the Farsta and Hagsätra lines Peter Celsing's butterfly roofs with white boarded undersides, the southwest's 1960s
- * and 70s stations long flat roofs whose steel is painted one bold colour each. Kept apart from the lines' station
- * lists and joined to them by name in `buildNetwork`.
+ * and 70s stations long flat roofs whose steel is painted one bold colour each. Those on viaducts say so (`viaduct`).
+ * Kept apart from the lines' station lists and joined to them by name in `buildNetwork`.
  */
 export const OPEN_ROOFS: Record<string, CanopyDef> = {
   // The blue line.
-  Kista: { roof: 'flat', under: 0xa8a8a4, top: 0x6a6c6e, eaves: 0x86b4c8, posts: 0x9a968e, floor: 0x7a7a78 },
+  Kista: { roof: 'flat', under: 0xa8a8a4, top: 0x6a6c6e, eaves: 0x86b4c8, posts: 0x9a968e, floor: 0x7a7a78, viaduct: true },
 
   // The red line.
-  Ropsten: { roof: 'flat', cover: [0, 0.9], under: 0x1c1c1c, eaves: 0xf2f2f2, posts: 0x8a8a8a, floor: 0x7d7d7a },
+  Ropsten: { roof: 'flat', cover: [0, 0.9], under: 0x1c1c1c, eaves: 0xf2f2f2, posts: 0x8a8a8a, floor: 0x7d7d7a, viaduct: true },
   Örnsberg: { roof: 'flat', cover: [0, 0.18], under: 0x3e2c20, top: 0x2a2a2a, eaves: 0x7a4030, posts: 0x3a3a3a, lanterns: 0x4a4e52, floor: 0x55575a, building: 0x7a4030, cutting: { kind: 'rock', side: 1 } },
   Axelsberg: { deck: 0x2e2e2e, floor: 0x6a6a68, cutting: { kind: 'concrete' } },
-  Bredäng: { roof: 'flat', cover: [0, 0.9], under: 0x3e2c20, top: 0x3a3a3a, eaves: 0x3e2c20, posts: 0x8a9aa8, screens: 0x5a5e62, floor: 0x7a7c80 },
+  Bredäng: { roof: 'flat', cover: [0, 0.9], under: 0x3e2c20, top: 0x3a3a3a, eaves: 0x3e2c20, posts: 0x8a9aa8, screens: 0x5a5e62, floor: 0x7a7c80, viaduct: true },
   Sätra: { roof: 'flat', cover: [0, 0.9], under: 0xdcdcd8, eaves: 0x8a8e92, posts: 0x8a8e92, floor: 0x6a6c70, building: 0x3a5cc8 },
   Vårberg: { roof: 'flat', cover: [0, 0.5], under: 0xa8aaac, eaves: 0x3a3e44, posts: 0x3a3e44, floor: 0x6a6c6e, building: 0xe8d23a, cutting: { kind: 'rock', side: -1 } },
-  'Vårby gård': { roof: 'flat', cover: [0, 0.9], under: 0xdcdedf, eaves: 0x1e1e1e, posts: 0x1e1e1e, screens: 0x1e1e1e, floor: 0x8a8c8e },
+  'Vårby gård': { roof: 'flat', cover: [0, 0.9], under: 0xdcdedf, eaves: 0x1e1e1e, posts: 0x1e1e1e, screens: 0x1e1e1e, floor: 0x8a8c8e, viaduct: true },
   Fittja: { roof: 'flat', cover: [0, 0.85], under: 0xd8dadc, eaves: 0x2e3a3a, posts: 0x243030, screens: 0x243030, floor: 0x8a8c8e },
   Hallunda: { roof: 'flat', under: 0xdcdee0, eaves: 0x7cc03e, posts: 0x7cc03e, lanterns: 0x7cc03e, screens: 0x1e1e1e, floor: 0x7e8084 },
   Norsborg: { roof: 'flat', cover: [0, 0.8], under: 0xe0e0de, eaves: 0xd0702e, posts: 0xd0702e, lanterns: 0xd0702e, floor: 0x7e8084, screens: 0xd0702e, cutting: { kind: 'concrete' } },
@@ -30,7 +30,7 @@ export const OPEN_ROOFS: Record<string, CanopyDef> = {
 
   // The green line, west.
   'Hässelby strand': { roof: 'flat', cover: [0, 0.6], under: 0x4b4f55, eaves: 0x8a2c24, posts: 0x8a2c24, lanterns: 0x8a2c24, floor: 0x8e8f8c, building: 0xeeeeea },
-  'Hässelby gård': { roof: 'flat', cover: [0, 0.75], under: 0x9ea3a6, eaves: 0x6f757a, posts: 0x6f757a, floor: 0x8f8f8b },
+  'Hässelby gård': { roof: 'flat', cover: [0, 0.75], under: 0x9ea3a6, eaves: 0x6f757a, posts: 0x6f757a, floor: 0x8f8f8b, viaduct: true },
   Johannelund: { roof: 'none', lanterns: 0x5a6068, floor: 0x7d7e7c, building: 0x7c877f },
   Vällingby: { deck: 0x6a6966, walls: 0x2f4a3f, floor: 0x858581 },
   Råcksta: { roof: 'butterfly', cover: [0.1, 0.6], under: 0x2d3134, top: 0x2d3134, eaves: 0x2d3134, posts: 0x3a3f44, screens: 0x3a3f44, floor: 0x8b8c89 },
@@ -38,7 +38,7 @@ export const OPEN_ROOFS: Record<string, CanopyDef> = {
   Islandstorget: { roof: 'flat', cover: [0, 0.25], under: 0xb3b7b9, eaves: 0x5b6670, posts: 0x5b6670, lanterns: 0x5b6670, floor: 0x5f6163 },
   Ängbyplan: { roof: 'flat', cover: [0.25, 0.75], under: 0x3a3431, eaves: 0x8e3b2b, posts: 0x8e3b2b, lanterns: 0x8e3b2b, screens: 0x8e3b2b, floor: 0x7a7b79 },
   Åkeshov: { roof: 'flat', cover: [0, 0.5], under: 0xaeb2b4, eaves: 0x2e5a45, posts: 0x2e5a45, lanterns: 0x2e5a45, floor: 0x8a8b88 },
-  Brommaplan: { roof: 'butterfly', cover: [0.3, 0.7], under: 0x3a3e43, top: 0x3a3e43, eaves: 0x3a3e43, posts: 0x3a3f44, screens: 0x3a3f44, floor: 0x8a8b88 },
+  Brommaplan: { roof: 'butterfly', cover: [0.3, 0.7], under: 0x3a3e43, top: 0x3a3e43, eaves: 0x3a3e43, posts: 0x3a3f44, screens: 0x3a3f44, floor: 0x8a8b88, viaduct: true },
   Abrahamsberg: { roof: 'flat', cover: [0, 0.9], under: 0xb7bcbf, eaves: 0x3d4a5a, posts: 0x3d4a5a, floor: 0x8d8e8b },
   'Stora mossen': { roof: 'flat', cover: [0.2, 0.7], under: 0x2b3038, top: 0x2b3038, eaves: 0xe0622a, posts: 0x34393f, screens: 0x34393f, floor: 0x8a8b88, building: 0x6f9a8c },
   Alvik: { roof: 'flat', cover: [0, 0.9], under: 0x9fa4a8, eaves: 0x5e6368, posts: 0x5e6368, floor: 0x8e8e8a, building: 0xd8b25a },
@@ -67,6 +67,6 @@ export const OPEN_ROOFS: Record<string, CanopyDef> = {
   Tallkrogen: { roof: 'butterfly', cover: [0.3, 0.65], under: 0xe8e6df, top: 0x3a3a3a, eaves: 0x2a2c2e, posts: 0x2a2c2e, lanterns: 0x7a3a2a, floor: 0x8a8a86 },
   Gubbängen: { roof: 'butterfly', cover: [0, 0.6], under: 0xe8e6df, top: 0x3a3a3a, eaves: 0x3a3d40, posts: 0x3a3d40, floor: 0x8a8a86 },
   Hökarängen: { roof: 'butterfly', cover: [0, 0.85], rows: 2, under: 0xe8e6df, top: 0x3a3a3a, eaves: 0x4a4d50, posts: 0x4a4d50, floor: 0x8e8e8a },
-  Farsta: { roof: 'butterfly', cover: [0.1, 0.8], under: 0x6a6e72, eaves: 0x2a2c2e, posts: 0x2a2c2e, floor: 0x8a8a86, building: 0x2a5fb0 },
+  Farsta: { roof: 'butterfly', cover: [0.1, 0.8], under: 0x6a6e72, eaves: 0x2a2c2e, posts: 0x2a2c2e, floor: 0x8a8a86, building: 0x2a5fb0, viaduct: true },
   'Farsta strand': { deck: 0x3a3c3e, walls: 0x5a6a5e, floor: 0x7a7a78 },
 };

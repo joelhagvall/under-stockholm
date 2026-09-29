@@ -132,7 +132,8 @@ export function nearBuilding(patches: readonly OsmPatch[], x: number, z: number,
  * neighbouring sections share them out), and the ground under them beyond `reach`, where the usual ground ends.
  */
 /** @param clear ground where no house may stand: a ticket hall's stairs come up there (see `openGround`) */
-export function buildOsm(s: Section, facade: MeshBuilder, patch: OsmPatch, x0: number, x1: number, reach: number, clear: ReadonlyArray<{ x0: number; x1: number; z0: number; z1: number }> = []): void {
+/** @param ground how far below its usual level the ground lies along x (under a viaduct), the houses standing on it */
+export function buildOsm(s: Section, facade: MeshBuilder, patch: OsmPatch, x0: number, x1: number, reach: number, clear: ReadonlyArray<{ x0: number; x1: number; z0: number; z1: number }> = [], ground: (x: number) => number = () => 0): void {
   if (s.dry) return;
   // The ground runs on halfway to the next station (500 m off at the least), so two neighbours' grounds meet.
   const ga = Math.max(x0, patch.x0 - 20);
@@ -143,7 +144,12 @@ export function buildOsm(s: Section, facade: MeshBuilder, patch: OsmPatch, x0: n
       const zb = side * OSM_REACH;
       // Wound so the grass faces up on both sides.
       const [p, q] = side > 0 ? [za, zb] : [zb, za];
-      s.lit.gridQuad(new Vector3(ga, -0.3, p), new Vector3(gb, -0.3, p), new Vector3(gb, -0.3, q), new Vector3(ga, -0.3, q), GRASS, 16);
+      // In pieces, so it follows the ground down to a viaduct's foot.
+      for (let x = ga; x < gb; x += 48) {
+        const x2 = Math.min(gb, x + 48);
+        const [ya, yb] = [-0.3 + ground(x), -0.3 + ground(x2)];
+        s.lit.gridQuad(new Vector3(x, ya, p), new Vector3(x2, yb, p), new Vector3(x2, yb, q), new Vector3(x, ya, q), GRASS, 16);
+      }
     }
   }
   const a = new Vector3(), b = new Vector3(), c = new Vector3(), d = new Vector3();
@@ -161,15 +167,18 @@ export function buildOsm(s: Section, facade: MeshBuilder, patch: OsmPatch, x0: n
     const colour = rgb(bd.colour ?? pick(bd.pitched ? HOUSE_FACADES : FACADES, 71));
     const roof = bd.pitched && ring.length === 8 ? pitchedRoof(ring, bd.height) : null;
     const h = roof ? roof.eaves : bd.height;
+    // Standing on lower ground the whole house moves down, its storeys where they were on its walls.
+    const g = ground(mid);
+    if (roof) for (const v of [...roof.corners, ...roof.ridge]) v.y += g;
     // Walls, the facade's storeys running round the house from its first corner.
     let u = 0;
     for (let i = 0; i < ring.length; i += 2) {
       const j = (i + 2) % ring.length;
       const len = Math.hypot(ring[j] - ring[i], ring[j + 1] - ring[i + 1]);
-      a.set(ring[i], -0.5, ring[i + 1]);
-      b.set(ring[j], -0.5, ring[j + 1]);
-      c.set(ring[j], h, ring[j + 1]);
-      d.set(ring[i], h, ring[i + 1]);
+      a.set(ring[i], -0.5 + g, ring[i + 1]);
+      b.set(ring[j], -0.5 + g, ring[j + 1]);
+      c.set(ring[j], h + g, ring[j + 1]);
+      d.set(ring[i], h + g, ring[i + 1]);
       facade.tri(a, b, c, colour, { uvs: [[u, -0.5], [u + len, -0.5], [u + len, h]] });
       facade.tri(a, c, d, colour, { uvs: [[u, -0.5], [u + len, h], [u, h]] });
       u += len;
@@ -191,9 +200,9 @@ export function buildOsm(s: Section, facade: MeshBuilder, patch: OsmPatch, x0: n
     const contour: Vector2[] = [];
     for (let i = 0; i < ring.length; i += 2) contour.push(new Vector2(ring[i], ring[i + 1]));
     for (const [i, j, l] of ShapeUtils.triangulateShape(contour, [])) {
-      a.set(contour[i].x, h, contour[i].y);
-      b.set(contour[j].x, h, contour[j].y);
-      c.set(contour[l].x, h, contour[l].y);
+      a.set(contour[i].x, h + g, contour[i].y);
+      b.set(contour[j].x, h + g, contour[j].y);
+      c.set(contour[l].x, h + g, contour[l].y);
       up(a, b, c, ROOF);
     }
   });

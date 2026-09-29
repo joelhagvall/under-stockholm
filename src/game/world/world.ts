@@ -14,6 +14,7 @@ import {
   PLATFORM_HALF_L,
   PLATFORM_HALF_W,
   HALL_H,
+  VIADUCT,
   PLATFORM_Y,
   STREET,
   UNDERPASS_DEPTH,
@@ -25,8 +26,8 @@ import {
   TUBE_TOP,
   TUBE_WALL_H,
 } from '../layout';
-import { ghostX, hallDir, isOutdoor, lineEnd, stationRise, type HallDef, type Network } from '../line';
-import { buildOpenTrack, buildOpenTurnback, buildTunnelMouth, OPEN } from './outdoor';
+import { ghostX, hallDir, isOutdoor, lineEnd, stationRise, viaductAt, type HallDef, type Network } from '../line';
+import { buildOpenTrack, buildOpenTurnback, buildTunnelMouth, FLAT, OPEN, type Ground } from './outdoor';
 import { OSM_HALF_X, OsmData, type OsmPatch } from './osm';
 import { streetKey } from './osmKey';
 import { StreetLayers, hasStreetFile } from './streetLayers';
@@ -371,7 +372,7 @@ export class World {
         if (k < stretches.length - 1) mouths.push([st.to, -1]);
         // The second line's tracks on a wide bridge: only the rails, the rest is the first line's.
         if (link.lane) this.laneTracks(st.from, st.to, link.lane);
-        else this.openStretch(physics, st.from, st.to, mouths, seed + k, 0, city ? { wide } : null);
+        else this.openStretch(physics, st.from, st.to, mouths, seed + k, 0, city ? { wide } : null, this.viaductRamp(a, b, x0, x1, stretches));
         yield;
       }
       const cuts: Array<[number, number]> = [...(kymlingeX > x0 && kymlingeX < x1 ? [[kymlingeX - CAVE_HALF_L, kymlingeX + CAVE_HALF_L] as [number, number]] : []), ...(siding ? [siding] : [])];
@@ -399,7 +400,8 @@ export class World {
         const [t0, t1] = [Math.min(wall, far), Math.max(wall, far)];
         const make = function* (dry: boolean, osm: OsmPatch[] = []): Generator<void, Group> {
           const s = new Section(`turnback-${i}`, OPEN_AMBIENT, dry, true);
-          buildOpenTurnback(s, dry ? physics : NO_PHYSICS, wall, dir, TAIL_TUBE + CAVERN_LEN, 200 + i * 11, osm);
+          // Beyond a station up on a viaduct the tracks run on to their buffers in mid-air.
+          buildOpenTurnback(s, dry ? physics : NO_PHYSICS, wall, dir, TAIL_TUBE + CAVERN_LEN, 200 + i * 11, osm, viaductAt(net, i) ? () => -VIADUCT.drop : FLAT);
           yield;
           return yield* s.finishSteps();
         };
@@ -479,7 +481,23 @@ export class World {
    * `city` it is a bridge over the water with the skyline around, `wide`
    * enough for both lines' tracks where they share the way.
    */
-  private openStretch(physics: Physics, x0: number, x1: number, mouths: Array<[number, 1 | -1]>, seed: number, dx = 0, city: { wide: boolean } | null = null): void {
+  /**
+   * Where a station up on a viaduct (`VIADUCT`) opens onto the way to its neighbour from `x0` (at station `a`) to `x1`
+   * (at `b`): the ground rises from the viaduct's foot back to its usual level within `VIADUCT.ramp` meters, or by the
+   * tunnel mouth that ends the open air, if one comes sooner.
+   */
+  private viaductRamp(a: number, b: number, x0: number, x1: number, stretches: ReadonlyArray<{ from: number; to: number; open: boolean }>): Ground {
+    const on = (i: number) => viaductAt(this.net, i);
+    const first = stretches[0];
+    const last = stretches[stretches.length - 1];
+    const reachA = on(a) && first?.open && first.from === x0 ? Math.min(VIADUCT.ramp, first.to - x0) : 0;
+    const reachB = on(b) && last?.open && last.to === x1 ? Math.min(VIADUCT.ramp, x1 - last.from) : 0;
+    if (!reachA && !reachB) return FLAT;
+    const fall = (d: number, reach: number) => (reach > 0 ? -VIADUCT.drop * Math.max(0, 1 - d / reach) : 0);
+    return (x) => Math.min(fall(x - x0, reachA), fall(x1 - x, reachB));
+  }
+
+  private openStretch(physics: Physics, x0: number, x1: number, mouths: Array<[number, 1 | -1]>, seed: number, dx = 0, city: { wide: boolean } | null = null, ground: Ground = FLAT): void {
     const tracks = city?.wide ? [-TRACK_Z - LANE, -TRACK_Z, TRACK_Z, TRACK_Z + LANE] : [-TRACK_Z, TRACK_Z];
     const halfW = city?.wide ? CAVE_HALF_W + LANE + 0.5 : OPEN.fenceZ;
     // Built in stages with a bake per layer, so a stretch built on the way costs a frame per stage, not all at once.
@@ -491,7 +509,7 @@ export class World {
         buildBridge(s, p, x0, x1, halfW, city.wide ? [-TRACK_Z, TRACK_Z] : tracks);
         yield;
         buildCity(s, x0, x1, halfW, cityAnchors(net));
-      } else buildOpenTrack(s, p, x0, x1, seed, osm);
+      } else buildOpenTrack(s, p, x0, x1, seed, osm, ground);
       yield;
       for (const [x, dir] of mouths) buildTunnelMouth(s, p, x, dir, tracks, halfW + 1, !!city);
       yield;
@@ -858,7 +876,7 @@ export class World {
       }
       for (const lift of s.inclines) if (lift.contains(p)) return { station: s.index, area: 'escalator' };
       // Beyond an open-air station's fences, up the stairs from a hall under the tracks: the street.
-      if (s.outdoor && Math.abs(p.x - s.cx) <= CAVE_HALF_L && Math.abs(p.z) > OPEN.fenceZ + 0.2 && p.y > -1 && p.y < 9) return { station: s.index, area: 'street' };
+      if (s.outdoor && Math.abs(p.x - s.cx) <= CAVE_HALF_L && Math.abs(p.z) > OPEN.fenceZ + 0.2 && p.y > s.ground - 1 && p.y < 9) return { station: s.index, area: 'street' };
       for (const { exit, bounds, corridor } of s.halls) {
         // Up on the street, or on the flight up to it out beyond the hall's end wall. Among the real city the streets reach
         // far along x, so another station's up at a height of its own is not this one's.
