@@ -25,7 +25,7 @@ import type { Timetable } from '../server/gtfs';
 import { gtfsDepartures, type TimetableStore } from '../server/gtfsFeed';
 import { aggregate, PERF_EVERY_MS, PERF_KEPT, perfPage, readPerf, type BudgetUse, type PerfAggregate, type PerfReport } from '../server/perfCore';
 import { ADDRESS_DAY, addressKey, AGGREGATE_MS, BLOCK_DAY, blockKey, CachedBuild, Cooldown, DayCap, HOUR_MS, NOTE_EVERY_MS, NOTES_PER_HOUR, readBody, untilMidnight, utcDay } from '../server/limits';
-import { CLOSE_FLOOD, CLOSE_FULL, CLOSE_SPENT, flooding, IDLE_MS, newPlayer, readMessage, refill, refused, snapshots, spendMessage, TICK_MS, type Player } from '../server/pose';
+import { CLOSE_FLOOD, CLOSE_FULL, CLOSE_SPENT, flooding, hear, IDLE_MS, newPlayer, refill, refused, snapshots, spendMessage, TICK_MS, type Player } from '../server/pose';
 
 export interface Env {
   ASSETS: Fetcher;
@@ -214,8 +214,7 @@ export class Hub extends DurableObject<Env> {
         if (flooding(me) && this.clients.delete(server)) { try { server.close(CLOSE_FLOOD, 'flood'); } catch { /* Already gone. */ } }
         return;
       }
-      const pose = readMessage(event.data);
-      if (pose) { me.pose = pose; me.seen = Date.now(); }
+      hear(me, event.data);
     });
     const gone = () => { this.clients.delete(server); if (!this.clients.size) this.stop(); };
     server.addEventListener('close', gone);

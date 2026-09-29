@@ -4,9 +4,12 @@
 // Protocol (JSON over a WebSocket):
 //   server -> client  { t: 'hello', id, now }                        once, on connect
 //   client -> server  { t: 'p', p: [x, y, z, yaw, ride, lx, lz] }     twice a second (SEND_EVERY in src/game/ghosts.ts)
+//   client -> server  { t: 'w' }                                     a watcher with no pose (the network view), while shown
 //   server -> client  { t: 's', now, n, p: [[id, x, y, z, yaw, ride, lx, lz], ...] }   twice a second
 // `ride` is the index of the train the player rides (-1 on foot); lx and lz are then relative to that train, so
 // riders stay inside it despite latency. The client draws others a little behind (DELAY), between two snapshots.
+// A socket that says nothing for IDLE_MS is closed with reason 'idle': a paused game or a hidden tab. The client
+// opens it again when it plays or shows again, not at once, or a tab left open would reconnect every minute.
 // The relay closes a socket with CLOSE_SPENT when the day's budget for other players is spent, or the address has
 // spent its own share of the day (server/limits.ts; the client waits for midnight UTC either way), with CLOSE_FULL when it has MAX_CLIENTS or the address already has MAX_PER_ADDRESS (the client waits
 // a minute or two), and with CLOSE_FLOOD a socket that sends far more than any client does.
@@ -44,6 +47,10 @@ export function parsePose(raw: unknown): Pose | null {
   return [round(x), round(y), round(z), round(yaw), Math.trunc(ride), round(lx), round(lz)];
 }
 
+/** What a watcher sends, every WATCH_EVERY while its page is shown: no pose, only a sign it is still looking. */
+export const WATCH = '{"t":"w"}';
+export const WATCH_EVERY = 20_000;
+
 /** A pose message from a client, or null. Anything longer than a pose needs is not read at all. */
 export function readMessage(message: unknown): Pose | null {
   const text = String(message);
@@ -67,6 +74,14 @@ export interface Player {
   over: number;
   /** Messages received in all, read or not: the hub bills every twentieth to the address. */
   sent: number;
+}
+
+/** Takes a message from a player: a pose places them, a watch only keeps the socket open. */
+export function hear(player: Player, message: unknown, now = Date.now()): void {
+  const text = String(message);
+  if (text === WATCH) { player.seen = now; return; }
+  const pose = readMessage(text);
+  if (pose) { player.pose = pose; player.seen = now; }
 }
 
 export const newPlayer = (id: number, address: string, now = Date.now()): Player => ({ id, address, pose: null, seen: now, budget: MESSAGE_BUDGET, over: 0, sent: 0 });

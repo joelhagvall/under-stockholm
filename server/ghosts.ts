@@ -28,7 +28,7 @@ import { handleErrors } from './errors';
 import { handleFeeds } from './feeds';
 import { handlePerf } from './perf';
 import { addressKey, Cooldown, HOUR_MS, NOTE_EVERY_MS, NOTES_PER_HOUR, readBody } from './limits';
-import { CLOSE_FLOOD, CLOSE_FULL, flooding, IDLE_MS, MAX_CLIENTS, newPlayer, readMessage, refill, refused, snapshots, spendMessage, TICK_MS, type Player } from './pose';
+import { CLOSE_FLOOD, CLOSE_FULL, flooding, hear, IDLE_MS, MAX_CLIENTS, newPlayer, refill, refused, snapshots, spendMessage, TICK_MS, type Player } from './pose';
 
 // 0 lets the system pick a free port.
 const PORT = Number(process.env.PORT ?? 0);
@@ -113,8 +113,7 @@ const server = Bun.serve<Player>({
         if (flooding(ws.data)) { clients.delete(ws); ws.close(CLOSE_FLOOD, 'flood'); }
         return;
       }
-      const pose = readMessage(message);
-      if (pose) { ws.data.pose = pose; ws.data.seen = Date.now(); }
+      hear(ws.data, message);
     },
     close(ws) {
       clients.delete(ws);

@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { flooding, MAX_CLIENTS, MAX_PER_ADDRESS, MAX_SENT, MESSAGE_BUDGET, newPlayer, parsePose, readMessage, refill, refused, snapshots, spendMessage, STALE_MS, type Player } from '../server/pose';
+import { flooding, hear, MAX_CLIENTS, MAX_PER_ADDRESS, MAX_SENT, MESSAGE_BUDGET, newPlayer, parsePose, readMessage, refill, refused, snapshots, spendMessage, STALE_MS, WATCH, type Player } from '../server/pose';
 
 const player = (id: number, x: number | null, seen = 0, address = `10.0.0.${id}`): Player => ({ ...newPlayer(id, address, seen), pose: x === null ? null : [x, 0, 1, 0, -1, 0, 0] });
 
@@ -45,6 +45,18 @@ test('only well-formed poses are taken', () => {
   expect(readMessage(JSON.stringify({ t: 'p', p: [1, 2, 3, 4, 5, 6, 7], pad: 'x'.repeat(300) }))).toBeNull();
   expect(parsePose([Infinity, 0, 0, 0, 0, 0, 0])).toBeNull();
   expect(parsePose([1e9, 0, 0, 0, 0, 0, 0])).toBeNull();
+});
+
+test('a watcher stays connected without being placed', () => {
+  const p = newPlayer(1, '10.0.0.1', 0);
+  hear(p, WATCH, 30_000);
+  expect(p.seen).toBe(30_000);
+  expect(p.pose).toBeNull();
+  hear(p, 'not json', 40_000);
+  expect(p.seen).toBe(30_000);
+  hear(p, JSON.stringify({ t: 'p', p: [5, 0, 1, 0, -1, 0, 0] }), 50_000);
+  expect(p.seen).toBe(50_000);
+  expect(p.pose).toEqual([5, 0, 1, 0, -1, 0, 0]);
 });
 
 test('a client that floods is told apart from one that only bursts', () => {

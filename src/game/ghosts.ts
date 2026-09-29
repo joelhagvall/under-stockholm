@@ -47,6 +47,8 @@ export class Ghosts {
   private socket: WebSocket | null = null;
   private retry = 2;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Closed by the relay for saying nothing (paused, or the tab hidden): opened again on the next update. */
+  private dozing = false;
   private sendTimer = 0;
   private clock = 0;
   private lastSent = '';
@@ -76,6 +78,7 @@ export class Ghosts {
     if (enabled === this.enabled) return;
     this.enabled = enabled;
     this.group.visible = enabled;
+    this.dozing = false;
     if (enabled) this.connect();
     else this.disconnect();
   }
@@ -127,7 +130,10 @@ export class Ghosts {
       this.onCount?.(null);
       for (const remote of this.remotes.values()) hideFigure(this.mesh, remote.slot);
       this.remotes.clear();
-      this.scheduleRetry();
+      // Idle means no frames ran to send a pose: waiting for the next one, rather than a retry, keeps a paused game
+      // or a hidden tab from opening a new socket every minute.
+      if (event.reason === 'idle') this.dozing = true;
+      else this.scheduleRetry();
     };
     socket.onerror = () => socket.close();
   }
@@ -154,6 +160,7 @@ export class Ghosts {
   update(dt: number, me: GhostPose, listener: Vector3, trainAt: (ride: number) => { x: number; z: number } | null): void {
     this.clock += dt;
     this.sendTimer -= dt;
+    if (this.dozing) { this.dozing = false; this.connect(); }
     if (this.socket?.readyState === WebSocket.OPEN && this.sendTimer <= 0) {
       this.sendTimer = SEND_EVERY;
       const pose = [me.x, me.y, me.z, me.yaw, me.ride, me.lx, me.lz].map((v) => Math.round(v * 100) / 100);

@@ -395,21 +395,34 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
   const lastStatus = new Map<string, string>();
 
   // Other players, as fireflies at their place in the tunnels. The relay sends everyone's pose to anyone listening.
+  // The view has no pose to send, so it says it is watching (WATCH in server/pose.ts) while shown; hidden, the relay
+  // lets the socket go after a minute, and it opens again when the view is shown.
   let ghosts: number[][] = [];
   let online = 0;
   let socket: WebSocket | null = null;
+  let dozing = false;
   const url = ghostUrl();
-  if (url) {
+  const listen = () => {
+    if (!url || socket) return;
     try {
-      socket = new WebSocket(url);
-      socket.onmessage = (event) => {
+      const ws = new WebSocket(url);
+      socket = ws;
+      ws.onmessage = (event) => {
         try {
           const data = JSON.parse(String(event.data)) as { t?: string; p?: number[][]; n?: number };
           if (data.t === 's' && Array.isArray(data.p)) { ghosts = data.p; online = data.n ?? data.p.length; }
         } catch { /* Ignore. */ }
       };
+      // Only an idle close is opened again: a spent or full relay is left alone, as before.
+      ws.onclose = (event) => { if (socket === ws) socket = null; ghosts = []; online = 0; dozing = event.reason === 'idle'; };
     } catch { /* No fireflies. */ }
-  }
+  };
+  listen();
+  const watchTimer = window.setInterval(() => {
+    if (!document.hidden && socket?.readyState === WebSocket.OPEN) socket.send('{"t":"w"}');
+  }, 20_000);
+  const onVisible = () => { if (!document.hidden && dozing) { dozing = false; listen(); } };
+  document.addEventListener('visibilitychange', onVisible);
 
   // The day's long exposure.
   const posterBox = q<HTMLDivElement>('.net-poster');
@@ -777,6 +790,8 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
     window.removeEventListener('resize', resize);
     document.removeEventListener('keydown', onKey);
     window.clearTimeout(pollTimer);
+    window.clearInterval(watchTimer);
+    document.removeEventListener('visibilitychange', onVisible);
     socket?.close();
     void audio?.ctx.close();
     controls.dispose();
