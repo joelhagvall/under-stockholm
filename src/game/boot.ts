@@ -74,7 +74,7 @@ import { OpenAirWeather, Weather, type WeatherKind } from './weather';
 import { Disruptions, forStation } from './disruptions';
 import { Warnings } from './warnings';
 import { Wind, type WindTrain } from './wind';
-import { AdaptiveResolution } from './resolution';
+import { AdaptiveResolution, RENDER_SCALES } from './resolution';
 import { World } from './world/world';
 import type { DepartureRow } from './world/station';
 import { Sky, SKY_RADIUS } from './world/sky';
@@ -97,6 +97,13 @@ const REAL_SLOTS = [14, 44, 60];
 const LOADING_MIN = 4.5;
 /** Larger clock differences jump instead of slewing. */
 const CLOCK_JUMP = 20;
+/** The most frames drawn a second, and in battery saver. */
+const FPS_MOST = 60;
+const FPS_BATTERY = 30;
+/** How early a screen's tick may come and still count as a whole frame (a 60 Hz screen's ticks wander by a millisecond or two). */
+const FRAME_SLACK_MS = 2.5;
+/** How long a lost WebGL context is waited for before the page comes back without it, in ms. */
+const CONTEXT_WAIT = 4000;
 /** How far off a train's inside is still drawn (see `Train.setInteriorShown`): about as far as its passengers show. */
 const INTERIOR_REACH = 230;
 /** Trains each track's rows on the platform boards list, as SL's do. */
@@ -231,7 +238,8 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   setProgress(0.05);
   await nextFrame();
 
-  const renderer = new WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  // Battery saver asks for the power-saving GPU: on a laptop with two, the other one is what starts the fans.
+  const renderer = new WebGLRenderer({ antialias: true, powerPreference: settings.value.battery ? 'low-power' : 'high-performance' });
   renderer.domElement.className = 'game-canvas';
   renderer.domElement.setAttribute('aria-label', 'Under Stockholm game view');
   root.appendChild(renderer.domElement);
@@ -697,13 +705,16 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   let pixel = false;
   // Adaptive resolution (`resolution.ts`), fed each frame's time and the last frame's own work.
   const resolution = new AdaptiveResolution();
+  /** Whether the player has been told about battery saver, once a visit. */
+  let batteryTold = false;
   /** The last frame's own work, from its start to the end of the render call. */
   let workMs = 0;
   const resize = () => {
     renderNeeded = true;
     const w = root.clientWidth || window.innerWidth;
     const h = root.clientHeight || window.innerHeight;
-    renderer.setPixelRatio(pixel ? 0.42 : Math.min(window.devicePixelRatio, touchMode ? 1.5 : 2) * resolution.scale);
+    const most = settings.value.battery ? 1 : touchMode ? 1.5 : 2;
+    renderer.setPixelRatio(pixel ? 0.42 : Math.min(window.devicePixelRatio, most) * resolution.scale);
     renderer.setSize(w, h, true);
     renderer.domElement.classList.toggle('is-pixel', pixel);
     player.camera.aspect = w / h;
@@ -715,7 +726,14 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   // Touch play never needs pointer lock. All pause paths clear held input.
   const canvas = renderer.domElement;
   // The baked world lives only on the GPU (`dropArray` in `section.ts`), so a lost context cannot be filled again:
-  // the page comes back instead, where the player stood.
+  // the page comes back instead, where the player stood, also when the browser never restores the context. The loss
+  // is reported, since to the player it only looks like the game jumping back.
+  canvas.addEventListener('webglcontextlost', (event) => {
+    event.preventDefault();
+    reportError(new Error('WebGL context lost'), false);
+    try { rememberPlace(); } catch { /* The page comes back to the last place kept. */ }
+    window.setTimeout(() => { comeBack(); location.reload(); }, CONTEXT_WAIT);
+  });
   canvas.addEventListener('webglcontextrestored', () => {
     rememberPlace();
     comeBack();
@@ -777,6 +795,19 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   });
   hud.soundButton.addEventListener('click', toggleSound);
   hud.pixelButton.addEventListener('click', togglePixels);
+  hud.setOption(hud.batteryButton, settings.value.battery);
+  hud.batteryButton.addEventListener('click', (event) => {
+    event.stopPropagation();
+    settings.change((s) => { s.battery = !s.battery; });
+    hud.setOption(hud.batteryButton, settings.value.battery);
+    resize();
+  });
+  hud.unstuckButton.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (driving) stopDriving();
+    else if (!respawning && !saver.active && !show.active) respawn(text.unstuck.done);
+    resume();
+  });
   hud.driverButton.addEventListener('click', (event) => {
     event.stopPropagation();
     if (driving) stopDriving(); else startDriving();
@@ -1711,7 +1742,15 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
       return;
     }
     if (manualDt === null) {
-      if (resolution.frame(frameMs, workMs, now)) resize();
+      resolution.heldMs = settings.value.battery ? 1000 / FPS_BATTERY : 0;
+      if (resolution.frame(frameMs, workMs, now)) {
+        resize();
+        // At the lowest notch the machine is struggling: say once that battery saver makes it lighter.
+        if (resolution.level === RENDER_SCALES.length - 1 && !settings.value.battery && !batteryTold) {
+          batteryTold = true;
+          hud.tip(text.battery.tip, 8);
+        }
+      }
       telemetry?.frame(frameMs, workMs);
     }
     if (!freezeTimetable) time += dt;
@@ -2447,7 +2486,15 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     root.appendChild(card);
     reload.focus();
   };
-  renderer.setAnimationLoop(() => {
+  // At most 60 frames a second (30 in battery saver): a 120 or 144 Hz screen would otherwise have the game draw
+  // twice what anyone sees the difference of, and a laptop spin up its fans. A tick that comes too soon is skipped,
+  // and the time over a whole frame is carried, so a 144 Hz screen still averages 60.
+  let ranAt = -Infinity;
+  renderer.setAnimationLoop((now: number) => {
+    const interval = 1000 / (settings.value.battery ? FPS_BATTERY : FPS_MOST);
+    const since = now - ranAt;
+    if (manualDt === null && since < interval - FRAME_SLACK_MS) return;
+    ranAt = since >= interval && since < interval * 3 ? now - (since % interval) : now;
     try { frame(); } catch (err) { crash(err); }
   });
   crashFacts(() => ({ where: world.nearestStation(player.feet.x).name, gpu: gpuName(renderer.getContext()) }));

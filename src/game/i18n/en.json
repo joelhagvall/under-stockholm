@@ -158,6 +158,15 @@
   "modes": "Something else",
   "support": "Enjoying the game? Buy Joel a single ticket",
   "feedback": "Found a bug or have an idea? Email Joel",
+  "unstuck": {
+    "button": "Stuck? Back to the platform",
+    "done": "Back on the platform."
+  },
+  "battery": {
+    "toggle": "Battery saver",
+    "hint": "Easier on the computer: 30 frames a second and fewer pixels. Fans and battery will thank you.",
+    "tip": "Your computer seems to be struggling. Battery saver in the settings makes the game lighter."
+  },
   "crash": {
     "title": "Something went wrong",
     "note": "The game stopped. Reload and you will be back where you stood.",

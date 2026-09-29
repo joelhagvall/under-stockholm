@@ -940,6 +940,16 @@ kbd {
   text-underline-offset: 3px;
 }
 
+button.pause-support {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .pause-support:hover {
   color: var(--ink);
 }

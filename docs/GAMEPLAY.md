@@ -6,7 +6,7 @@ How to move, ride, sit and listen. What the game contains is in [FEATURES.md](FE
 
 Phones and tablets use a left thumbstick to walk and a drag on the scene to look around. Both work simultaneously. On-screen buttons provide running and jumping; sitting, standing and climbing appear when available. The map button opens the route map. The pause menu provides sound, passengers, carriage sway and pixel settings, plus touch instructions. No keyboard or pointer lock is needed.
 
-Portrait and landscape layouts respect screen safe areas. Touch rendering caps the pixel ratio at 1.5, and on any device the resolution drops a notch when frames run slow and comes back when there is headroom. Pausing or hiding the page stops the simulation and clears held input; rotating the device resets active gestures. To test the touch layout on a desktop, use `?debug&touch`.
+Portrait and landscape layouts respect screen safe areas. Touch rendering caps the pixel ratio at 1.5, and on any device the resolution drops a notch when frames run slow and comes back when there is headroom. The game draws at most 60 frames a second, and 30 with *Batteriläge* in the settings, which also draws one pixel per screen pixel. Pausing or hiding the page stops the simulation and clears held input; rotating the device resets active gestures. To test the touch layout on a desktop, use `?debug&touch`.
 
 | Key | Action |
 | --- | --- |

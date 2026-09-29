@@ -807,6 +807,15 @@
   "modes": "Gör något annat",
   "support": "Gillar du spelet? Bjud Joel på en enkelbiljett",
   "feedback": "Hittat en bugg eller har en idé? Mejla Joel",
+  "unstuck": {
+    "button": "Fastnat? Tillbaka till perrongen",
+    "done": "Tillbaka på perrongen."
+  },
+  "battery": {
+    "toggle": "Batteriläge",
+    "hint": "Sparar på datorn: 30 bilder i sekunden och färre pixlar. Fläktar och batteri tackar.",
+    "tip": "Datorn verkar ha det kämpigt. Batteriläge i inställningarna gör spelet lättare."
+  },
   "crash": {
     "title": "Något gick fel",
     "note": "Spelet stannade. Ladda om så kommer du tillbaka där du stod.",

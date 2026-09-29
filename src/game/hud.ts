@@ -43,6 +43,8 @@ export class Hud {
   private readonly pauseCard: HTMLElement;
   readonly soundButton: HTMLButtonElement;
   readonly pixelButton: HTMLButtonElement;
+  readonly batteryButton: HTMLButtonElement;
+  readonly unstuckButton: HTMLButtonElement;
   readonly motionButtons: HTMLButtonElement[];
   private readonly interaction: HTMLParagraphElement;
   private readonly tipLine: HTMLParagraphElement;
@@ -164,6 +166,7 @@ export class Hud {
           </div>
         </section>
         <p class="pause-links">
+          <button type="button" class="pause-support pause-unstuck" data-t="unstuck.button"></button>
           <a class="pause-support" href="mailto:${FEEDBACK_MAIL}?subject=Under%20Stockholm" data-t="feedback"></a>
           <a class="pause-support" href="https://buymeacoffee.com/joelhagvall" target="_blank" rel="noopener" data-t="support"></a>
         </p>
@@ -187,6 +190,7 @@ export class Hud {
             <button type="button" class="pause-option pause-voices" aria-pressed="false" data-t-title="voices.hint"><span data-t="voices.toggle"></span> <strong></strong></button>
             <button type="button" class="hud-crowd pause-crowd pause-motion" aria-pressed="true" data-key="motion"><span data-t="motion"></span> <strong></strong> <kbd></kbd></button>
             <button type="button" class="pause-option pause-pixels" aria-pressed="false"><span data-t="touch.pixels"></span> <strong></strong></button>
+            <button type="button" class="pause-option pause-battery" aria-pressed="false" data-t-title="battery.hint"><span data-t="battery.toggle"></span> <strong></strong></button>
             <button type="button" class="pause-option pause-lang"><span data-t="settings.language"></span> <strong data-t="language"></strong></button>
           </div>
           ${touch ? '<p class="settings-touch-help" data-t="touch.help"></p>' : ''}
@@ -199,6 +203,8 @@ export class Hud {
     this.resumeButton = this.pause.querySelector('.pause-resume')!;
     this.soundButton = this.pause.querySelector('.pause-sound')!;
     this.pixelButton = this.pause.querySelector('.pause-pixels')!;
+    this.batteryButton = this.pause.querySelector('.pause-battery')!;
+    this.unstuckButton = this.pause.querySelector('.pause-unstuck')!;
     this.crowdButtons = [q<HTMLButtonElement>('.hud-crowd'), this.pause.querySelector<HTMLButtonElement>('.pause-crowd')!];
     this.motionButtons = [q<HTMLButtonElement>('.hud-motion'), this.pause.querySelector<HTMLButtonElement>('.pause-motion')!];
     this.ghostButton = this.pause.querySelector('.pause-ghosts')!;

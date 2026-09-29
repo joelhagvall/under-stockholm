@@ -21,6 +21,8 @@ const text = document.documentElement.lang === 'en' ? en : sv;
 const POLL = 30_000;
 /** Ms after the map mounts before it first asks for SL's trains. */
 const FIRST_POLL = 2500;
+/** Milliseconds between the markers' moves. */
+const MOVE_MS = 50;
 /** The band branches spread over, in px from the top of the map. Matches .line-map's height in style.css. */
 const TOP = 26;
 const BOTTOM = 106;
@@ -357,13 +359,20 @@ export function mountLineMap(root: HTMLElement): void {
 
   for (const b of lineButtons) b.addEventListener('click', () => { line = Number(b.dataset.line); drawLine(); });
 
-  // Markers move every frame; the text list only changes once a second.
+  // Markers move 20 times a second, smooth enough for trains crossing a map and a fraction of a 120 Hz screen's
+  // frames; the text list only changes once a second.
+  let lastMove = 0;
   function frame(ms: number): void {
     if (!visible()) {
       // Paused while the game runs or the tab is hidden; check back now and then.
       window.setTimeout(() => requestAnimationFrame(frame), 1000);
       return;
     }
+    if (ms - lastMove < MOVE_MS && lastList && ms - lastList <= 1000) {
+      requestAnimationFrame(frame);
+      return;
+    }
+    lastMove = ms;
     const current = trains(Date.now() / 1000);
     if (!still) drawMarkers(current);
     if (!lastList || ms - lastList > 1000) {

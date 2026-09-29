@@ -15,6 +15,8 @@ const RUN = 9;
 const GRAVITY = 20;
 const JUMP = 6.4; // about a meter of lift: enough for benches, bins and gates
 const LOOK = 0.0022;
+/** A mouse move larger than this, in pixels, out of a much smaller one, is taken for the browser's glitch. */
+const MOUSE_LEAP = 250;
 
 /** First-person walker on a Rapier kinematic character controller. */
 export class Player {
@@ -117,9 +119,17 @@ export class Player {
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
     window.addEventListener('blur', () => this.resetInput());
+    // Browsers now and then report a captured mouse's movement as one leap across the screen out of nowhere (Chrome
+    // on Windows, and the first move after the mouse is taken), and the view would snap round. A leap far beyond the
+    // move before it is dropped; a real flick builds up over a few moves and gets through.
+    let before = 0;
+    document.addEventListener('pointerlockchange', () => { before = 0; });
     document.addEventListener('mousemove', (e) => {
       if (!this.enabled || !document.pointerLockElement) return;
-      this.look(e.movementX, e.movementY);
+      const size = Math.max(Math.abs(e.movementX), Math.abs(e.movementY));
+      const leap = size > MOUSE_LEAP && size > before * 4;
+      before = size;
+      if (!leap) this.look(e.movementX, e.movementY);
     });
   }
 

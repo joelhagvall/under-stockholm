@@ -23,6 +23,8 @@ export class AdaptiveResolution {
   private trial: { before: number; sum: number; frames: number } | null = null;
   /** A frame time the browser holds to however little is drawn, found by a notch that did not help. */
   private floorMs = 0;
+  /** The frame time the game holds itself to (battery saver's 30 fps), which says nothing about drawing either. */
+  heldMs = 0;
 
   get scale(): number {
     return RENDER_SCALES[this.level];
@@ -48,12 +50,12 @@ export class AdaptiveResolution {
     }
     // Held up by the game's own code: fewer pixels would not help.
     if (workMs > frameMs * 0.6) return false;
-    this.quickFrames = frameMs < Math.max(17.5, this.floorMs) ? this.quickFrames + 1 : 0;
+    this.quickFrames = frameMs < Math.max(17.5, this.floorMs, this.heldMs * 1.1) ? this.quickFrames + 1 : 0;
     this.window.push(frameMs);
     if (this.window.length >= WINDOW) {
       const median = this.window.sort((a, b) => a - b)[WINDOW >> 1];
       this.window.length = 0;
-      if (median > Math.max(SLOW_MS, this.floorMs) && this.level < RENDER_SCALES.length - 1) {
+      if (median > Math.max(SLOW_MS, this.floorMs, this.heldMs * 1.15) && this.level < RENDER_SCALES.length - 1) {
         this.level++;
         this.loweredAt = now;
         this.trial = { before: median, sum: 0, frames: 0 };

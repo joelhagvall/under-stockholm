@@ -25,13 +25,15 @@ export interface Settings {
   fov: number;
   volume: Record<Channel, number>;
   keys: Record<Action, string>;
+  /** Spares a laptop: 30 frames a second, one pixel per screen pixel and the power-saving GPU (from the next start). */
+  battery: boolean;
 }
 
 export const SENSITIVITY = { min: 0.25, max: 3, step: 0.05 };
 export const FOV = { min: 60, max: 100, step: 1, initial: 72 };
 
 function defaults(): Settings {
-  return { sensitivity: 1, fov: FOV.initial, volume: { master: 1, announcements: 1, ambience: 1, trains: 1 }, keys: { ...DEFAULT_KEYS } };
+  return { sensitivity: 1, fov: FOV.initial, volume: { master: 1, announcements: 1, ambience: 1, trains: 1 }, keys: { ...DEFAULT_KEYS }, battery: false };
 }
 
 const clamp = (v: unknown, min: number, max: number, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback);
@@ -44,6 +46,7 @@ function load(): Settings {
     s.fov = clamp(raw.fov, FOV.min, FOV.max, FOV.initial);
     for (const c of CHANNELS) s.volume[c] = clamp(raw.volume?.[c], 0, 1, 1);
     for (const a of ACTIONS) if (typeof raw.keys?.[a] === 'string') s.keys[a] = raw.keys[a];
+    s.battery = raw.battery === true;
   } catch { /* Defaults. */ }
   return s;
 }
