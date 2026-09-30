@@ -1,8 +1,9 @@
-import { Vector3 } from 'three';
+import { BoxGeometry, Matrix4, Vector3 } from 'three';
 import { mix, rgb, type RGB } from '../gfx/color';
 import { noise3 } from '../gfx/noise';
 import {
   CAVERN_HALF_W,
+  CONNECTOR,
   CAVERN_TOP,
   CAVERN_WALL_H,
   TRACK_Z,
@@ -14,6 +15,7 @@ import {
   TUBE_WALL_H,
 } from '../layout';
 import text from '../i18n/sv.json';
+import type { Paint } from '../gfx/builder';
 import type { Physics } from '../physics';
 import type { Section } from './section';
 import { archHole, archProfile, extrudeRock, extrudeRockSteps, rectHole, wallWithHoles, type ProfilePoint } from './shapes';
@@ -76,6 +78,8 @@ export interface TubeExtras {
 export interface TubePlace {
   lane?: number;
   sides?: ReadonlyArray<-1 | 1>;
+  /** No lamps: a tube no train in service takes. */
+  dark?: boolean;
 }
 
 export function buildTubes(s: Section, physics: Physics, x0: number, x1: number, seed: number, escape = false, place: TubePlace = {}): TubeExtras {
@@ -113,7 +117,7 @@ export function* tubeSteps(s: Section, physics: Physics, x0: number, x1: number,
       s.lit.box({ x: x0, y, z: wallZ - 0.05 }, { x: x1, y: y + 0.08, z: wallZ + 0.05 }, PAINT.cable, ['px', 'nx']);
     }
     const first = Math.ceil(x0 / 25) * 25;
-    for (let x = first; x < x1; x += 25) {
+    for (let x = first; x < x1 && !place.dark; x += 25) {
       s.unlit.box({ x: x - 0.25, y: 3.2, z: wallZ - 0.1 }, { x: x + 0.25, y: 3.4, z: wallZ + 0.1 }, PAINT.lampWarm);
       s.light(x, 3.3, zc + Math.sign(zc) * 1.6, TUNNEL_LAMP, 1.15, 11);
     }
@@ -288,6 +292,73 @@ export function buildTurnback(s: Section, physics: Physics, wallX: number, dir: 
  * train turning back, where a route ends but its line goes on (Alvik,
  * Åkeshov). Tube mouths open at both ends.
  */
+/** Where a connector's branch leaves its cavern at `x1`: its distance out from the line's middle. */
+export function connectorOut(): number {
+  return TRACK_Z + (CONNECTOR.length - 8) * Math.tan(CONNECTOR.angle);
+}
+
+/**
+ * A connecting track's cavern from `x0` to `x1` (the branch leaving toward `x1`): both running tracks through it, a
+ * switch off the one on `side` just past `x0` and the branch running out at an angle to a hole in the far wall, locked
+ * off by a gate, with a red signal at the switch.
+ */
+export function buildConnector(s: Section, physics: Physics, x0: number, x1: number, side: -1 | 1, seed: number): void {
+  const C = CONNECTOR;
+  const mid = side * C.shift;
+  const profile = archProfile(mid, C.halfW, CAVERN_WALL_H, CAVERN_TOP, -0.4, 18);
+  extrudeRock(s.lit, profile, x0, x1, { step: 2.5, amplitude: 0.6, seed }, PAINT.tunnelRock);
+  s.lit.box({ x: x0, y: -0.4, z: mid - C.halfW }, { x: x1, y: 0, z: mid + C.halfW }, PAINT.ballast, ['ny']);
+  for (const zc of [-TRACK_Z, TRACK_Z]) addTrack(s, x0, x1, zc, true);
+  // The branch: from the switch straight out at its angle, a slab and two rails.
+  const start = new Vector3(x0 + 8, 0, side * TRACK_Z);
+  const out = connectorOut();
+  const end = new Vector3(x1, 0, side * out);
+  const run = end.distanceTo(start);
+  const along = Math.atan2(-(end.z - start.z), end.x - start.x);
+  const beam = (w: number, h: number, y: number, dz: number, paint: Paint) => {
+    const m = new Matrix4().makeRotationY(along);
+    m.setPosition(new Vector3((start.x + end.x) / 2, y, (start.z + end.z) / 2).add(new Vector3(0, 0, dz).applyMatrix4(new Matrix4().makeRotationY(along))));
+    s.lit.geometry(new BoxGeometry(run, h, w), m, paint);
+  };
+  beam(2.2, 0.12, 0.06, 0, PAINT.concrete);
+  for (const rz of [-0.72, 0.72]) beam(0.07, 0.16, 0.2, rz, (_p, n) => (n.y > 0.5 ? PAINT.railTop : PAINT.steel));
+  const tubes = [-TRACK_Z, TRACK_Z].map((zc) => archHole(zc, TUBE_HALF_W, TUBE_WALL_H, TUBE_TOP, TUBE_BOTTOM));
+  wallWithHoles(s.lit, x0, profile, tubes, PAINT.tunnelRock);
+  wallWithHoles(s.lit, x1, profile, [...tubes, archHole(side * out, TUBE_HALF_W + 0.1, TUBE_WALL_H, TUBE_TOP, TUBE_BOTTOM)], PAINT.tunnelRock);
+  // The gate across the branch, just inside the far wall.
+  const gx = x1 - 0.4;
+  for (let z = -TUBE_HALF_W + 0.15; z <= TUBE_HALF_W - 0.1; z += 0.25) {
+    s.lit.box({ x: gx - 0.03, y: 0, z: side * out + z - 0.03 }, { x: gx + 0.03, y: 3.2, z: side * out + z + 0.03 }, PAINT.steel);
+  }
+  for (const y of [0.1, 1.6, 3.1]) s.lit.box({ x: gx - 0.05, y, z: side * out - TUBE_HALF_W }, { x: gx + 0.05, y: y + 0.1, z: side * out + TUBE_HALF_W }, (p) => (Math.floor(p.z * 2) & 1 ? rgb(0xe0b020) : rgb(0x1a1a1a)));
+  physics.box({ x: gx - 0.3, y: -1, z: side * out - TUBE_HALF_W - 0.5 }, { x: gx + 0.3, y: 6, z: side * out + TUBE_HALF_W + 0.5 });
+  // One lamp over the gate, so the branch shows as a way off into the dark and not a patch of shadow.
+  s.unlit.box({ x: x1 - 0.2, y: TUBE_TOP + 0.4, z: side * out - 0.3 }, { x: x1, y: TUBE_TOP + 0.55, z: side * out + 0.3 }, PAINT.lampWarm);
+  s.light(x1 - 2.5, TUBE_TOP, side * out, TUNNEL_LAMP, 1.2, 12);
+  // A red signal before the switch, on the outer side.
+  const sz = side * (TRACK_Z + 2.1);
+  s.lit.box({ x: x0 + 3.9, y: 0, z: sz - 0.08 }, { x: x0 + 4.1, y: 2.6, z: sz + 0.08 }, PAINT.fixture);
+  s.lit.box({ x: x0 + 3.8, y: 2.3, z: sz - 0.2 }, { x: x0 + 4.2, y: 3.0, z: sz + 0.2 }, PAINT.fixture);
+  s.unlit.box({ x: x0 + 3.75, y: 2.72, z: sz - 0.1 }, { x: x0 + 3.8, y: 2.9, z: sz + 0.1 }, rgb(0xff2a1a));
+  s.light(x0 + 3.2, 2.8, sz, rgb(0xff3322), 0.5, 4);
+  for (let x = x0 + 12; x < x1; x += 20) {
+    for (const z of [mid - C.halfW + 0.3, mid + C.halfW - 0.3]) {
+      s.unlit.box({ x: x - 0.3, y: 3.6, z: z - 0.12 }, { x: x + 0.3, y: 3.8, z: z + 0.12 }, PAINT.lampWarm);
+      s.light(x, 3.7, mid + (z - mid) * 0.8, TUNNEL_LAMP, 1.1, 14);
+    }
+  }
+  const lo = mid - C.halfW, hi = mid + C.halfW;
+  physics.box({ x: x0, y: -1, z: lo }, { x: x1, y: -0.02, z: hi });
+  physics.box({ x: x0, y: -1, z: hi }, { x: x1, y: 9, z: hi + 1 });
+  physics.box({ x: x0, y: -1, z: lo - 1 }, { x: x1, y: 9, z: lo });
+  for (const [a, b] of [[x0 - 0.5, x0], [x1, x1 + 0.5]]) {
+    physics.box({ x: a, y: TUBE_TOP, z: lo }, { x: b, y: 9, z: hi });
+    physics.box({ x: a, y: -1, z: TUBE_OUTER }, { x: b, y: 9, z: Math.max(hi, TUBE_OUTER + 0.1) });
+    physics.box({ x: a, y: -1, z: Math.min(lo, -TUBE_OUTER - 0.1) }, { x: b, y: 9, z: -TUBE_OUTER });
+    physics.box({ x: a, y: -1, z: -TUBE_INNER }, { x: b, y: 9, z: TUBE_INNER });
+  }
+}
+
 export function buildSiding(s: Section, physics: Physics, x0: number, x1: number, seed: number, open = false): void {
   if (open) {
     // In the open air, the middle track simply lies between the running tracks.

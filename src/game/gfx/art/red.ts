@@ -692,30 +692,6 @@ export const bergshamraArt = art('bergshamra', 36, 1978, (v) => {
   }
 });
 
-// ---------------------------------------------------------------- Stadion
-
-/**
- * Enno Hallek and Åke Pallarp's grotto: the whole cave painted sky blue and
- * marbled, darker blue and white streaking over the rock like weather, as if
- * one stood outdoors. The rainbow over the middle of the platform is its own
- * piece (see `details/red.ts`).
- */
-export const stadionArt = art('stadion', 20, 1973, (v) => {
-  const { ctx, rnd } = v;
-  fill(v, '#6a9fd6');
-  mottle(v, ['40, 90, 170', '170, 210, 240'], 80, 2.2);
-  // Streaks: long wavering strokes, dark and white, mostly along the cave.
-  for (let i = 0; i < 160; i++) {
-    const dark = i % 3 !== 0;
-    let x = rnd() * v.period, y = rnd() * v.arc, a = (rnd() - 0.5) * 1.2;
-    const pts: Array<[number, number]> = [[x, y]];
-    for (let s = 0; s < 10; s++) { a += (rnd() - 0.5) * 0.8; x += Math.cos(a) * 0.35; y += Math.sin(a) * 0.35; pts.push([x, y]); }
-    const width = 0.03 + rnd() * (dark ? 0.12 : 0.07);
-    const color = dark ? `rgba(24, 60, 130, ${0.35 + rnd() * 0.35})` : `rgba(236, 244, 252, ${0.45 + rnd() * 0.4})`;
-    v.wrap(() => line(ctx, pts, color, width));
-  }
-});
-
 // ---------------------------------------------------------------- Mariatorget
 
 /**

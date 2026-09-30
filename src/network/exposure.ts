@@ -200,7 +200,7 @@ export function renderPoster(day: ExposureDay, view: ExposureView, width = 2480)
       ctx.beginPath();
       poly.forEach(([lat, lon], i) => {
         const p = project(lat, lon);
-        const q = { ...p, depth: 0 };
+        const q = { ...p, depth: 0, y: 0 };
         if (i) ctx.lineTo(toX(q), toY(q)); else ctx.moveTo(toX(q), toY(q));
       });
       ctx.closePath();

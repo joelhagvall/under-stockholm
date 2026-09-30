@@ -469,6 +469,17 @@ export const BLUE_LINE: LineDef = {
 /** The whole metro. */
 export const NETWORK = buildNetwork([BLUE_LINE, RED_LINE, GREEN_LINE]);
 
+/**
+ * The track that joins the green line to the blue: it leaves the green line past Thorildsplan toward Fridhemsplan and
+ * meets the blue line between Rådhuset and Fridhemsplan. No train in service takes it: in each tunnel it is a switch
+ * in a cavern of its own and a tube leading off into the dark (`buildConnector`), and in the network view a thin line
+ * between the two. Each end names its line, its tunnel's two stations and the one the branch leaves toward, `to`.
+ */
+export const CONNECTORS: ReadonlyArray<{ line: LineDef['id']; from: string; to: string }> = [
+  { line: 'blue', from: 'Rådhuset', to: 'Fridhemsplan' },
+  { line: 'green', from: 'Thorildsplan', to: 'Fridhemsplan' },
+];
+
 /** Every train slot of the network for `Operations` (see `serviceSlots`). */
 export function networkSlots(net: Network, services: LineService[], spares: readonly number[] = []): ServiceSlot[] {
   return serviceSlots(net.lines, net.layout, services, spares);

@@ -27,6 +27,9 @@
 }
 .net-labels span.is-on { display: block; }
 .net-labels span.is-target { color: #ffb444; font-weight: 700; font-size: 14px; }
+.net-labels small { display: none; font-size: 11px; color: #d9b98c; }
+.net-labels span.is-near small { display: inline; }
+.net-labels span.net-link { font-size: 11px; font-style: italic; color: #b8c2d0; }
 
 .net-head { position: absolute; left: max(16px, env(safe-area-inset-left)); top: max(14px, env(safe-area-inset-top)); max-width: min(420px, calc(100% - 140px)); pointer-events: none; }
 .net-head h1 { margin: 0; font-size: 22px; }
@@ -78,6 +81,8 @@
 .net-pick select:focus-visible { outline: 3px solid #ffb444; outline-offset: 2px; }
 .net-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
 .net-hint { flex: 1 1 100%; margin: 0; font-size: 13px; color: #9aa6b6; }
+.net-credit { flex: 1 1 100%; margin: 0; font-size: 11px; color: #9aa6b6; }
+.net-credit a { color: inherit; }
 
 .net-fade { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 0.6s; }
 .net-fade.is-on { opacity: 1; }

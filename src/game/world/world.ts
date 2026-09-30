@@ -21,13 +21,14 @@ import {
   STREET,
   TAIL_TUBE,
   CAVERN_LEN,
+  CONNECTOR,
   TRACK_Z,
   TUBE_BOTTOM,
   TUBE_HALF_W,
   TUBE_TOP,
   TUBE_WALL_H,
 } from '../layout';
-import { ghostX, hallDir, isOutdoor, lineEnd, stationRise, viaductAt, type HallDef, type Network } from '../line';
+import { CONNECTORS, ghostX, hallDir, isOutdoor, lineEnd, stationRise, viaductAt, type HallDef, type Network } from '../line';
 import { buildOpenTrack, buildOpenTurnback, buildTunnelMouth, FLAT, OPEN, type Clearing, type Ground } from './outdoor';
 import { OSM_HALF_X, OsmData, type OsmPatch } from './osm';
 import { streetKey } from './osmKey';
@@ -36,7 +37,7 @@ import { buildBridge, buildCity, cityAnchors } from './city';
 import type { Link } from '../routes';
 import { LOADING_SLICE_MS, nextFrame } from '../frames';
 import type { Physics } from '../physics';
-import { addTrack, buildSiding, buildTubes, buildTurnback, tubeSteps, PAINT, type TubePlace } from './parts';
+import { addTrack, buildConnector, buildSiding, buildTubes, buildTurnback, connectorOut, tubeSteps, PAINT, type TubePlace } from './parts';
 import { buildGraffiti } from './graffiti';
 import { Section, sharedMaterials } from './section';
 import { shifted } from './shifted';
@@ -393,7 +394,14 @@ export class World {
         else this.openStretch(physics, st.from, st.to, mouths, seed + k, 0, city ? { wide } : null, this.viaductRamp(a, b, x0, x1, stretches));
         yield;
       }
-      const cuts: Array<[number, number]> = [...(kymlingeX > x0 && kymlingeX < x1 ? [[kymlingeX - CAVE_HALF_L, kymlingeX + CAVE_HALF_L] as [number, number]] : []), ...(siding ? [siding] : [])];
+      // Where the track to another line leaves this tunnel, a cavern with its switch.
+      const connector = this.connectorIn(link, stretches);
+      if (connector) yield* this.connector(physics, connector, eager(a) && eager(b), tunnelAmbient, 400 + a * 13);
+      const cuts: Array<[number, number]> = [
+        ...(kymlingeX > x0 && kymlingeX < x1 ? [[kymlingeX - CAVE_HALF_L, kymlingeX + CAVE_HALF_L] as [number, number]] : []),
+        ...(siding ? [siding] : []),
+        ...(connector ? [[connector.x0, connector.x1] as [number, number]] : []),
+      ];
       const parts: Array<[number, number]> = stretches.filter((st) => !st.open).flatMap((st) => without([st.from, st.to], cuts));
       for (const [index, [from, to]] of parts.entries()) {
         if (eager(a) && eager(b)) {
@@ -696,6 +704,48 @@ export class World {
       if (r.siding.east && r.stations[0] === link.b) return [xs[link.b] - CAVE_HALF_L - TAIL_TUBE - CAVERN_LEN, xs[link.b] - CAVE_HALF_L - TAIL_TUBE];
     }
     return null;
+  }
+
+  /**
+   * Where a connecting track (`CONNECTORS`) leaves the tunnel of `link`: a cavern at the end of its last stretch
+   * underground toward the station the branch leaves toward, with room past it for the branch, and the running track
+   * that heads that way (track 1 runs toward +x).
+   */
+  private connectorIn(link: Link, stretches: ReadonlyArray<{ from: number; to: number; open: boolean }>): { x0: number; x1: number; side: -1 | 1 } | null {
+    const { stations, lines } = this.net;
+    const [a, b] = [stations[link.a], stations[link.b]];
+    const c = CONNECTORS.find((k) => lines[a.line].id === k.line && a.line === b.line && [a.name, b.name].includes(k.from) && [a.name, b.name].includes(k.to));
+    if (!c) return null;
+    // Only a branch leaving toward +x is built: both there are do.
+    if (b.name !== c.to) throw new Error(`The connector from ${c.from} to ${c.to} leaves toward -x`);
+    const tube = stretches.filter((st) => !st.open).at(-1);
+    const x1 = tube ? tube.to - CONNECTOR.branch * Math.cos(CONNECTOR.angle) - 10 : NaN;
+    const x0 = x1 - CONNECTOR.length;
+    if (!tube || x0 < tube.from + 10) throw new Error(`No room for the connector's cavern between ${a.name} and ${b.name}`);
+    return { x0, x1, side: -1 };
+  }
+
+  /** A connecting track's cavern, and its branch turned off at its angle into the dark (see `buildConnector`). */
+  private *connector(physics: Physics, c: { x0: number; x1: number; side: -1 | 1 }, now: boolean, ambient: ReturnType<typeof rgb>, seed: number): Generator<void, void> {
+    const make = function* (dry: boolean): Generator<void, Group> {
+      const s = new Section('connector', ambient, dry);
+      buildConnector(s, dry || now ? physics : NO_PHYSICS, c.x0, c.x1, c.side, seed);
+      yield;
+      // The branch is built along x at its track's usual place, then turned and moved to leave the cavern's far wall.
+      const t = new Section('connector-branch', ambient, dry);
+      yield* tubeSteps(t, NO_PHYSICS, 0, CONNECTOR.branch, seed + 1, false, { sides: [c.side], dark: true });
+      closeTube(t, NO_PHYSICS, CONNECTOR.branch - 0.5, c.side * TRACK_Z);
+      const branch = yield* t.finishSteps();
+      const turn = -c.side * CONNECTOR.angle;
+      branch.rotation.y = turn;
+      branch.position.set(c.x1 - c.side * TRACK_Z * Math.sin(turn), 0, c.side * connectorOut() - c.side * TRACK_Z * Math.cos(turn));
+      const group = yield* s.finishSteps();
+      group.add(branch);
+      return group;
+    };
+    if (now) { this.group.add(yield* make(false)); return; }
+    drain(make(true));
+    this.later(c.x0, c.x1 + CONNECTOR.branch, function* (this: World) { yield* this.add(yield* make(false)); }.bind(this));
   }
 
   private siding(physics: Physics, x0: number, x1: number, now: boolean, ambient: ReturnType<typeof rgb>, seed: number, open = false): void {

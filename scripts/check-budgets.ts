@@ -37,7 +37,8 @@ const runtime: string[] = [];
 for await (const path of new Bun.Glob('assets/*.{js,wasm}').scan(root)) runtime.push(path);
 // OpenStreetMap's buildings along the open-air tracks (a file per line) and the city round each exit (a file per station
 // end): none of it is part of the download, each file is fetched when the player comes near its stretch or street, so
-// each has a limit of its own, and all of them one together.
+// each has a limit of its own, and all of them one together. The network view's city (a file per tile) and ground
+// heights are fetched when it opens, and count here too.
 const mapData: string[] = [];
 for await (const path of new Bun.Glob('assets/*.json').scan(root)) mapData.push(path);
 const budgets = [

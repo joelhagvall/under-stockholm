@@ -31,7 +31,8 @@ const SCENES: Scene[] = [
     // and a feed plays it without sound.
     name: 'T-Centralen',
     view: 'game',
-    place: `{ const s = __us.world.stations[1]; __stand(s.cx + 60.5, 1.1, -3.9, Math.PI / 2 + 0.2); }`,
+    // In the opening of the wall down the island, looking out over the track under the vines.
+    place: `{ const s = __us.world.stations[1]; __stand(s.cx + 12, 1.1, -0.5, Math.PI / 2 - 0.4, 0.15); }`,
     start: `__before(1, 1, 9);`,
     each: `__us.player.yaw -= 0.0006;`,
     seconds: 2 * BAR,
@@ -126,7 +127,7 @@ const SCENES: Scene[] = [
     // Rådhuset in 1975, as a train comes in.
     name: '1975',
     view: 'game',
-    place: `__us.stopDriving(); __us.era.set('1975', false); { const s = __us.world.stations[2]; __stand(s.cx - 60.5, 1.1, 3.9, -Math.PI / 2 + 0.2); }`,
+    place: `__us.stopDriving(); __us.era.set('1975', false); { const s = __us.world.stations[2]; __stand(s.cx - 12, 1.1, 0.5, -Math.PI / 2 - 0.4, 0.15); }`,
     start: `__before(2, 2, 4);`,
     seconds: BAR,
     caption: ['Åk tillbaka till 1975'],
@@ -146,7 +147,7 @@ const SCENES: Scene[] = [
     // The power cut on T-Centralen's platform: the tubes die and the phone torches come out.
     name: 'Power cut',
     view: 'game',
-    place: `{ const s = __us.world.stations[1]; __stand(s.cx - 60.5, 1.1, 3.9, -Math.PI / 2 + 0.2); }`,
+    place: `{ const s = __us.world.stations[1]; __stand(s.cx - 12, 1.1, 0.5, -Math.PI / 2 - 0.4, 0.15); }`,
     start: `__us.powerCut(0.3, 90);`,
     each: `__us.player.yaw += 0.001;`,
     seconds: BAR,
@@ -159,7 +160,8 @@ const SCENES: Scene[] = [
     name: 'The whole network',
     view: 'network',
     place: `document.querySelector('.net-day').click(); __net.camera.position.set(-10 + 22, 62, 88);`,
-    each: `{ const c = __net.camera.position, a = 0.004, x = c.x + 10; c.x = x * Math.cos(a) - c.z * Math.sin(a) - 10; c.z = x * Math.sin(a) + c.z * Math.cos(a); c.y -= 0.12; }`,
+    // The trains' lights a little larger than in the view, so one sees them run along the lines.
+    each: `{ const c = __net.camera.position, a = 0.004, x = c.x + 10; c.x = x * Math.cos(a) - c.z * Math.sin(a) - 10; c.z = x * Math.sin(a) + c.z * Math.cos(a); c.y -= 0.12; __net.trains.material.size = 11; }`,
     seconds: BAR,
     // The view's day runs 1440 times faster than the clock: slower here, or the trains jump between frames and flicker.
     speed: 0.3,
@@ -188,11 +190,11 @@ const SCENES: Scene[] = [
     captionAt: 0,
   },
   {
-    // Where the dive lands: Stadion's rainbow, as a train comes in.
+    // Where the dive lands: Stadion's rainbow arching over the vault, as a train comes in under it.
     name: 'Stadion',
     view: 'game',
-    place: `{ const s = __us.world.stations[__station('Stadion')]; __stand(s.cx + 60.5, 1.1, -3.9, Math.PI / 2 + 0.2); }`,
-    start: `__before(__station('Stadion'), 1, 5.5);`,
+    place: `{ const s = __us.world.stations[__station('Stadion')]; __stand(s.cx - 14, 1.1, 2.4, -Math.PI / 2 - 0.35, 0.25); }`,
+    start: `__before(__station('Stadion'), 2, 5.5);`,
     seconds: BAR,
     speed: 1.3,
     fadeIn: 0.5,

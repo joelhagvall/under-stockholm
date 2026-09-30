@@ -1,28 +1,35 @@
 import './network.css';
 import {
-  AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, FogExp2, InstancedMesh,
-  LineBasicMaterial, LineSegments, Matrix4, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, PlaneGeometry, Points, PointsMaterial,
+  AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, Color, DoubleSide, FogExp2, Group, InstancedMesh, Line,
+  LineBasicMaterial, LineSegments, Matrix4, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Plane, Points, PointsMaterial, Quaternion,
   Raycaster, Scene, SphereGeometry, SRGBColorSpace, TubeGeometry, Vector2, Vector3, WebGLRenderer,
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import sv from '../i18n/sv.json';
 import en from '../i18n/en.json';
 import { busyness, formatClock, stockholm, stockholmEpoch } from '../game/clock';
-import { NETWORK } from '../game/line';
+import { CONNECTORS, NETWORK } from '../game/line';
 import { ghostUrl } from '../game/relay';
 import { realTrainsAvailable } from '../game/sl';
 import { LINES } from '../landing/lines';
 import { fetchSightings, RealTrains } from '../landing/realTrains';
 import { gameTrains, layout, ROUTE_STATIONS, type MapTrain } from '../landing/trains';
-import { allRoutes, blend, LINE_POINTS, lerp, placeTrain, silverTrain, STATIONS, type NetPoint } from './data';
+import { allRoutes, blend, depthOf, FLAT, lerp, linePoints, placeTrain, silverTrain, stationsOf, trainPoint, type Ground, type LinePoints, type NetPoint, type Relief } from './data';
 import { dayOf, posterFile, renderPoster, type ExposureDay, type ExposureView } from './exposure';
-import { project, WATER } from './geo';
+import { cityGeometry, groundGeometry, groundTexture, section, sectionGeometry, type CityTile } from './surface';
+import { decodeTerrain, groundOf, type Terrain, type TerrainFile } from './terrain';
+import terrainUrl from './terrain.json?url';
+
+/** The city's buildings, a file per tile (`scripts/osm-city.ts`), fetched when the view opens. */
+const CITY = import.meta.glob<string>('./city/*.json', { query: '?url', import: 'default', eager: true });
 
 /**
- * The whole network at once: every line a glowing tube at its real depth under a dark Stockholm, every train a
- * point of light with a fading trail, from the same timetables as the game (or SL's real trains). A time scrubber,
- * a morph from geography to the line map, a note per departure, other players as fireflies, the day's long
- * exposure, and a click on a station to go down there. Loaded on its own with `import()`, like the game.
+ * The whole network at once: every line a glowing tube at its real depth under a see-through Stockholm with its hills,
+ * water and buildings, cut open down the middle of the view so one sees the tunnels in the rock, every train a point
+ * of light with a fading trail, from the same timetables as the game (or SL's real trains). Heights are stretched
+ * upward more the further out one looks, or not at all at true scale. A time scrubber, a morph from geography to the
+ * line map, a note per departure, other players as fireflies, the day's long exposure, and a click on a station to go
+ * down there. Loaded on its own with `import()`, like the game.
  */
 
 const text = (document.documentElement.lang === 'en' ? en : sv).network;
@@ -30,12 +37,44 @@ const format = (template: string, values: Record<string, string | number>) => te
 
 /** Meters per scene unit. */
 const UNIT = 100;
-/** Depth is exaggerated, so the network reads as roots under the city. */
-const DEPTH_X = 20;
+/** Heights are stretched this much seen from far out, so the network reads as roots under the city, */
+const STRETCH_FAR = 10;
+/** and this much seen from close by. */
+const STRETCH_NEAR = 2;
+/** The cut stands this far off when there is none, in scene units: nothing is on the far side of it. */
+const NO_CUT = 1e6;
 /** Samples back in time per train for its trail. */
 const TRAIL = 8;
 const MAX_TRAINS = 420;
 const MAX_GHOSTS = 64;
+/** A train: three C20 units of 46.5 m, a little apart, each drawn as a car along the track. */
+const CAR = { length: 46.5, gap: 1.5, units: 3 };
+
+/** A car's side: silver, a dark band of lit windows, the doors, a darker skirt. */
+function carSide(): CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 64;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#d9dee4';
+  g.fillRect(0, 0, 512, 64);
+  g.fillStyle = '#1b2230';
+  g.fillRect(6, 16, 500, 22);
+  // Windows lit from inside, with the doors between them.
+  for (let k = 0; k < 8; k++) {
+    const x = 12 + k * 62;
+    g.fillStyle = '#ffe2a0';
+    g.fillRect(x, 19, 38, 16);
+    g.fillStyle = '#8f98a4';
+    g.fillRect(x + 44, 12, 12, 44);
+  }
+  g.fillStyle = '#5d6570';
+  g.fillRect(0, 50, 512, 14);
+  const t = new CanvasTexture(c);
+  t.colorSpace = SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
 const GLOW: Record<string, string> = { blue: '#4696ff', red: '#ff465f', green: '#3cd778' };
 /** A day in a minute. */
 const DAY_RATE = 1440;
@@ -48,7 +87,6 @@ export interface NetworkOptions {
   close(): void;
 }
 
-const toScene = (p: NetPoint, out = new Vector3()) => out.set(p.east / UNIT, -(p.depth * DEPTH_X) / UNIT, -p.north / UNIT);
 
 /** A soft round spot for points of light. */
 function spot(): CanvasTexture {
@@ -66,43 +104,12 @@ function spot(): CanvasTexture {
   return t;
 }
 
-/** The ground: land, water and a faint kilometer grid, seen through. */
-function groundTexture(reach: number): CanvasTexture {
-  const size = 2048;
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
-  const g = c.getContext('2d')!;
-  const px = (m: number) => ((m + reach) / (2 * reach)) * size;
-  g.fillStyle = '#121a26';
-  g.fillRect(0, 0, size, size);
-  g.strokeStyle = 'rgba(160, 190, 230, 0.07)';
-  g.lineWidth = 1;
-  for (let m = -reach; m <= reach; m += 1000) {
-    g.beginPath(); g.moveTo(px(m), 0); g.lineTo(px(m), size); g.stroke();
-    g.beginPath(); g.moveTo(0, px(m)); g.lineTo(size, px(m)); g.stroke();
-  }
-  g.fillStyle = '#050b16';
-  for (const poly of WATER) {
-    g.beginPath();
-    poly.forEach(([lat, lon], i) => {
-      const p = project(lat, lon);
-      if (i) g.lineTo(px(p.east), px(-p.north)); else g.moveTo(px(p.east), px(-p.north));
-    });
-    g.closePath();
-    g.fill();
-  }
-  const t = new CanvasTexture(c);
-  t.colorSpace = SRGBColorSpace;
-  t.anisotropy = 4;
-  return t;
-}
-
 /** Where a point along world x in the game lies on the network: between the two stations of its tunnel. */
-function worldToNet(x: number, morph: number): NetPoint | null {
+function worldToNet(x: number, morph: number, points: LinePoints): NetPoint | null {
   const pointOf = (g: number) => {
     const li = layout.lineOf[g];
     const local = layout.global[li].indexOf(g);
-    return blend(LINE_POINTS[li][local], morph);
+    return blend(points[li][local], morph);
   };
   for (const l of layout.links) {
     let xa = layout.x[l.a];
@@ -115,14 +122,29 @@ function worldToNet(x: number, morph: number): NetPoint | null {
     const f = (x - xa) / (xb - xa);
     const a = pointOf(l.a);
     const b = pointOf(l.b);
-    return { east: lerp(a.east, b.east, f), north: lerp(a.north, b.north, f), depth: lerp(a.depth, b.depth, f) };
+    return { east: lerp(a.east, b.east, f), north: lerp(a.north, b.north, f), depth: lerp(a.depth, b.depth, f), y: lerp(a.y, b.y, f) };
   }
   let near = 0;
   layout.x.forEach((sx, i) => { if (Math.abs(sx - x) < Math.abs(layout.x[near] - x)) near = i; });
   return Math.abs(layout.x[near] - x) < 800 ? pointOf(near) : null;
 }
 
+/** The ground's heights, or none if they could not be fetched: then the city lies flat. */
+async function loadTerrain(): Promise<Terrain | null> {
+  try {
+    const res = await fetch(terrainUrl);
+    return res.ok ? decodeTerrain((await res.json()) as TerrainFile) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function mountNetwork(root: HTMLElement, options: NetworkOptions): Promise<() => void> {
+  // The ground first: every station's height comes from it.
+  const terrain = await loadTerrain();
+  const ground: Ground = terrain ? groundOf(terrain) : FLAT;
+  const points = linePoints(ground);
+  const STATIONS = stationsOf(points);
   root.classList.add('net');
   root.innerHTML = `
     <canvas class="net-canvas" tabindex="0" role="img" aria-label="${text.canvas}"></canvas>
@@ -141,11 +163,14 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
         <button type="button" class="net-day">${text.day}</button>
         <button type="button" class="net-toggle net-sound" aria-pressed="false">${text.sound}</button>
         <button type="button" class="net-toggle net-real" aria-pressed="false" hidden>${text.real}</button>
+        <button type="button" class="net-toggle net-cut" aria-pressed="true">${text.cut}</button>
+        <button type="button" class="net-toggle net-scale" aria-pressed="false">${text.trueScale}</button>
         <button type="button" class="net-exposure">${text.exposure}</button>
       </div>
       <label class="net-morph"><span>${text.geo}</span><input type="range" min="0" max="1" step="0.01" value="0" aria-label="${text.morph}"><span>${text.schematic}</span></label>
       <label class="net-pick"><span>${text.pick}</span><select name="station"><option value="">${text.pickNone}</option></select></label>
       <p class="net-hint" role="status">${text.hint}</p>
+      <p class="net-credit">${text.heights} · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">${text.buildings}</a></p>
     </div>
     <div class="net-fade"></div>
     <div class="net-poster" hidden role="dialog" aria-modal="true" aria-labelledby="net-poster-title">
@@ -185,10 +210,11 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
 
   const renderer = new WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  renderer.localClippingEnabled = true;
   const scene = new Scene();
   scene.background = new Color('#04060a');
   scene.fog = new FogExp2('#04060a', 0.0028);
-  const camera = new PerspectiveCamera(50, 1, 0.5, 2000);
+  const camera = new PerspectiveCamera(50, 1, 0.1, 2000);
   camera.position.set(-40, 150, 185);
   const controls = new OrbitControls(camera, canvas);
   controls.target.set(-10, -4, 0);
@@ -196,17 +222,108 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
   // The arrow keys move the view once the canvas has focus.
   controls.listenToKeyEvents(canvas);
   controls.maxDistance = 520;
-  controls.minDistance = 8;
+  controls.minDistance = 3;
   controls.maxPolarAngle = Math.PI * 0.62;
   controls.update();
 
-  // The ground, seen through: land, water, a grid.
+  // How much heights are stretched: more seen from far out, where 30 meters down would not show, and at true scale not
+  // at all. The tubes are rebuilt when it has moved enough; the city is a group stretched as a whole.
+  let trueScale = false;
+  let stretch = STRETCH_FAR;
+  const stretchWanted = () => {
+    if (trueScale) return 1;
+    const d = camera.position.distanceTo(controls.target);
+    return Math.min(STRETCH_FAR, Math.max(STRETCH_NEAR, STRETCH_NEAR * (d / 10) ** (Math.log(STRETCH_FAR / STRETCH_NEAR) / Math.log(30))));
+  };
+  /** How big the tubes, stations and trains are drawn: smaller close by, where they would hide the city. */
+  const girth = () => Math.min(1, Math.max(0.15, camera.position.distanceTo(controls.target) / 200));
+  let size = girth();
+  const toScene = (p: NetPoint, out = new Vector3()) => out.set(p.east / UNIT, (p.y * stretch) / UNIT, -p.north / UNIT);
+
+  // The city, in meters: the ground seen through, with its hills and water, the buildings, and the face of the cut.
   const REACH = 26_000;
-  const groundMat = new MeshBasicMaterial({ map: groundTexture(REACH), transparent: true, opacity: 0.55, depthWrite: false, side: DoubleSide });
-  const ground = new Mesh(new PlaneGeometry((2 * REACH) / UNIT, (2 * REACH) / UNIT), groundMat);
-  ground.rotation.x = -Math.PI / 2;
-  ground.renderOrder = -1;
-  scene.add(ground);
+  const surface = new Group();
+  scene.add(surface);
+  // The cut: a notch taken out of the city in front of the point looked at, as wide as the face of the cut through
+  // that point and a little deeper toward the viewer, so one looks into the ground at the tunnels. Four walls, and
+  // the city is left out only inside all of them.
+  const cut = new Plane(new Vector3(1, 0, 0), NO_CUT);
+  const cutBack = new Plane(new Vector3(1, 0, 0), 0);
+  const cutLeft = new Plane(new Vector3(1, 0, 0), 0);
+  const cutRight = new Plane(new Vector3(1, 0, 0), 0);
+  const cutPlanes = [cut, cutBack, cutLeft, cutRight];
+  const groundMap = groundTexture(REACH, terrain, ground);
+  const groundMat = new MeshBasicMaterial({ map: groundMap, vertexColors: true, transparent: true, opacity: 0.55, depthWrite: false, side: DoubleSide, clippingPlanes: cutPlanes, clipIntersection: true });
+  const groundMesh = new Mesh(groundGeometry(REACH, terrain, ground), groundMat);
+  groundMesh.renderOrder = -2;
+  surface.add(groundMesh);
+  const cityMat = new MeshBasicMaterial({ color: '#8ea4c4', vertexColors: true, transparent: true, opacity: 0.3, depthWrite: false, side: DoubleSide, clippingPlanes: cutPlanes, clipIntersection: true });
+  const cityMeshes: Mesh[] = [];
+  let disposed = false;
+  // The buildings come a tile at a time, after the view is up.
+  void (async () => {
+    for (const [path, url] of Object.entries(CITY)) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok || disposed) continue;
+        const data = (await res.json()) as CityTile;
+        if (disposed) return;
+        const mesh = new Mesh(cityGeometry(path.replace(/^.*\/|\.json$/g, ''), data, ground), cityMat);
+        mesh.renderOrder = -1;
+        cityMeshes.push(mesh);
+        surface.add(mesh);
+      } catch { /* The city without that tile. */ }
+    }
+  })();
+  const sectionGeo = sectionGeometry();
+  const sectionMat = new MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: DoubleSide });
+  const sectionFace = new Mesh(sectionGeo.face, sectionMat);
+  sectionFace.renderOrder = -1;
+  const sectionEdge = new Line(sectionGeo.edge, new LineBasicMaterial({ color: '#d9b98c', transparent: true, opacity: 0.7 }));
+  sectionFace.frustumCulled = sectionEdge.frustumCulled = false;
+  surface.add(sectionFace, sectionEdge);
+  let cutOn = true;
+  const cutButton = q<HTMLButtonElement>('.net-cut');
+  cutButton.addEventListener('click', () => {
+    cutOn = !cutOn;
+    cutButton.setAttribute('aria-pressed', String(cutOn));
+  });
+  const scaleButton = q<HTMLButtonElement>('.net-scale');
+  scaleButton.addEventListener('click', () => {
+    trueScale = !trueScale;
+    scaleButton.setAttribute('aria-pressed', String(trueScale));
+  });
+  const lastCut = new Vector3(NaN, 0, 0);
+  const cutDir = new Vector3();
+  /** Moves the cut to where the view looks from, and fills its face again when it has moved. */
+  const placeCut = () => {
+    const show = cutOn && morph < 0.98;
+    sectionFace.visible = sectionEdge.visible = show;
+    if (!show) { cut.constant = NO_CUT; return; }
+    cutDir.subVectors(controls.target, camera.position).setY(0);
+    if (cutDir.lengthSq() < 1e-6) cutDir.set(0, 0, -1);
+    cutDir.normalize();
+    const far = camera.position.distanceTo(controls.target);
+    const half = Math.min(REACH, Math.max(1500, Math.round((far * UNIT * 0.3) / 250) * 250));
+    const across = new Vector3(-cutDir.z, 0, cutDir.x);
+    const at = cutDir.dot(controls.target), side = across.dot(controls.target);
+    cut.normal.copy(cutDir);
+    cut.constant = -at;
+    cutBack.normal.copy(cutDir).negate();
+    cutBack.constant = at - far * 1.1;
+    cutLeft.normal.copy(across).negate();
+    cutLeft.constant = side - half / UNIT;
+    cutRight.normal.copy(across);
+    cutRight.constant = -side - half / UNIT;
+    // A new face only when the view has turned or moved enough to see it.
+    const key = new Vector3(Math.atan2(cutDir.x, cutDir.z), controls.target.x, controls.target.z);
+    if (Math.abs(key.x - lastCut.x) < 0.004 && Math.hypot(key.y - lastCut.y, key.z - lastCut.z) < 0.05 && half === lastCutHalf) return;
+    lastCut.copy(key);
+    lastCutHalf = half;
+    // Along the cut: square to the view, in meters east and north.
+    section(sectionGeo, ground, controls.target.x * UNIT, -controls.target.z * UNIT, -cutDir.z, -cutDir.x, half);
+  };
+  let lastCutHalf = 0;
 
   // Tubes, shafts and stations, rebuilt when the morph moves.
   const tubes = new Object3D();
@@ -224,28 +341,72 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
   const stationPos = STATIONS.map(() => new Vector3());
 
   let morph = 0;
-  let routes = allRoutes(0);
+  let routes = allRoutes(0, points);
+  /** The ground under the tunnels, as much of it as the morph leaves. */
+  const relief: Relief = { ground, share: 1 };
+  const tubeMats = LINES.map((line) => new MeshBasicMaterial({ color: GLOW[line.id], transparent: true, opacity: 0.32, blending: AdditiveBlending, depthWrite: false }));
+  // The connecting track between the green line and the blue: a thin grey line from where it leaves one tunnel to
+  // where it meets the other, dipping under both (see `CONNECTORS`), where the game has its switch and branch.
+  const linkMat = new MeshBasicMaterial({ color: '#b8c2d0', transparent: true, opacity: 0.4, blending: AdditiveBlending, depthWrite: false });
+  let linkMesh: Mesh | null = null;
+  const linkLabel = document.createElement('span');
+  linkLabel.textContent = text.link;
+  linkLabel.className = 'net-link';
+  labelLayer.append(linkLabel);
+  const linkMid = new Vector3();
+  /** Each end of the connecting track: a point along its tunnel, a third of the way from the station it leaves toward. */
+  const linkEnds = () => CONNECTORS.map((c) => {
+    const li = LINES.findIndex((l) => l.id === c.line);
+    const at = (name: string) => blend(points[li][LINES[li].stations.findIndex((st) => st.name === name)], morph);
+    const a = at(c.to), b = at(c.from);
+    const f = 0.33;
+    return { east: lerp(a.east, b.east, f), north: lerp(a.north, b.north, f), depth: lerp(a.depth, b.depth, f), y: lerp(a.y, b.y, f) };
+  });
+  /** How far the tubes were stretched when last built. */
+  let builtStretch = 0;
+  let builtSize = 0;
   function build(): void {
-    routes = allRoutes(morph);
+    routes = allRoutes(morph, points);
+    relief.share = 1 - morph;
+    relief.spread = size;
+    builtStretch = stretch;
+    builtSize = size;
+    // Close by, the cars show the trains and the lights only mark them.
+    (trainPoints.material as PointsMaterial).size = 2.5 * size;
+    (fireflies.material as PointsMaterial).size = 2.2 * size;
     for (const child of [...tubes.children]) { (child as Mesh).geometry.dispose(); tubes.remove(child); }
     LINES.forEach((line, li) => line.routes.forEach((_, r) => {
-      const pts = routes[li][r].map((p) => toScene(p));
+      // The tubes along the trains' own way, dipping under what lies between stations.
+      const route = routes[li][r];
+      const pts: Vector3[] = [];
+      for (let k = 0; k <= (route.length - 1) * 6; k++) pts.push(toScene(trainPoint(route, k / 6, 0.5, relief)));
       const curve = new CatmullRomCurve3(pts, false, 'centripetal');
-      const mat = new MeshBasicMaterial({ color: GLOW[line.id], transparent: true, opacity: 0.32, blending: AdditiveBlending, depthWrite: false });
-      tubes.add(new Mesh(new TubeGeometry(curve, pts.length * 10, 0.32, 6, false), mat));
+      tubes.add(new Mesh(new TubeGeometry(curve, pts.length * 2, 0.32 * size, 6, false), tubeMats[li]));
     }));
+    if (linkMesh) { linkMesh.geometry.dispose(); tubes.remove(linkMesh); }
+    const [a, b] = linkEnds();
+    const low = Math.min(a.y, b.y) - 10 * (1 - morph);
+    const mid = { east: (a.east + b.east) / 2, north: (a.north + b.north) / 2, depth: 0, y: low };
+    toScene(mid, linkMid);
+    linkMesh = new Mesh(new TubeGeometry(new CatmullRomCurve3([toScene(a), linkMid.clone(), toScene(b)]), 24, 0.14 * size, 5, false), linkMat);
+    tubes.add(linkMesh);
     const shaftPts: number[] = [];
+    const lift = (stretch * (1 - morph)) / UNIT;
     STATIONS.forEach((s, i) => {
-      toScene(blend(s, morph), stationPos[i]);
-      shaftPts.push(stationPos[i].x, stationPos[i].y, stationPos[i].z, stationPos[i].x, 0, stationPos[i].z);
+      const p = blend(s, morph);
+      toScene(p, stationPos[i]);
+      shaftPts.push(stationPos[i].x, stationPos[i].y, stationPos[i].z, stationPos[i].x, ground(s.geo.east, s.geo.north) * lift, stationPos[i].z);
     });
     shaftGeo.setAttribute('position', new BufferAttribute(new Float32Array(shaftPts), 3));
     shaftGeo.computeBoundingSphere();
-    groundMat.opacity = 0.55 * (1 - morph);
-    ground.visible = morph < 0.98;
     shafts.visible = morph < 0.9;
+    const fade = 1 - morph;
+    groundMat.opacity = 0.55 * fade;
+    cityMat.opacity = 0.3 * fade;
+    sectionMat.opacity = fade;
+    surface.visible = morph < 0.98;
+    surface.scale.set(1 / UNIT, Math.max(1e-3, lift), 1 / UNIT);
   }
-  build();
 
   // Trains: points of light with fading trails, and the players online as fireflies.
   const sprite = spot();
@@ -261,11 +422,32 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
   const trails = new LineSegments(trailGeo, new LineBasicMaterial({ vertexColors: true, transparent: true, blending: AdditiveBlending, depthWrite: false }));
   trails.frustumCulled = false;
   scene.add(trails);
+  // The trains as cars: silver sides with their windows lit, the roof and ends in the line's colour (tinted per train).
+  const carGeo = new BoxGeometry(1, 1, 1);
+  const carTexture = carSide();
+  const sideMat = new MeshBasicMaterial({ map: carTexture });
+  const roofMat = new MeshBasicMaterial({ color: '#ffffff' });
+  const endMat = new MeshBasicMaterial({ color: '#c8ced6' });
+  const underMat = new MeshBasicMaterial({ color: '#30343a' });
+  // Box faces: the ends, the roof and the underside, the two sides.
+  const cars = new InstancedMesh(carGeo, [endMat, endMat, roofMat, underMat, sideMat, sideMat], MAX_TRAINS * CAR.units);
+  cars.frustumCulled = false;
+  cars.count = 0;
+  scene.add(cars);
+  const carQuat = new Quaternion();
+  const carScale = new Vector3();
+  const carAt = new Vector3();
+  const carAhead = new Vector3();
+  const carBehind = new Vector3();
+  const alongX = new Vector3(1, 0, 0);
+  const carColour = new Color();
+  const white = new Color('#ffffff');
   const ghostGeo = new BufferGeometry();
   ghostGeo.setAttribute('position', new BufferAttribute(new Float32Array(MAX_GHOSTS * 3), 3));
   const fireflies = new Points(ghostGeo, new PointsMaterial({ size: 2.2, map: sprite, color: '#ffd27a', transparent: true, blending: AdditiveBlending, depthWrite: false }));
   fireflies.frustumCulled = false;
   scene.add(fireflies);
+  build();
 
   // Labels: the interchanges and ends always, the rest when near or pointed at.
   const always = new Set<number>();
@@ -275,15 +457,21 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
       for (const k of [seq[0], seq[seq.length - 1]]) if (line.stations[k].name === s.name) always.add(i);
     }));
   });
+  // Close by or pointed at, a label says how deep the station lies (its first line's platforms).
   const labels = STATIONS.map((s) => {
     const el = document.createElement('span');
     el.textContent = s.name;
+    const depth = Math.round(depthOf(s.name, s.lines[0]));
+    const small = document.createElement('small');
+    small.textContent = depth > 0 ? format(text.below, { m: depth }) : depth < 0 ? format(text.above, { m: -depth }) : text.level;
+    el.append(' ', small);
     labelLayer.append(el);
     return el;
   });
   let hovered = -1;
   /** Roughly how wide each label is, in pixels, for keeping them apart. */
   const labelWidth = STATIONS.map((s) => s.name.length * 6.6 + 4);
+  const depthWidth = labels.map((el) => (el.lastChild?.textContent?.length ?? 0) * 5.8 + 4);
   const byPriority = STATIONS.map((_, i) => i).sort((a, b) => Number(always.has(b)) - Number(always.has(a)) || STATIONS[b].lines.length - STATIONS[a].lines.length);
   let labelOrder = byPriority;
 
@@ -596,7 +784,6 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
   const silverColour = new Color('#e8e8f2');
   let last = performance.now();
   let secondTimer = 0;
-  let disposed = false;
 
   /** Every train at time `t`, from SL where it is live, else the timetables, with Silverpilen. */
   const trainsAt = (t: number): Array<{ train: MapTrain; line: number; opacity: number }> => {
@@ -633,11 +820,16 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
       if (Math.abs(offset) < 2) { offset = 0; mode = 'live'; }
     }
     const time = now() + offset;
+    const wanted = stretchWanted();
+    size = girth();
+    stretch += (wanted - stretch) * Math.min(1, dt * 5);
+    if (Math.abs(stretch - wanted) < 0.01) stretch = wanted;
     if (Math.abs(morph - morphWanted) > 0.001) {
       morph += (morphWanted - morph) * Math.min(1, dt * 6);
       if (Math.abs(morph - morphWanted) < 0.004) morph = morphWanted;
       build();
-    }
+    } else if (Math.abs(Math.log(stretch / builtStretch)) > 0.04 || Math.abs(Math.log(size / builtSize)) > 0.08 || (stretch !== builtStretch && stretch === wanted)) build();
+    placeCut();
 
     // The trains, with their trails a few seconds back.
     const trains = trainsAt(time);
@@ -649,26 +841,58 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
     const tcol = trailGeo.getAttribute('color') as BufferAttribute;
     let n = 0;
     let segs = 0;
+    const showCars = morph < 0.5;
+    // Far out a train is drawn longer than it is, or it would be a speck: true length close by, about three times it
+    // over the whole city.
+    const stretchCars = Math.max(1, (size / 0.15) ** 0.6);
+    let carCount = 0;
     let notes = 0;
     for (const { train, line, opacity } of trains) {
       if (n >= MAX_TRAINS) break;
       const li = line < 0 ? 0 : line;
-      const p = placeTrain(routes, li, train);
+      const p = placeTrain(routes, li, train, relief);
       toScene(p, v);
       const c = line < 0 ? silverColour : lineColours[li];
-      pos.setXYZ(n, v.x, v.y + 0.25, v.z);
+      pos.setXYZ(n, v.x, v.y + 0.25 * size, v.z);
       col.setXYZ(n, c.r * opacity, c.g * opacity, c.b * opacity);
       n++;
+      if (showCars) {
+        // Each unit at its own place along the track, so the train bends through the curves as it runs.
+        const route = routes[li][train.route];
+        const at = (s: number, out: Vector3) => toScene(trainPoint(route, s, train.row, relief), out);
+        const a = trainPoint(route, train.s - 0.01, train.row, relief);
+        const b = trainPoint(route, train.s + 0.01, train.row, relief);
+        const perStep = Math.max(1, Math.hypot(b.east - a.east, b.north - a.north) / 0.02);
+        // A little thicker than the tube, so the car shows through its glow.
+        const thick = 0.32 * size * 2.4;
+        const carLength = CAR.length * stretchCars;
+        carColour.copy(c).lerp(white, 0.25).multiplyScalar(opacity);
+        for (let u = 0; u < CAR.units; u++) {
+          const s = train.s + ((u - (CAR.units - 1) / 2) * (carLength + CAR.gap * stretchCars)) / perStep;
+          at(s, carAt);
+          at(s + carLength / 2 / perStep, carAhead);
+          at(s - carLength / 2 / perStep, carBehind);
+          carAhead.sub(carBehind);
+          const len = carAhead.length();
+          if (len < 1e-6) continue;
+          carQuat.setFromUnitVectors(alongX, carAhead.divideScalar(len));
+          carScale.set(len, thick, thick);
+          matrix.compose(carAt, carQuat, carScale);
+          cars.setMatrixAt(carCount, matrix);
+          cars.setColorAt(carCount, carColour);
+          carCount++;
+        }
+      }
       let prev = v.clone();
       for (let k = 0; k < TRAIL; k++) {
         const e = past[k].get(train.id);
         if (!e) break;
-        const q2 = toScene(placeTrain(routes, li, e.train));
+        const q2 = toScene(placeTrain(routes, li, e.train, relief));
         if (q2.distanceTo(prev) > 12) break;
         const a0 = (1 - k / TRAIL) * 0.55 * opacity;
         const a1 = (1 - (k + 1) / TRAIL) * 0.55 * opacity;
-        tpos.setXYZ(segs * 2, prev.x, prev.y + 0.25, prev.z);
-        tpos.setXYZ(segs * 2 + 1, q2.x, q2.y + 0.25, q2.z);
+        tpos.setXYZ(segs * 2, prev.x, prev.y + 0.25 * size, prev.z);
+        tpos.setXYZ(segs * 2 + 1, q2.x, q2.y + 0.25 * size, q2.z);
         tcol.setXYZ(segs * 2, c.r * a0, c.g * a0, c.b * a0);
         tcol.setXYZ(segs * 2 + 1, c.r * a1, c.g * a1, c.b * a1);
         segs++;
@@ -684,6 +908,9 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
         note(li, seq[k], p.east);
       }
     }
+    cars.count = carCount;
+    cars.instanceMatrix.needsUpdate = true;
+    if (cars.instanceColor) cars.instanceColor.needsUpdate = true;
     trainGeo.setDrawRange(0, n);
     trailGeo.setDrawRange(0, segs * 2);
     pos.needsUpdate = col.needsUpdate = tpos.needsUpdate = tcol.needsUpdate = true;
@@ -693,7 +920,7 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
     pulse += dt;
     const beat = pulse * 1.6;
     STATIONS.forEach((_, i) => {
-      const s = 1 + (still ? 0 : 0.45 * busy * breath[i] * (0.5 + 0.5 * Math.sin(beat + i * 1.7))) + (i === hovered ? 0.6 : 0);
+      const s = (1 + (still ? 0 : 0.45 * busy * breath[i] * (0.5 + 0.5 * Math.sin(beat + i * 1.7))) + (i === hovered ? 0.6 : 0)) * size;
       matrix.makeScale(s, s, s).setPosition(stationPos[i]);
       stationMesh.setMatrixAt(i, matrix);
     });
@@ -704,7 +931,7 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
     let g = 0;
     for (const row of ghosts) {
       if (g >= MAX_GHOSTS || row.length < 4) continue;
-      const p = worldToNet(row[1], morph);
+      const p = worldToNet(row[1], morph, points);
       if (!p) continue;
       toScene(p, v);
       const drift = still ? 0 : Math.sin(t0 / 400 + row[0]) * 0.4;
@@ -740,14 +967,20 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
       const near = camera.position.distanceTo(stationPos[i]) < 70;
       const x = ((v.x + 1) / 2) * w + 8;
       const y = ((1 - v.y) / 2) * h - 8;
-      const width = labelWidth[i];
+      const width = labelWidth[i] + (near || i === hovered ? depthWidth[i] : 0);
       let show = v.z < 1 && (always.has(i) || near || i === hovered);
+      el.classList.toggle('is-near', near || i === hovered);
       if (show && i !== hovered) show = !placed.some(([px, py, pw]) => Math.abs(py - y) < 15 && x < px + pw && px < x + width);
       el.classList.toggle('is-on', show);
       if (!show) continue;
       placed.push([x, y, width]);
       el.style.transform = `translate(${x}px, ${y}px)`;
     }
+
+    v.copy(linkMid).project(camera);
+    const linkOn = v.z < 1 && camera.position.distanceTo(linkMid) < 40 && morph < 0.5;
+    linkLabel.classList.toggle('is-on', linkOn);
+    if (linkOn) linkLabel.style.transform = `translate(${((v.x + 1) / 2) * w + 8}px, ${((1 - v.y) / 2) * h + 6}px)`;
 
     secondTimer -= dt;
     if (secondTimer <= 0) {
@@ -771,6 +1004,10 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
   if (new URLSearchParams(location.search).has('debug')) {
     (window as unknown as { __net: unknown }).__net = {
       camera,
+      /** The orbit: `controls.target` is the point looked at, where the cut goes through. */
+      controls,
+      /** The trains' lights, for the launch video to make them a little larger. */
+      trains: trainPoints,
       /** Runs the view for `seconds` at `rate` frames per second, right now. */
       step(seconds = 1, rate = 30) {
         manualDt = 1 / rate;
@@ -795,6 +1032,10 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
     socket?.close();
     void audio?.ctx.close();
     controls.dispose();
+    for (const mesh of [...tubes.children as Mesh[], groundMesh, sectionFace, ...cityMeshes, cars]) mesh.geometry.dispose();
+    carTexture.dispose();
+    sectionEdge.geometry.dispose();
+    groundMap.dispose();
     renderer.dispose();
     root.replaceChildren();
     root.classList.remove('net');

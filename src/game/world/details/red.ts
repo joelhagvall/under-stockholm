@@ -7,11 +7,9 @@ import {
   DodecahedronGeometry,
   EdgesGeometry,
   Euler,
-  ExtrudeGeometry,
   Matrix4,
   Quaternion,
   RingGeometry,
-  Shape,
   SphereGeometry,
   TorusGeometry,
   Vector3,
@@ -69,51 +67,6 @@ function slatCeiling(site: DetailSite, y: number, color: number, slat: number): 
   // Only the faces seen from below: the slats' ends are lost in the rock.
   for (let x = x0 + 0.6; x < x1; x += 1.2) s.lit.box({ x: x - 0.04, y: y - 0.16, z: -z }, { x: x + 0.04, y, z }, rgb(slat), ['py', 'pz', 'nz'], 10);
 }
-
-// ---------------------------------------------------------------- Stadion
-
-/**
- * The rainbow, arching over the opening in a rock wall down the middle of
- * the island: the wall painted like the rest of the grotto, and seven bands
- * of colour round the arch on both sides, down to the floor.
- */
-const stadion: Detail = (site) => {
-  const { s, physics, def } = site;
-  const x = spot(site, [20, -20, 34, -34], 6);
-  if (x === undefined) return;
-  const HALF = 5.6, R = 2.7, SPRING = PLATFORM_Y + 0.6, TOP = 7.2, T = 0.4, BAND = 0.34;
-  const outline = new Shape();
-  outline.moveTo(-HALF, PLATFORM_Y);
-  outline.lineTo(-R, PLATFORM_Y);
-  outline.lineTo(-R, SPRING);
-  outline.absarc(0, SPRING, R, Math.PI, 0, true);
-  outline.lineTo(R, PLATFORM_Y);
-  outline.lineTo(HALF, PLATFORM_Y);
-  outline.lineTo(HALF, TOP);
-  outline.lineTo(-HALF, TOP);
-  outline.closePath();
-  const wall = new ExtrudeGeometry(outline, { depth: T * 2, bevelEnabled: false, curveSegments: 24 });
-  s.lit.geometry(wall, new Matrix4().makeTranslation(x, 0, -T), def.theme.paint);
-  wall.dispose();
-  // Violet innermost, red outermost.
-  const colors = [0x7a4aa0, 0x2f6fc0, 0x4aa04a, 0xf2cf3a, 0xef8a2a, 0xd6352b].map(rgb);
-  for (const side of [-1, 1]) {
-    const z = side * (T + 0.012);
-    colors.forEach((color, k) => {
-      const r0 = R + 0.06 + k * BAND, r1 = r0 + BAND;
-      const ring = new RingGeometry(r0, r1, 36, 1, 0, Math.PI);
-      solid(s.lit, ring, x, SPRING, z, color, new Euler(0, side > 0 ? 0 : Math.PI, 0));
-      // The legs of the bow, down to the floor.
-      for (const u of [-1, 1]) {
-        const a = x + u * r0, b = x + u * r1;
-        s.lit.quad(new Vector3(a, PLATFORM_Y + 0.02, z), new Vector3(b, PLATFORM_Y + 0.02, z), new Vector3(b, SPRING, z), new Vector3(a, SPRING, z), color);
-      }
-    });
-  }
-  s.light(x, PLATFORM_Y + 3.5, 0, rgb(0xfff4e0), 0.7, 7);
-  for (const u of [-1, 1]) physics.box({ x: Math.min(x + u * R, x + u * HALF), y: PLATFORM_Y, z: -T }, { x: Math.max(x + u * R, x + u * HALF), y: TOP, z: T });
-  physics.box({ x: x - R, y: SPRING + R - 0.2, z: -T }, { x: x + R, y: TOP, z: T });
-};
 
 // ---------------------------------------------------------------- Tekniska högskolan
 
@@ -435,7 +388,6 @@ const ostermalmstorg: Detail = (site) => {
 
 /** The red line's stations' own objects on the platform, by station name, after the real stations. */
 export const RED_DETAILS: Record<string, Detail> = {
-  'Stadion': stadion,
   'Tekniska högskolan': tekniska,
   'Gärdet': gardet,
   'Bergshamra': bergshamra,

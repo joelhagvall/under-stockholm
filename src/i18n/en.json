@@ -16,7 +16,7 @@
   },
   "network": {
     "title": "The whole network",
-    "lead": "Every train is a point of light, at its real depth under the city.",
+    "lead": "Every train is a point of light at its real depth, with the city cut open where you look.",
     "now": "Now",
     "day": "A day in a minute",
     "dayStop": "Back to now",
@@ -31,7 +31,7 @@
     "onlyNow": "SL’s trains exist only for right now, so this is the game’s timetable.",
     "timetableNote": "The game’s timetable: the same trains for everyone playing.",
     "exposure": "Today’s exposure",
-    "hint": "Drag to turn, scroll to zoom. Click a station to go there.",
+    "hint": "Drag to turn, scroll to zoom. Click a station to go there. Heights are stretched, more the further out you are, except at true scale.",
     "back": "Back",
     "dive": "Going to {station}…",
     "trains": "{count} trains running",
@@ -48,6 +48,14 @@
     "canvas": "The metro network in 3D. The arrow keys move the view.",
     "pick": "Go to",
     "pickNone": "Choose a station…",
-    "saving": "Saving…"
+    "saving": "Saving…",
+    "cut": "Cross-section",
+    "trueScale": "True scale",
+    "below": "{m} m below ground",
+    "above": "{m} m above ground",
+    "level": "at ground level",
+    "heights": "Heights: Copernicus DEM © DLR e.V., Airbus DS",
+    "buildings": "Buildings © OpenStreetMap",
+    "link": "Connecting track"
   }
 }

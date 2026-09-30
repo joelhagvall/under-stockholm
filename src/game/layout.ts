@@ -63,6 +63,13 @@ export const CAVERN_LEN = 200;
 export const CAVERN_HALF_W = 10;
 export const CAVERN_WALL_H = 4;
 export const CAVERN_TOP = 7.5;
+/**
+ * A connecting track between two lines (`CONNECTORS` in `line.ts`) leaves a running track at a switch in a cavern of
+ * its own, `length` long, at `angle` (radians) toward the outside, into a single tube that runs `branch` meters on into
+ * the dark behind a locked gate, where it is closed. The cavern is `halfW` either side of a middle `shift` toward
+ * the branch's side.
+ */
+export const CONNECTOR = { length: 70, angle: 0.105, branch: 90, halfW: 13.5, shift: 3.5 };
 /** Where a train stands while it changes track, measured from the station center. */
 export const TURNBACK_REACH = CAVE_HALF_L + TAIL_TUBE + 120;
 

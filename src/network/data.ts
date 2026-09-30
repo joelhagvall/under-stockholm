@@ -5,9 +5,9 @@ import { layout, MAP_REACH, ROUTE_STATIONS, services, type MapTrain } from '../l
 import { GEO, project, SHARED_DEPTH } from './geo';
 
 /**
- * The whole network in two shapes at once: true geography (meters east and north of T-Centralen, and depth below
- * ground) and the schematic SL map, flat. Everything the network view and the long exposure draw is a point in
- * both, blended by `morph` (0 geography, 1 schematic). Free of three.js.
+ * The whole network in two shapes at once: true geography (meters east and north of T-Centralen, depth below ground
+ * and the height of the tracks above the sea) and the schematic SL map, flat. Everything the network view and the
+ * long exposure draw is a point in both, blended by `morph` (0 geography, 1 schematic). Free of three.js.
  */
 
 export interface NetPoint {
@@ -15,7 +15,16 @@ export interface NetPoint {
   north: number;
   /** Meters below ground (negative above). */
   depth: number;
+  /** The tracks' height above the sea, in meters: the ground's less `depth` (0 on the schematic map). */
+  y: number;
 }
+
+/** The ground's height above the sea at a point, in meters (see `terrain.ts`). */
+export type Ground = (east: number, north: number) => number;
+/** Ground at the sea's level everywhere: the network as it was drawn before it knew its hills. */
+export const FLAT: Ground = () => 0;
+/** Rock or soil kept over a tunnel between two stations underground, in meters, where the ground dips between them. */
+const COVER = 8;
 
 /** How wide the schematic map is spread, in meters, so it covers about the same ground as the real city. */
 const SCHEMATIC = 24_000;
@@ -38,48 +47,71 @@ export function depthOf(name: string, line: number): number {
   return SHARED_DEPTH[name]?.[LINES[line].id] ?? GEO[name]?.[2] ?? 0;
 }
 
-function geoPoint(name: string, line: number): NetPoint {
+function geoPoint(name: string, line: number, ground: Ground): NetPoint {
   const g = GEO[name];
   if (!g) throw new Error(`No position for ${name}`);
   const p = project(g[0], g[1]);
-  return { ...p, depth: depthOf(name, line) };
+  const depth = depthOf(name, line);
+  return { ...p, depth, y: ground(p.east, p.north) - depth };
 }
 
 function schematicPoint(map: readonly [number, number]): NetPoint {
-  return { east: (map[0] - CENTER[0]) * SCHEMATIC, north: -(map[1] - CENTER[1]) * SCHEMATIC, depth: 0 };
+  return { east: (map[0] - CENTER[0]) * SCHEMATIC, north: -(map[1] - CENTER[1]) * SCHEMATIC, depth: 0, y: 0 };
 }
 
-/** Per line, per station of that line (its own index): the point in both shapes. */
-export const LINE_POINTS: Array<Array<{ geo: NetPoint; schematic: NetPoint }>> = LINES.map((line, li) =>
-  line.stations.map((s) => ({ geo: geoPoint(s.name, li), schematic: schematicPoint(s.map) })));
+export type LinePoints = Array<Array<{ geo: NetPoint; schematic: NetPoint }>>;
 
-/** Every station once, by name: T-Centralen appears on all three lines but is one place. */
-export const STATIONS: NetStation[] = (() => {
+/** Per line, per station of that line (its own index): the point in both shapes, on `ground`. */
+export function linePoints(ground: Ground): LinePoints {
+  return LINES.map((line, li) => line.stations.map((s) => ({ geo: geoPoint(s.name, li, ground), schematic: schematicPoint(s.map) })));
+}
+
+/** The stations on flat ground. */
+export const LINE_POINTS = linePoints(FLAT);
+
+/** Every station once, by name: T-Centralen appears on all three lines but is one place (its first line's point). */
+export function stationsOf(points: LinePoints): NetStation[] {
   const byName = new Map<string, NetStation>();
   LINES.forEach((line, li) => line.stations.forEach((s, i) => {
     const known = byName.get(s.name);
     if (known) { if (!known.lines.includes(li)) known.lines.push(li); return; }
-    byName.set(s.name, { name: s.name, lines: [li], geo: LINE_POINTS[li][i].geo, schematic: LINE_POINTS[li][i].schematic });
+    byName.set(s.name, { name: s.name, lines: [li], geo: points[li][i].geo, schematic: points[li][i].schematic });
   }));
   return [...byName.values()];
-})();
+}
+
+export const STATIONS = stationsOf(LINE_POINTS);
 
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 export function blend(p: { geo: NetPoint; schematic: NetPoint }, morph: number): NetPoint {
-  return { east: lerp(p.geo.east, p.schematic.east, morph), north: lerp(p.geo.north, p.schematic.north, morph), depth: lerp(p.geo.depth, p.schematic.depth, morph) };
+  return {
+    east: lerp(p.geo.east, p.schematic.east, morph), north: lerp(p.geo.north, p.schematic.north, morph),
+    depth: lerp(p.geo.depth, p.schematic.depth, morph), y: lerp(p.geo.y, p.schematic.y, morph),
+  };
 }
 
 /** A route's stations as points, east to west. */
-export function routePoints(line: number, route: number, morph: number): NetPoint[] {
-  return ROUTE_STATIONS[line][route].map((i) => blend(LINE_POINTS[line][i], morph));
+export function routePoints(line: number, route: number, morph: number, points: LinePoints = LINE_POINTS): NetPoint[] {
+  return ROUTE_STATIONS[line][route].map((i) => blend(points[line][i], morph));
+}
+
+/**
+ * The ground under the points of a route, and how much of its relief is in (1 on the real map, 0 on the schematic):
+ * given, a tunnel between two stations underground runs no nearer the surface than `COVER`, under a dip or a lake.
+ */
+export interface Relief {
+  ground: Ground;
+  share: number;
+  /** How far apart the two tracks are drawn, as a share of `TRACK_SIDE`: close by, both run inside the one tube. */
+  spread?: number;
 }
 
 /**
  * Where a train `s` station steps along its route lies: between two stations piecewise, so a train at a platform
  * sits exactly at the station, and past the ends straight on into the turnback. `row` moves it to its track's side.
  */
-export function trainPoint(points: NetPoint[], s: number, row: number): NetPoint {
+export function trainPoint(points: NetPoint[], s: number, row: number, relief?: Relief): NetPoint {
   const n = points.length - 1;
   const t = Math.min(n + MAP_REACH, Math.max(-MAP_REACH, s));
   let p: NetPoint;
@@ -91,30 +123,32 @@ export function trainPoint(points: NetPoint[], s: number, row: number): NetPoint
     dx = (b.east - a.east) / len;
     dy = (b.north - a.north) / len;
     const k = (t <= 0 ? -t : t - n) * REACH_STEP;
-    p = { east: b.east + dx * k, north: b.north + dy * k, depth: b.depth };
+    p = { east: b.east + dx * k, north: b.north + dy * k, depth: b.depth, y: b.y };
   } else {
     const k = Math.floor(t);
     const f = t - k;
     const a = points[k];
     const b = points[k + 1];
-    p = { east: lerp(a.east, b.east, f), north: lerp(a.north, b.north, f), depth: lerp(a.depth, b.depth, f) };
+    p = { east: lerp(a.east, b.east, f), north: lerp(a.north, b.north, f), depth: lerp(a.depth, b.depth, f), y: lerp(a.y, b.y, f) };
+    // The tracks run straight from one station's height to the next, under whatever lies between.
+    if (relief && a.depth > 0 && b.depth > 0) p.y = Math.min(p.y, relief.share * (relief.ground(p.east, p.north) - Math.min(COVER, p.depth)));
     const len = Math.hypot(b.east - a.east, b.north - a.north) || 1;
     dx = (b.east - a.east) / len;
     dy = (b.north - a.north) / len;
   }
   // Track 1 on one side of the line, track 2 on the other.
-  const side = (row - 0.5) * 2 * TRACK_SIDE;
-  return { east: p.east - dy * side, north: p.north + dx * side, depth: p.depth };
+  const side = (row - 0.5) * 2 * TRACK_SIDE * (relief?.spread ?? 1);
+  return { east: p.east - dy * side, north: p.north + dx * side, depth: p.depth, y: p.y };
 }
 
 /** A train's point, given every route's points for the current morph (`routes[line][route]`). */
-export function placeTrain(routes: NetPoint[][][], line: number, train: MapTrain): NetPoint {
-  return trainPoint(routes[line][train.route], train.s, train.row);
+export function placeTrain(routes: NetPoint[][][], line: number, train: MapTrain, relief?: Relief): NetPoint {
+  return trainPoint(routes[line][train.route], train.s, train.row, relief);
 }
 
 /** Every route's points, `[line][route]`. */
-export function allRoutes(morph: number): NetPoint[][][] {
-  return LINES.map((line, li) => line.routes.map((_, r) => routePoints(li, r, morph)));
+export function allRoutes(morph: number, points: LinePoints = LINE_POINTS): NetPoint[][][] {
+  return LINES.map((line, li) => line.routes.map((_, r) => routePoints(li, r, morph, points)));
 }
 
 // Silverpilen, the ghost train: once an hour down the Akalla branch to Kymlinge, where it fades (see `silverpilen.ts`).

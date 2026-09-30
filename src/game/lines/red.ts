@@ -2,7 +2,7 @@ import text from '../i18n/sv.json';
 import { mix, rgb, type RGB } from '../gfx/color';
 import {
   albyArt, aspuddenArt, bergshamraArt, danderydArt, gardetArt, hornstullArt, karlaplanArt, liljeholmenArt, malarhojdenArt, mariatorgetArt, masmoArt, midsommarkransenArt, ostermalmstorgArt,
-  skarholmenArt, slussenArt, stadionArt, tCentralenArt, tekniskaArt, universitetetArt, zinkensdammArt,
+  skarholmenArt, slussenArt, tCentralenArt, tekniskaArt, universitetetArt, zinkensdammArt,
 } from '../gfx/art/red';
 import { JUNCTION_RUN } from '../layout';
 import type { LineDef } from '../line';
@@ -47,8 +47,14 @@ const sunDown = painted(0x3a3c40, coolLamp, flat(0x3a3a3c), masmoArt);
 const leaves = painted(0x4e5452, coolLamp, flat(0xe6e6e2), aspuddenArt);
 // Skärholmen (Ulf Wahlberg): white tiles with black bands, and the desert from sunrise to sunset.
 const desert = painted(0x52524e, coolLamp, flat(0xeeeeec), skarholmenArt);
-// Stadion (Enno Hallek and Åke Pallarp): the whole grotto marbled sky blue; the rainbow is a detail (see `details/red.ts`).
-const sky = painted(0x46566a, coolLamp, (p) => mix(rgb(0x4f86c4), rgb(0x9cc6ea), grain(p, 71, 0.3)), stadionArt);
+// Stadion (Åke Pallarp and Enno Hallek): a sky-blue grotto with a rainbow arching over the platform.
+const sky: Theme = pattern(0x46566a, coolLamp, (p) => {
+  const g = grain(p, 71, 0.3);
+  const r = Math.hypot(p.x % 60 - 30 + (p.x < 0 ? 60 : 0), p.y + 4);
+  const band = (r - 9) / 0.55;
+  if (band > 0 && band < 7 && p.y > 2.2) return [rgb(0xd8342b), rgb(0xf08a24), rgb(0xf2d13b), rgb(0x3e9e4a), rgb(0x2f6fd0), rgb(0x3a3a9c), rgb(0x7a3d9c)][Math.floor(band)];
+  return mix(rgb(0x3f7fc2), rgb(0x8cc0ea), g);
+});
 // Tekniska högskolan (Lennart Mörk): pale rock under a blue sky, the elements and the laws of nature.
 const science = painted(0x4e5258, coolLamp, (p) => (p.y > 6.5 ? mix(rgb(0x5a86c0), rgb(0xd8dce0), grain(p, 74, 0.25)) : mix(rgb(0xb8b5ac), rgb(0xd8d6ce), grain(p, 74))), tekniskaArt);
 // Gärdet: brown stone slabs with lit showcases of beetles that do not exist (Karl Axel Pehrson).
@@ -108,7 +114,7 @@ export const RED_LINE: LineDef = {
     { name: 'Universitetet', map: [0.568, 0.24], sl: 9203, riders: 12000, rise: 17, architecture: 'rock', exits: 'Stockholms universitet', halls: [{ end: 'outbound', incline: true }], branch: '14', transfer: text.announcements.roslagsbanaTransfer, look: { floor: 0x4e5054, split: true }, theme: rights },
     // Tekniska högskolan: pale rock under a blue sky, science on the walls and a glass dodecahedron in the vault.
     { name: 'Tekniska högskolan', map: [0.558, 0.31], sl: 9204, riders: 12000, rise: 10, architecture: 'rock', exits: 'Valhallavägen · KTH', halls: [{ end: 'outbound', corridor: 20, incline: true, exits: 'Danderydsgatan' }, { end: 'inbound', incline: true, exits: 'Valhallavägen' }], branch: '14', transfer: text.announcements.roslagsbanaTransfer, look: { floor: 0x3a3c40, split: true }, theme: science },
-    // Stadion: the whole grotto marbled sky blue, and a rainbow over the opening in a rock wall down the island.
+    // Stadion: the whole grotto sky blue, with a rainbow arching over the platform.
     { name: 'Stadion', map: [0.553, 0.36], sl: 9205, riders: 6000, rise: 22, architecture: 'rock', exits: 'Valhallavägen · Stadion', halls: [{ end: 'inbound', corridor: 10, incline: true, exits: 'Stadion · Idrottshögskolan' }, { end: 'outbound', incline: true, exits: 'Karlavägen · Nybrogatan' }], branch: '14', look: { floor: 0x3e4046, split: true }, theme: sky },
     // The trunk through the city.
     // Östermalmstorg: grey concrete walls with Siri Derkert's drawings cut into them, peace signs in the floor.

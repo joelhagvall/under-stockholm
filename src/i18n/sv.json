@@ -16,7 +16,7 @@
   },
   "network": {
     "title": "Hela nätet",
-    "lead": "Varje tåg är en ljuspunkt, på sitt riktiga djup under staden.",
+    "lead": "Varje tåg är en ljuspunkt på sitt riktiga djup, och staden är genomskuren där du tittar.",
     "now": "Nu",
     "day": "Ett dygn på en minut",
     "dayStop": "Tillbaka till nu",
@@ -31,7 +31,7 @@
     "onlyNow": "SL:s tåg finns bara för just nu, så det här är spelets tidtabell.",
     "timetableNote": "Spelets tidtabell: samma tåg för alla som spelar.",
     "exposure": "Dagens exponering",
-    "hint": "Dra för att vrida, scrolla för att zooma. Klicka på en station för att åka dit.",
+    "hint": "Dra för att vrida, scrolla för att zooma. Klicka på en station för att åka dit. Höjderna är utdragna, mer ju längre bort du är, utom i sann skala.",
     "back": "Tillbaka",
     "dive": "Åker till {station} …",
     "trains": "{count} tåg i trafik",
@@ -48,6 +48,14 @@
     "canvas": "Tunnelbanenätet i 3D. Piltangenterna flyttar vyn.",
     "pick": "Åk till",
     "pickNone": "Välj station …",
-    "saving": "Sparar …"
+    "saving": "Sparar …",
+    "cut": "Genomskärning",
+    "trueScale": "Sann skala",
+    "below": "{m} m under marken",
+    "above": "{m} m över marken",
+    "level": "i marknivå",
+    "heights": "Höjder: Copernicus DEM © DLR e.V., Airbus DS",
+    "buildings": "Hus © OpenStreetMap",
+    "link": "Förbindelsespår"
   }
 }
