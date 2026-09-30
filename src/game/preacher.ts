@@ -7,6 +7,7 @@ import text from './i18n/sv.json';
 import { TRAIN_HALF_W } from './layout';
 import { noiseBurst, Spatial, type AudioOut } from './sfx';
 import type { Train } from './train';
+import { kioskShift } from './world/kiosk';
 import type { StationInfo } from './world/station';
 import type { Location } from './world/world';
 import type { Interactable } from './world/zones';
@@ -447,7 +448,8 @@ export class Preacher {
     a = Math.max(AREA.a0, Math.min(AREA.a1, a));
     let z = Math.max(-AREA.halfW, Math.min(AREA.halfW, this.pos.z));
     if (a > 18.6 && Math.abs(z) < 2.9) z = z < 0 ? -2.9 : 2.9;
-    if (a > 20.2 && a < 25.8 && z < -6) z = -6;
+    const k = kioskShift(s.exit.across);
+    if (a > 20.2 + k && a < 25.8 + k && z < -6) z = -6;
     this.pos.x = this.x(a);
     this.pos.y = s.hall.y;
     this.pos.z = z;

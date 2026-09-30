@@ -8,8 +8,9 @@
  * when it builds that street (`world/streetOsm.ts`).
  *
  * Underground a station gets a file per end it may come out at: round the
- * entrance furthest out that way, and the game lays the city so that entrance
- * is where its stairs come up. In the open (and in the city by the water) one
+ * entrance furthest out that way, with the others that way for a second hall
+ * at the same end, and the game lays the city so the hall's entrance is where
+ * its stairs come up. In the open (and in the city by the water) one
  * file round the station itself, laid as the buildings along the tracks are.
  *
  *   bun scripts/osm-streets.ts Odenplan "T-Centralen"
@@ -213,21 +214,24 @@ function sea(coast: Pt[][], x0: number, x1: number, z0: number, z1: number): Pt[
 
 // ---- A station. ----
 
-interface Exit { key: string; entrance: Pt | null; region: Region }
+interface Exit { key: string; entrance: Pt | null; entrances: Pt[]; region: Region }
 
 async function fetchStation(s: Station): Promise<Array<{ exit: Exit; data: Record<string, unknown> }>> {
   const tag = `streets-${s.line}-${s.site}`;
   const first = await overpass(`${stationQuery(s)}(way[railway=subway](around.s:350);node[railway=subway_entrance](around.s:450););out geom tags;`, `${tag}-a`);
   const { toGame, heading } = stationFrame(first, s);
   const exits: Exit[] = [];
-  if (s.open || s.city) exits.push({ key: streetKey(s.line, s.name, null), entrance: null, region: { cx: 0, cz: 0, hx: OPEN.x, hz: OPEN.z, round: false } });
+  if (s.open || s.city) exits.push({ key: streetKey(s.line, s.name, null), entrance: null, entrances: [], region: { cx: 0, cz: 0, hx: OPEN.x, hz: OPEN.z, round: false } });
   else {
     const entrances = first.filter((e) => e.type === 'node' && e.tags?.railway === 'subway_entrance').map((e) => toGame(e.lat!, e.lon!));
     for (const end of [1, -1] as const) {
       // The entrance furthest out toward this end, or a made-up one 110 m out where OSM has none there.
       const out = entrances.filter(([x, z]) => end * x > -30 && end * x < EXIT_REACH && Math.abs(z) < 160).sort((a, b) => end * b[0] - end * a[0]);
       const entrance: Pt = out[0] ?? [end * 110, 0];
-      exits.push({ key: streetKey(s.line, s.name, end), entrance, region: { cx: entrance[0], cz: entrance[1], hx: R, hz: R, round: true } });
+      // The others that way, for a second hall at the same end: each well apart from those before it, and within reach.
+      const others: Pt[] = [];
+      for (const p of out.slice(1)) if (Math.hypot(p[0] - entrance[0], p[1] - entrance[1]) < R - 60 && [entrance, ...others].every((q) => Math.hypot(p[0] - q[0], p[1] - q[1]) > 40)) others.push(p);
+      exits.push({ key: streetKey(s.line, s.name, end), entrance, entrances: others, region: { cx: entrance[0], cz: entrance[1], hx: R, hz: R, round: true } });
     }
   }
   const reach = Math.min(800, Math.max(...exits.map(({ region: r }) => Math.hypot(r.cx, r.cz) + Math.hypot(r.hx, r.hz))) + 20);
@@ -336,6 +340,7 @@ async function fetchStation(s: Station): Promise<Array<{ exit: Exit; data: Recor
       exit,
       data: {
         entrance: exit.entrance && exit.entrance.map((v) => Math.round(v * 10)),
+        ...(exit.entrances.length ? { entrances: exit.entrances.map((p) => p.map((v) => Math.round(v * 10))) } : {}),
         urban,
         names,
         trees: packed(trees),
@@ -388,7 +393,7 @@ if (!chosen.length) {
   process.exit(1);
 }
 const FORMAT = 'bun scripts/osm-streets.ts. In decimeters from the station\'s middle with x along the tracks; a list of points is [x, z, then each next as dx, dz]. '
-  + 'entrance: where the stairs come up (underground). buildings: [height, facade colour or null, roof (0 flat, 1 pitched), ...outline]. '
+  + 'entrance: where the stairs come up (underground); entrances: others the same way, further in, for more halls at that end. buildings: [height, facade colour or null, roof (0 flat, 1 pitched), ...outline]. '
   + 'roads: [kind (0 road, 1 pedestrian, 2 path), width, index in names or -1, ...line]. areas: [kind (0 grass, 1 wood, 2 water, 3 paved, 4 asphalt, 5 sand), then per ring (outer first, then holes) its count of points and the points]. trees: points.';
 mkdirSync(OUT, { recursive: true });
 const failed: string[] = [];

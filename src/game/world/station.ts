@@ -70,7 +70,7 @@ import { buildStreet, type Street } from './street';
 import { hasStreetFile } from './streetLayers';
 import { streetKey } from './osmKey';
 import { buildServiceAccess, SERVICE_DOOR } from './service';
-import { buildKiosk } from './kiosk';
+import { buildKiosk, kioskShift } from './kiosk';
 import { buildTravelators } from './travelator';
 import { artWalk } from '../artWalk';
 import { era } from '../era';
@@ -598,6 +598,8 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   // T-Centralen's red and green platforms, a level per direction (see `STACK`): built as the shared station is, then
   // track 1's half (z < 0) folded under the other, mirrored and dropped, as it is built.
   const stacked = twin && !outdoor && !!def.stacked;
+  // The halls up at the top stand whole, over either level: a hall over the platform lies within the fold's reach.
+  const hallPhysics = physics;
   if (stacked) {
     const inCave = (x: number, slack: number) => Math.abs(x - cx) <= CAVE_HALF_L + slack;
     s.setFold({ takes: (v) => v.z < -0.01 && inCave(v.x, 0.01) && v.y < STACK.top, move: (v) => { v.z = -v.z; v.y -= STACK.drop; } });
@@ -713,7 +715,9 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   const rock = tiled
     ? { step: 0.3, amplitude: 0, smooth: true, seed: index * 13 + 3 }
     : { step: 0.48, amplitude: 1.55, inset: STATION_ROCK_INSET, rounds: 4.8, seed: index * 13 + 3 };
-  if (tiled && !outdoor) for (const side of [-1, 1]) physics.box({ x: xa, y: -1, z: Math.min(side * outer, side * halfW) }, { x: xb, y: 14, z: Math.max(side * outer, side * halfW) });
+  // The rock round the cave stops under the lowest hall: one reached from along the platform stands over it.
+  const rockTop = Math.min(14, ...ways.map((w) => w.hallY)) - 0.05;
+  if (tiled && !outdoor) for (const side of [-1, 1]) physics.box({ x: xa, y: -1, z: Math.min(side * outer, side * halfW) }, { x: xb, y: rockTop, z: Math.max(side * outer, side * halfW) });
   // Where a way up from along the platform climbs through the ceiling: from where its tube's roof meets the ceiling to
   // where its floor has passed it, around the escalators (and a lift beside them). A collar closes the rest.
   // In a rock cave, through the crown of the vault.
@@ -790,11 +794,11 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     const gaps = [...trackZs.map((zc) => [zc - TUBE_HALF_W, zc + TUBE_HALF_W, TUBE_TOP]), ...openings].sort((a, b) => a[0] - b[0]);
     let z = -halfW - 1;
     for (const [z0, z1, top] of gaps) {
-      if (z0 > z) physics.box({ x: xo0, y: -1, z }, { x: xo1, y: 14, z: z0 });
-      physics.box({ x: xo0, y: top, z: z0 }, { x: xo1, y: 14, z: z1 });
+      if (z0 > z) physics.box({ x: xo0, y: -1, z }, { x: xo1, y: rockTop, z: z0 });
+      physics.box({ x: xo0, y: top, z: z0 }, { x: xo1, y: rockTop, z: z1 });
       z = Math.max(z, z1);
     }
-    physics.box({ x: xo0, y: -1, z }, { x: xo1, y: 14, z: halfW + 1 });
+    physics.box({ x: xo0, y: -1, z }, { x: xo1, y: rockTop, z: halfW + 1 });
   }
 
   // Each stage below ends with a yield, so a station built on the way stays within a frame per stage.
@@ -891,7 +895,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   if (twin && !outdoor) {
     // A wall between the two lines' inner tracks, up to the ceiling (under vaults, the ground between them).
     if (!vaulted) s.lit.box({ x: xa, y: 0, z: -inner }, { x: xb, y: TILED_TOP + 0.2, z: inner }, theme.paint);
-    physics.box({ x: xa, y: -1, z: -inner }, { x: xb, y: 14, z: inner });
+    physics.box({ x: xa, y: -1, z: -inner }, { x: xb, y: rockTop, z: inner });
   }
   yield;
   if (steps) buildServiceAccess(s, physics, cx, -service!.dir as 1 | -1);
@@ -1256,7 +1260,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
       inclines.push(yield* inclineSteps(ws, physics, wx, way.dir, rise, hash01(index * 3 + k, 811 + n), way.corridor > 0 ? 0.5 : 0, zi, zi < 0 ? -1 : 1));
     }
     // A long way from the top of the escalators to the hall: a tiled passage.
-    if (way.corridor > 0) buildCorridor(ws, physics, wx + way.dir * run, way.dir, way.corridor, way.hallY, way.incline);
+    if (way.corridor > 0) buildCorridor(ws, hallPhysics, wx + way.dir * run, way.dir, way.corridor, way.hallY, way.incline);
   }
   const escalator = escalators[0];
   yield;
@@ -1270,7 +1274,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     const { hx, hallY } = way;
     // The main hall has the walkway to the other line and the passage; the second hall only its gates and stairs.
     const main = k === 0;
-    const hall = buildHall(way.section, physics, line, def, index, hx, hallY, d, upIslands.filter((z) => z !== 0), main && partners.length && !def.passage ? doorA : null,
+    const hall = buildHall(way.section, hallPhysics, line, def, index, hx, hallY, d, upIslands.filter((z) => z !== 0), main && partners.length && !def.passage ? doorA : null,
       { main, exits: way.exits, mouth: hallMouth(way), incline: way.incline, across: way.across, level: viaduct });
     if (main) passage = hall.passage;
     if (way.across) {
@@ -1282,7 +1286,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
       const ss = new Section(`${def.name}-street${main ? '' : `-${k + 1}`}`, OPEN_AMBIENT, dry, true);
       // Among the real city where OpenStreetMap has it (not by the water in the city, whose skyline is made by hand).
       const osm = !def.city && hasStreetFile(streetKey(line.id, def.name, outdoor ? null : d));
-      const street = buildStreet(ss, physics, index, way.exits, hx, hallY, d, outdoor ? def.name : null, k, osm);
+      const street = buildStreet(ss, hallPhysics, index, way.exits, hx, hallY, d, outdoor ? def.name : null, k, osm);
       yield;
       const streetGroup = yield* ss.finishSteps();
       streetGroup.visible = false;
@@ -1309,7 +1313,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     const names = there.lines.map((li) => net.lines[li].name.toLowerCase());
     // From the blue line's T-Centralen, and back to it, the way is Blå gången, painted blue.
     const blue = !!def.passage || !!there.passage;
-    buildWalkway(s, physics, end, dry ? '' : `↑ ${text.transfer.to} ${names.join(` ${text.transfer.and} `)}`, blue);
+    buildWalkway(s, hallPhysics, end, dry ? '' : `↑ ${text.transfer.to} ${names.join(` ${text.transfer.and} `)}`, blue);
     return { to, end };
   });
   yield;
@@ -1811,7 +1815,7 @@ function buildHall(s: Section, physics: Physics, line: LineDef, def: Network['st
   glass.position.set(X((ga + gb) / 2), Y + 1.725, 7.8);
   s.extras.add(glass);
 
-  if (opts.main) buildKiosk(s, physics, X, Y);
+  if (opts.main) buildKiosk(s, physics, (a) => X(a + kioskShift(across)), Y);
 
   // Stairs up to a landing; underground a second flight goes on up to the street, in the open doorway a painted street.
   const steps = across ? 0 : 20;

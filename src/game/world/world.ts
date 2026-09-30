@@ -607,10 +607,10 @@ export class World {
     return best;
   }
 
-  /** The hall of `station` nearest `x`: its main one, or the second at the other end of the platform. */
+  /** The hall of `station` nearest `x`: its main one, or another at either end of the platform (Hötorget has three). */
   hallNear(station: number, x: number): HallInfo {
     const halls = this.stations[station].halls;
-    return halls.length > 1 && Math.abs(x - halls[1].bounds.x0) < Math.abs(x - halls[0].bounds.x0) ? halls[1] : halls[0];
+    return halls.reduce((best, h) => (Math.abs(x - h.bounds.x0) < Math.abs(x - best.bounds.x0) ? h : best));
   }
 
   /** How much sky someone at `p` sees on the street over `station`: all of it up there, less down in the cut. */
@@ -662,12 +662,15 @@ export class World {
       const street = hall.exit.street;
       const key = streetKey(this.net.lines[def.line].id, def.name, outdoor ? null : hall.dir);
       if (!street || !hasStreetFile(key)) continue;
-      const at = { hx: hall.x(0), hallY: hall.bounds.y, e: hall.dir, door: hall.exit.cut === 0 };
+      const at = { hx: hall.x(0), hallY: hall.bounds.y, e: hall.dir, door: hall.exit.cut === 0, osm: true };
+      // A second hall the same way comes up at the next entrance in (Slussen's Ryssgården, Hötorget's third).
+      const mid = (h: HallInfo) => (h.bounds.x0 + h.bounds.x1) / 2;
+      const rank = info.halls.filter((h) => h.dir === hall.dir && h.dir * (mid(h) - mid(hall)) > 0).length;
       const name = `${info.index}:${k}`;
       let release: (() => void) | null = null;
       this.later(street.x0, street.x1, function* (this: World) {
         // The lit windows fade in with the square's own, on whichever street is built now.
-        const built = yield* this.streets!.build(key, info.cx, at, info.index * 7 + k, () => this.stations[info.index].halls[k]?.exit.street?.windows ?? null);
+        const built = yield* this.streets!.build(key, info.cx, at, info.index * 7 + k, () => this.stations[info.index].halls[k]?.exit.street?.windows ?? null, rank);
         if (!built) return;
         release = built.release;
         built.group.visible = false;

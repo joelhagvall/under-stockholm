@@ -3,6 +3,7 @@ import { stockholm } from './clock';
 import { drawFigure, figureMesh, paintFigure } from './figures';
 import { glowTexture } from './gfx/textures';
 import text from './i18n/sv.json';
+import { kioskShift } from './world/kiosk';
 import type { StationInfo } from './world/station';
 import type { Interactable } from './world/zones';
 
@@ -111,7 +112,7 @@ export class HallLife {
       } else drawFigure(this.figures, 1, { x: 0, y: -1000, z: 0, yaw: 0, walking: false }, 0);
       if (distance > 12 && this.greeted === s.index) this.greeted = -1;
       // The kiosk clerk, glancing at the queue that is not there.
-      const kx = hallX(s, CLERK.a);
+      const kx = hallX(s, CLERK.a + kioskShift(s.exit.across));
       drawFigure(this.figures, 2, { x: kx, y: s.hall.y, z: CLERK.z, yaw: 0, walking: false, look: Math.hypot(feet.x - kx, feet.z - CLERK.z) < 5 ? wrap(Math.atan2(feet.x - kx, feet.z - CLERK.z)) * 0.7 : Math.sin(this.clock * 0.25) * 0.4 }, this.clock + 5);
       this.figures.instanceMatrix.needsUpdate = true;
     }

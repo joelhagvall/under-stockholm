@@ -3,19 +3,21 @@ import { hash01 } from '../clock';
 import { MeshBuilder } from '../gfx/builder';
 import { mix, rgb, type RGB } from '../gfx/color';
 import { fbm3 } from '../gfx/noise';
+import { STREET } from '../layout';
 import type { Physics, StaticCollider } from '../physics';
 import { oldFacadeTexture } from './city';
 import { facadeTexture } from './outdoor';
 import type { Section } from './section';
 import { place, textSign } from './signage';
-import type { Rect } from './street';
+import type { Rect, StreetFrame } from './street';
 
 /**
  * The real city round an exit, from OpenStreetMap (© OpenStreetMap
  * contributors, ODbL; fetched by `scripts/osm-streets.ts`): the buildings,
  * the streets with their names, parks, woods, water and trees, laid round the
  * square that `street.ts` builds at the top of the stairs. Underground the map
- * is moved so the real entrance lies where the stairs come up; in the open it
+ * is moved so the real entrance lies where the stairs come up, and turned about
+ * it to where the stairs have room (see `streetOrigin`); in the open it
  * lies as the buildings along the tracks do, so those that stand taller than
  * the street is high stay hidden inside their twins up here.
  *
@@ -27,6 +29,8 @@ import type { Rect } from './street';
 /** A street file as `scripts/osm-streets.ts` writes it: see its `format`. */
 export interface StreetFile {
   entrance: [number, number] | null;
+  /** Other entrances the same way, further in, for more halls at that end. */
+  entrances?: Array<[number, number]>;
   urban: boolean;
   names: string[];
   trees: number[];
@@ -39,9 +43,10 @@ export interface StreetFile {
 export interface StreetPlace {
   /** Street level: the square's paving. */
   y: number;
-  /** World x and z of the data's origin, the station's middle as the file has it. */
+  /** World x and z of the data's origin, the station's middle as the file has it, and how far the map is turned about it. */
   ox: number;
   oz: number;
+  turn: number;
   /** The square: the ground round it is laid up to its edge, and nothing is built on it. */
   square: Rect;
   /** More kept clear of buildings (a hall's own building). */
@@ -87,25 +92,155 @@ const GLASS = { old: { tile: 3.2, u0: 1.05, u1: 2.15, v0: 0.75, v1: 2.65 }, flat
 const PLINTH_H = 3.8;
 const LAMP = rgb(0xffe2b0);
 
-/** Unpacks a list of points (decimeters, each from the one before) from `k` on, `n` of them, into world meters. */
-function points(list: ReadonlyArray<number | null>, k: number, n: number, ox: number, oz: number): Vector2[] {
+/** Where a file's map is laid: its origin in world x and z, turned by `turn` about it. */
+interface Laid { ox: number; oz: number; turn: number }
+
+/** Unpacks a list of points (decimeters, each from the one before) from `k` on, `n` of them, into world meters as `at` lays them. */
+function points(list: ReadonlyArray<number | null>, k: number, n: number, at: Laid): Vector2[] {
   const out: Vector2[] = [];
+  const c = Math.cos(at.turn), s = Math.sin(at.turn);
   let x = 0, z = 0;
   for (let i = 0; i < n; i++) {
     x += list[k + 2 * i] as number;
     z += list[k + 2 * i + 1] as number;
-    out.push(new Vector2(ox + x / 10, oz + z / 10));
+    out.push(new Vector2(at.ox + (c * x - s * z) / 10, at.oz + (s * x + c * z) / 10));
   }
   return out;
+}
+
+/** An area's rings (see the file's `format`), the outer one first, as `at` lays them. */
+function areaRings(area: ReadonlyArray<number>, at: Laid): Vector2[][] {
+  const rings: Vector2[][] = [];
+  for (let k = 1; k < area.length;) {
+    const n = area[k];
+    rings.push(points(area, k + 1, n, at));
+    k += 1 + 2 * n;
+  }
+  return rings;
 }
 
 const hits = (r: Rect, x0: number, x1: number, z0: number, z1: number) => x1 > r.x0 && x0 < r.x1 && z1 > r.z0 && z0 < r.z1;
 const within = (r: Rect, x: number, z: number, margin = 0) => x > r.x0 - margin && x < r.x1 + margin && z > r.z0 - margin && z < r.z1 + margin;
 
-/** Where the file's origin goes: underground, so its entrance lies at the top of the stairs (`stairs`, world x at z = 0). */
-export function streetOrigin(file: StreetFile, cx: number, stairs: number): { ox: number; oz: number } {
-  if (!file.entrance) return { ox: cx, oz: 0 };
-  return { ox: stairs - file.entrance[0] / 10, oz: -file.entrance[1] / 10 };
+/** Turns tried for the map round an entrance; the way ahead of the stairs, and what a house in it costs a turn for each 2 m square it covers. */
+const TURNS = 72;
+const AHEAD = { len: 14, halfW: 4, weight: 200 };
+
+/**
+ * Where the file's map goes. In the open as the buildings along the tracks lie, round the station's middle at `cx`.
+ * Underground its entrance lies at the top of the stairs (`frame.stairs`, world x at z = 0): the one furthest out for
+ * the hall furthest out that way, the next for the next (`rank`), where there is one. The map is turned
+ * about it so the stairs come up where the real ones could: on the square the map leaves most room for, clear of
+ * houses and water, with open ground ahead. Under the streets the stairs' own heading is not the tracks', and the
+ * city seen from the top of them does not show which way the tracks run.
+ */
+export function streetOrigin(file: StreetFile, cx: number, frame: StreetFrame, rank = 0): Laid {
+  if (!file.entrance) return { ox: cx, oz: 0, turn: 0 };
+  const entrance = (rank > 0 && file.entrances?.[rank - 1]) || file.entrance;
+  const [ex, ez] = outside(file, entrance[0] / 10, entrance[1] / 10);
+  const turn = bestTurn(file, frame, ex, ez);
+  const c = Math.cos(turn), s = Math.sin(turn);
+  return { ox: frame.stairs - (c * ex - s * ez), oz: -(s * ex + c * ez), turn };
+}
+
+/**
+ * Where the stairs come up, for an entrance at `ex`, `ez` (meters in the file): there, or where it lies in a house (a
+ * way in through its door), the nearest ground outside it, a little out from the wall.
+ */
+function outside(file: StreetFile, ex: number, ez: number): [number, number] {
+  const origin = { ox: 0, oz: 0, turn: 0 };
+  const houses = file.buildings.map((bd) => points(bd, 3, (bd.length - 3) / 2, origin)).filter((ring) => ring.some((p) => Math.hypot(p.x - ex, p.y - ez) < 120));
+  const inHouse = (x: number, z: number) => houses.some((ring) => insideRing(ring, x, z));
+  if (!inHouse(ex, ez)) return [ex, ez];
+  for (let d = 1; d <= 60; d += 1) {
+    for (let k = 0; k < 32; k++) {
+      const [x, z] = [ex + d * Math.cos((k * Math.PI) / 16), ez + d * Math.sin((k * Math.PI) / 16)];
+      if (inHouse(x, z)) continue;
+      // Out from the wall, clear of the next house too.
+      const [fx, fz] = [ex + (d + 2) * Math.cos((k * Math.PI) / 16), ez + (d + 2) * Math.sin((k * Math.PI) / 16)];
+      if (!inHouse(fx, fz)) return [fx, fz];
+    }
+  }
+  return [ex, ez];
+}
+
+/**
+ * The turn of the map about its entrance (`ex`, `ez`, meters in the file) that costs the city least: every square
+ * metre of house the square takes away (a house that comes within a metre of it is left out whole, see
+ * `streetOsmSteps`), much more for each house left standing in the way just ahead of the stairs, and water under the
+ * square or ahead. Of turns that do as well, the least.
+ */
+function bestTurn(file: StreetFile, frame: StreetFrame, ex: number, ez: number): number {
+  const origin = { ox: 0, oz: 0, turn: 0 };
+  // Each as meters from the entrance.
+  const local = (ring: Vector2[]) => ring.map((p) => new Vector2(p.x - ex, p.y - ez));
+  const near = (ring: Vector2[]) => ring.some((p) => Math.hypot(p.x, p.y) < 90);
+  const houses = file.buildings.map((bd) => local(points(bd, 3, (bd.length - 3) / 2, origin))).filter(near).map((ring) => ({ ring, area: Math.abs(ShapeUtils.area(ring)) }));
+  // Water with its islands: each area's rings, the outer one first.
+  const water = file.areas.filter((a) => a[0] === 2).map((a) => areaRings(a, origin).map(local)).filter((rings) => near(rings[0]));
+  const wetAt = (x: number, z: number) => water.some(([outer, ...holes]) => insideRing(outer, x, z) && !holes.some((h) => insideRing(h, x, z)));
+  if (!houses.length && !water.length) return 0;
+  // The square and the way ahead of the stairs, as world x and z less the top of the stairs.
+  const { square: q, stairs, X } = frame;
+  const sq = { x0: q.x0 - stairs - 1, x1: q.x1 - stairs + 1, z0: q.z0 - 1, z1: q.z1 + 1 };
+  const [a0, a1] = [X(STREET.square.a1) - stairs, X(STREET.square.a1 + AHEAD.len) - stairs];
+  const ahead: Array<[number, number]> = [];
+  for (let x = Math.min(a0, a1); x <= Math.max(a0, a1); x += 2) for (let z = -AHEAD.halfW; z <= AHEAD.halfW; z += 2) ahead.push([x, z]);
+  const wet: Array<[number, number]> = [...ahead];
+  for (let x = sq.x0; x <= sq.x1; x += 3) for (let z = sq.z0; z <= sq.z1; z += 3) wet.push([x, z]);
+  let best = 0, bestCost = Infinity;
+  for (let i = 0; i < TURNS; i++) {
+    // Nearest the tracks' own heading first, so a tie keeps the least turn.
+    const turn = (Math.ceil(i / 2) * (i % 2 ? 1 : -1) * 2 * Math.PI) / TURNS;
+    const c = Math.cos(turn), s = Math.sin(turn);
+    let cost = 0;
+    for (const { ring, area } of houses) {
+      let [x0, x1, z0, z1] = [Infinity, -Infinity, Infinity, -Infinity];
+      const laid = ring.map((p) => {
+        const v = new Vector2(c * p.x - s * p.y, s * p.x + c * p.y);
+        [x0, x1, z0, z1] = [Math.min(x0, v.x), Math.max(x1, v.x), Math.min(z0, v.y), Math.max(z1, v.y)];
+        return v;
+      });
+      if (x1 > sq.x0 && x0 < sq.x1 && z1 > sq.z0 && z0 < sq.z1 && reaches(laid, sq)) cost += area;
+      else for (const [x, z] of ahead) if (x > x0 && x < x1 && z > z0 && z < z1 && insideRing(laid, x, z)) cost += AHEAD.weight;
+      if (cost >= bestCost) break;
+    }
+    // Back from the world into the file for the water: turned the other way.
+    for (const [wx, wz] of cost < bestCost ? wet : []) if (wetAt(c * wx + s * wz, -s * wx + c * wz)) cost += AHEAD.weight;
+    if (cost < bestCost) { bestCost = cost; best = turn; }
+  }
+  return best;
+}
+
+const grown = (r: Rect, by: number): Rect => ({ x0: r.x0 - by, x1: r.x1 + by, z0: r.z0 - by, z1: r.z1 + by });
+
+/** Does a house's outline reach into the rectangle: a corner of either within the other, or a wall across it? */
+export function reaches(ring: Vector2[], r: Rect): boolean {
+  if (ring.some((p) => p.x > r.x0 && p.x < r.x1 && p.y > r.z0 && p.y < r.z1)) return true;
+  if (insideRing(ring, r.x0, r.z0) || insideRing(ring, r.x1, r.z0) || insideRing(ring, r.x1, r.z1) || insideRing(ring, r.x0, r.z1)) return true;
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i], b = ring[(i + 1) % ring.length];
+    // Liang-Barsky: the part of the wall within the rectangle's x and z at once.
+    const [dx, dz] = [b.x - a.x, b.y - a.y];
+    let t0 = 0, t1 = 1;
+    for (const [p, q] of [[-dx, a.x - r.x0], [dx, r.x1 - a.x], [-dz, a.y - r.z0], [dz, r.z1 - a.y]]) {
+      if (p === 0) { if (q < 0) t1 = -1; continue; }
+      const t = q / p;
+      if (p < 0) t0 = Math.max(t0, t);
+      else t1 = Math.min(t1, t);
+    }
+    if (t0 < t1) return true;
+  }
+  return false;
+}
+
+export function insideRing(ring: Vector2[], x: number, z: number): boolean {
+  let hit = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i], b = ring[j];
+    if ((a.y > z) !== (b.y > z) && x < ((b.x - a.x) * (z - a.y)) / (b.y - a.y) + a.x) hit = !hit;
+  }
+  return hit;
 }
 
 /**
@@ -115,6 +250,9 @@ export function streetOrigin(file: StreetFile, cx: number, stairs: number): { ox
  */
 export function* streetOsmSteps(s: Section, physics: Physics, file: StreetFile, at: StreetPlace): Generator<void, StreetOsm> {
   const { y: G, ox, oz, square: SQ, walk } = at;
+  const laid: Laid = at;
+  // No ground under the square, nor through the hall's own building beside it out of a door (`clear`).
+  const hole = at.clear.reduce((u, q) => ({ x0: Math.min(u.x0, q.x0), x1: Math.max(u.x1, q.x1), z0: Math.min(u.z0, q.z0), z1: Math.max(u.z1, q.z1) }), SQ);
   const cx = (SQ.x0 + SQ.x1) / 2, cz = (SQ.z0 + SQ.z1) / 2;
   const colliders: StaticCollider[] = [];
   const r = (k: number, salt: number) => hash01(at.seed * 7919 + k, salt);
@@ -127,45 +265,65 @@ export function* streetOsmSteps(s: Section, physics: Physics, file: StreetFile, 
     b.gridQuad(new Vector3(x0, y, z0), new Vector3(x0, y, z1), new Vector3(x1, y, z1), new Vector3(x1, y, z0), paint, cell);
   };
   const yb = G + LAYER.base;
-  flat(s.lit, X0, X1, Z0, SQ.z0, yb, base, 12);
-  flat(s.lit, X0, X1, SQ.z1, Z1, yb, base, 12);
-  flat(s.lit, X0, SQ.x0, SQ.z0, SQ.z1, yb, base, 12);
-  flat(s.lit, SQ.x1, X1, SQ.z0, SQ.z1, yb, base, 12);
+  flat(s.lit, X0, X1, Z0, hole.z0, yb, base, 12);
+  flat(s.lit, X0, X1, hole.z1, Z1, yb, base, 12);
+  flat(s.lit, X0, hole.x0, hole.z0, hole.z1, yb, base, 12);
+  flat(s.lit, hole.x1, X1, hole.z0, hole.z1, yb, base, 12);
 
-  /** A flat polygon (outer ring, then holes) facing up at `y`, unless it lies under the square. */
+  /**
+   * A triangle of the ground, less what lies under the square (`hole`): hidden under its paving, but in plain view down
+   * the well of its stairs, or across the hall out of a door.
+   */
+  const groundTri = (a: Vector3, b: Vector3, c: Vector3, paint: (p: Vector3) => RGB) => {
+    if (!hits(hole, Math.min(a.x, b.x, c.x), Math.max(a.x, b.x, c.x), Math.min(a.z, b.z, c.z), Math.max(a.z, b.z, c.z))) {
+      s.lit.tri(a, b, c, paint);
+      return;
+    }
+    for (const piece of cutOut([a, b, c], hole)) for (let i = 1; i + 1 < piece.length; i++) s.lit.tri(piece[0], piece[i], piece[i + 1], paint);
+  };
+  /** A flat quad of the ground split into cells no larger than `cell`, as `gridQuad` lays it, less what lies under the square. */
+  const groundQuad = (p: Vector3[], paint: (p: Vector3) => RGB, cell: number) => {
+    const xs = p.map((v) => v.x), zs = p.map((v) => v.z);
+    if (!hits(hole, Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs))) {
+      s.lit.gridQuad(p[0], p[1], p[2], p[3], paint, cell);
+      return;
+    }
+    const nu = Math.max(1, Math.ceil(p[0].distanceTo(p[1]) / cell));
+    const nv = Math.max(1, Math.ceil(p[0].distanceTo(p[3]) / cell));
+    const at = (u: number, v: number) => p[0].clone().lerp(p[1], u).lerp(p[3].clone().lerp(p[2], u), v);
+    for (let i = 0; i < nu; i++) {
+      for (let j = 0; j < nv; j++) {
+        const [c0, c1, c2, c3] = [at(i / nu, j / nv), at((i + 1) / nu, j / nv), at((i + 1) / nu, (j + 1) / nv), at(i / nu, (j + 1) / nv)];
+        groundTri(c0, c1, c2, paint);
+        groundTri(c0, c2, c3, paint);
+      }
+    }
+  };
+
+  /** A flat polygon (outer ring, then holes) facing up at `y`, less what lies under the square (`hole`). */
   const polygon = (rings: Vector2[][], y: number, paint: (p: Vector3) => RGB) => {
     const [outer, ...holes] = rings;
     if (outer.length < 3) return;
     const all = [...outer, ...holes.flat()];
-    const a = new Vector3(), b = new Vector3(), c = new Vector3();
     for (const [i, j, k] of ShapeUtils.triangulateShape(outer, holes)) {
-      a.set(all[i].x, y, all[i].y);
-      b.set(all[j].x, y, all[j].y);
-      c.set(all[k].x, y, all[k].y);
-      if ((b.z - a.z) * (c.x - a.x) - (b.x - a.x) * (c.z - a.z) >= 0) s.lit.tri(a, b, c, paint);
-      else s.lit.tri(a, c, b, paint);
+      const a = new Vector3(all[i].x, y, all[i].y), b = new Vector3(all[j].x, y, all[j].y), c = new Vector3(all[k].x, y, all[k].y);
+      if ((b.z - a.z) * (c.x - a.x) - (b.x - a.x) * (c.z - a.z) >= 0) groundTri(a, b, c, paint);
+      else groundTri(a, c, b, paint);
     }
   };
 
   yield;
   // Parks, woods, water and squares.
   for (const area of file.areas) {
-    const kind = area[0];
-    const rings: Vector2[][] = [];
-    for (let k = 1; k < area.length;) {
-      const n = area[k];
-      rings.push(points(area, k + 1, n, ox, oz));
-      k += 1 + 2 * n;
-    }
-    const [paint, dy] = GROUNDS[kind] ?? GROUNDS[0];
-    polygon(rings, G + dy, paint);
+    const [paint, dy] = GROUNDS[area[0]] ?? GROUNDS[0];
+    polygon(areaRings(area, laid), G + dy, paint);
   }
 
   yield;
   // Roads, pedestrian streets and paths: a strip along each, overlapping at the bends.
   const roadPaint = [ASPHALT, PAVING, GRAVEL];
   const roadY = [LAYER.road, LAYER.road, LAYER.path];
-  const roads = file.roads.map((road) => ({ kind: road[0], width: road[1] / 10, name: road[2], line: points(road, 3, (road.length - 3) / 2, ox, oz) }));
+  const roads = file.roads.map((road) => ({ kind: road[0], width: road[1] / 10, name: road[2], line: points(road, 3, (road.length - 3) / 2, laid) }));
   for (const { kind, width, line } of roads) {
     const y = G + roadY[kind];
     const w = width / 2;
@@ -184,8 +342,7 @@ export function* streetOsmSteps(s: Section, physics: Physics, file: StreetFile, 
       const p = [new Vector3(ax + nx, y, az + nz), new Vector3(bx + nx, y, bz + nz), new Vector3(bx - nx, y, bz - nz), new Vector3(ax - nx, y, az - nz)];
       const up = (p[1].z - p[0].z) * (p[2].x - p[0].x) - (p[1].x - p[0].x) * (p[2].z - p[0].z) >= 0;
       const cells = within(walk, (ax + bx) / 2, (az + bz) / 2, 40) ? 4 : 30;
-      if (up) s.lit.gridQuad(p[0], p[1], p[2], p[3], roadPaint[kind], cells);
-      else s.lit.gridQuad(p[3], p[2], p[1], p[0], roadPaint[kind], cells);
+      groundQuad(up ? p : [p[3], p[2], p[1], p[0]], roadPaint[kind], cells);
     }
   }
 
@@ -204,7 +361,7 @@ export function* streetOsmSteps(s: Section, physics: Physics, file: StreetFile, 
   yield;
   for (const [k, bd] of file.buildings.entries()) {
     if (k % 40 === 39) yield;
-    let ring = points(bd, 3, (bd.length - 3) / 2, ox, oz);
+    let ring = points(bd, 3, (bd.length - 3) / 2, laid);
     // Outside in: walls face out when the ring runs counterclockwise seen from above (the shoelace sum in x, z negative).
     let sum = 0;
     for (let i = 0; i < ring.length; i++) sum += ring[i].x * ring[(i + 1) % ring.length].y - ring[(i + 1) % ring.length].x * ring[i].y;
@@ -212,7 +369,7 @@ export function* streetOsmSteps(s: Section, physics: Physics, file: StreetFile, 
     if (at.inflate) ring = inflated(ring, at.inflate);
     const xs = ring.map((p) => p.x), zs = ring.map((p) => p.y);
     const [bx0, bx1, bz0, bz1] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
-    if ([SQ, ...at.clear].some((q) => hits(q, bx0 - 1, bx1 + 1, bz0 - 1, bz1 + 1))) continue;
+    if ([SQ, ...at.clear].some((q) => reaches(ring, grown(q, 1)))) continue;
     const height = (bd[0] as number) / 10;
     const pitched = bd[2] === 1 && ring.length === 4;
     const kind = pitched ? HOUSES : file.urban ? PLASTER : FLATS;
@@ -286,7 +443,7 @@ export function* streetOsmSteps(s: Section, physics: Physics, file: StreetFile, 
   const trunk = new CylinderGeometry(0.18, 0.26, 2.8, 5);
   const crown = new SphereGeometry(2.4, 7, 5);
   const pine = new ConeGeometry(2.1, 7.5, 7);
-  for (const [k, t] of points(file.trees, 0, file.trees.length / 2, ox, oz).entries()) {
+  for (const [k, t] of points(file.trees, 0, file.trees.length / 2, laid).entries()) {
     if ([SQ, ...at.clear].some((q) => within(q, t.x, t.y, 1))) continue;
     s.lit.geometry(trunk, m.makeTranslation(t.x, G + 1.2, t.y), rgb(0x4e3e30));
     if (!file.urban && r(k, 73) < 0.3) s.lit.geometry(pine, m.makeTranslation(t.x, G + 5.4, t.y), mix(rgb(0x1f4028), rgb(0x345a34), r(k, 74)));
@@ -378,6 +535,26 @@ function streetSigns(s: Section, roads: Array<{ kind: number; width: number; nam
     s.lit.box({ x: at.x - 0.05, y: G, z: at.y - 0.05 }, { x: at.x + 0.05, y: G + 3.2, z: at.y + 0.05 }, rgb(0x5a6068));
     for (const f of [1, -1]) place(s, sign, 1.6, 0.3, new Vector3(at.x, G + 3, at.y), new Vector3(side.x * f, 0, side.y * f));
   }
+}
+
+/**
+ * A flat convex polygon (in x and z) with the part within `r` cut away: up to four convex pieces round it, beside it
+ * along x and then across z, each turning the way the polygon does.
+ */
+function cutOut(poly: Vector3[], r: Rect): Vector3[][] {
+  /** The part where `side` is not negative. */
+  const clip = (p: Vector3[], side: (v: Vector3) => number): Vector3[] => {
+    const out: Vector3[] = [];
+    for (let i = 0; i < p.length; i++) {
+      const a = p[(i + p.length - 1) % p.length], b = p[i];
+      const sa = side(a), sb = side(b);
+      if ((sa >= 0) !== (sb >= 0)) out.push(a.clone().lerp(b, sa / (sa - sb)));
+      if (sb >= 0) out.push(b);
+    }
+    return out;
+  };
+  const between = clip(clip(poly, (v) => v.x - r.x0), (v) => r.x1 - v.x);
+  return [clip(poly, (v) => r.x0 - v.x), clip(poly, (v) => v.x - r.x1), clip(between, (v) => r.z0 - v.z), clip(between, (v) => v.z - r.z1)].filter((p) => p.length >= 3);
 }
 
 /** A ring moved out by `by` at every corner (mitred, and never more than twice as far at a sharp one). */

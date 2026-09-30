@@ -18,6 +18,12 @@ import { place } from './signage';
 /** Along the hall from the escalator top (`a`) and across it (`z`). */
 export const KIOSK = { a0: 20.6, a1: 25.4, wallZ: -8.95, counterZ: -6.75, counterH: 1.05 };
 
+/**
+ * How much further along the hall the kiosk stands: past the door in its wall where a hall under the tracks has its
+ * way out on the kiosk's side (`across`, see `world/station.ts`), so it does not stand in the way.
+ */
+export const kioskShift = (across?: 1 | -1): number => (across === -1 ? 6 : 0);
+
 let neon: ReturnType<typeof createCanvasSign> | null = null;
 
 function neonSign() {

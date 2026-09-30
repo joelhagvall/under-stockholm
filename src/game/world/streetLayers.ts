@@ -55,15 +55,16 @@ export class StreetLayers {
    * Builds the city round the street at `at` (the station's middle at `cx`), from its file, and lets the file go.
    * The lit windows fade in with the square's own (`windowsOf`). Null without a file.
    */
-  *build(key: string, cx: number, at: StreetAt, seed: number, windowsOf: () => Mesh | null): Generator<void, { group: Group; release(): void } | null> {
+  *build(key: string, cx: number, at: StreetAt, seed: number, windowsOf: () => Mesh | null, rank = 0): Generator<void, { group: Group; release(): void } | null> {
     const file = this.files.get(key);
     this.files.delete(key);
     if (!file) return null;
     const f = streetFrame(at);
-    const { ox, oz } = streetOrigin(file, cx, f.stairs);
+    const { ox, oz, turn } = streetOrigin(file, cx, f, rank);
+    yield;
     const s = new Section(`street-osm-${key}`, OPEN_AMBIENT, false, true);
     // In the open, walls a little wider than the same houses along the tracks below, which stand into the street.
-    const built = yield* streetOsmSteps(s, this.physics, file, { y: f.y, ox, oz, square: f.square, clear: f.hall ? [f.hall] : [], walk: f.walk, inflate: at.door ? 0.3 : 0, seed });
+    const built = yield* streetOsmSteps(s, this.physics, file, { y: f.y, ox, oz, turn, square: f.square, clear: f.hall ? [f.hall] : [], walk: f.walk, inflate: at.door ? 0.3 : 0, seed });
     yield;
     const group = yield* s.finishSteps();
     const windows = built.windows;

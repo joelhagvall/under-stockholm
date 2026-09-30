@@ -3,7 +3,7 @@ import { serviceOpen, stockholm } from './clock';
 import { glowTexture } from './gfx/textures';
 import text from './i18n/sv.json';
 import { beep, type AudioOut } from './sfx';
-import { KIOSK } from './world/kiosk';
+import { KIOSK, kioskShift } from './world/kiosk';
 import type { StationInfo } from './world/station';
 import type { Interactable } from './world/zones';
 import { era } from './era';
@@ -54,7 +54,7 @@ export class Coffee {
     for (let i = 0; i < STEAM; i++) this.steamData[i * 3 + 1] = -1000;
 
     for (const s of stations) {
-      const x = s.hallX((KIOSK.a0 + KIOSK.a1) / 2);
+      const x = s.hallX((KIOSK.a0 + KIOSK.a1) / 2 + kioskShift(s.exit.across));
       this.interactables.push({
         pos: new Vector3(x, s.hall.y + 1, KIOSK.counterZ + 0.4), radius: 1.8,
         get prompt() { return era.past ? text.kiosk.prompt1975 : text.kiosk.prompt; },

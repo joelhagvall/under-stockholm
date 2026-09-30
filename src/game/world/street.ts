@@ -39,6 +39,11 @@ export interface Street {
 }
 
 const PAVING = (p: Vector3): RGB => mix(rgb(0xb4b0a8), rgb(0xd0ccc2), fbm3(p.x * 0.4, 0, p.z * 0.4, 2, 601));
+/** Among the real city, granite slabs a shade lighter than the paving round them (see `streetOsm.ts`). */
+const SLABS = (p: Vector3): RGB => mix(rgb(0xb0aca4), rgb(0xcac6bc), fbm3(p.x * 0.4, 0, p.z * 0.4, 2, 601));
+const KERB = rgb(0x8e8c88);
+/** Among the real city the square starts this far along the hall, a little behind the stairwell, and leaves the houses behind it standing. */
+const OSM_BACK = 17;
 const ASPHALT = (p: Vector3): RGB => mix(rgb(0x37383b), rgb(0x4b4c50), fbm3(p.x * 0.3, 0, p.z * 0.3, 3, 602));
 const PLINTH = (p: Vector3): RGB => mix(rgb(0x6c665e), rgb(0x857e74), fbm3(p.x * 0.3, p.y * 0.3, p.z * 0.3, 2, 603));
 const CONCRETE = rgb(0x9a9ea3);
@@ -54,28 +59,34 @@ const WINDOW_LIGHT = [0xffd89a, 0xfff0c8, 0xffc574, 0xf4e6d0];
 /** A rectangle in world x and z. */
 export interface Rect { x0: number; x1: number; z0: number; z1: number }
 
-/** Where a street lies: the hall starts at `hx` and runs in `e`, its floor at `hallY`; `door` for a hall in the open. */
+/** Where a street lies: the hall starts at `hx` and runs in `e`, its floor at `hallY`; `door` for a hall in the open, `osm` among the real city. */
 export interface StreetAt {
   hx: number;
   hallY: number;
   e: 1 | -1;
   door: boolean;
+  osm?: boolean;
 }
+
+export type StreetFrame = ReturnType<typeof streetFrame>;
 
 /**
  * The street's frame: its level, where `a` along the hall lies in world x, the square, the hall's own building out of a
  * door, where one can walk among the real city (`osm`), and where the stairs come up (where its entrance goes).
  */
-export function streetFrame({ hx, hallY, e, door }: StreetAt) {
+export function streetFrame({ hx, hallY, e, door, osm = false }: StreetAt) {
   const { square: SQ } = STREET;
   // Measured along the hall, as underground; out of a door the square starts at the end wall's outer face.
   const shift = door ? HALL_LEN + 0.5 - SQ.a0 : 0;
   const X = (a: number) => hx + e * (a + shift);
   const rect = (a0: number, a1: number, z0: number, z1: number): Rect => ({ x0: Math.min(X(a0), X(a1)), x1: Math.max(X(a0), X(a1)), z0, z1 });
+  const back = osm && !door ? OSM_BACK : SQ.a0;
   return {
     y: hallY + (door ? STREET.door : STREET.above),
     X,
-    square: rect(SQ.a0, SQ.a1, -SQ.halfW, SQ.halfW),
+    /** Where the square starts along the hall. */
+    back,
+    square: rect(back, SQ.a1, -SQ.halfW, SQ.halfW),
     hall: door ? rect(SQ.a0 - HALL_LEN - 1.5, SQ.a0 + 0.4, -SQ.halfW, SQ.halfW) : null,
     walk: rect(door ? SQ.a0 - HALL_LEN - 25 : -40, SQ.a1 + 80, -85, 85),
     stairs: X(STREET.stairTop - 4),
@@ -91,7 +102,16 @@ export function streetFrame({ hx, hallY, e, door }: StreetAt) {
  */
 export function buildStreet(s: Section, physics: Physics, index: number, exits: string, hx: number, hallY: number, e: 1 | -1, door: string | null = null, hall = 0, osm = false): Street {
   const { square: SQ, road: R } = STREET;
-  const frame = streetFrame({ hx, hallY, e, door: door !== null });
+  // The paving stops at the kerbs, whose tops lie level with it: two faces in one plane flicker.
+  const K = 0.15;
+  const frame = streetFrame({ hx, hallY, e, door: door !== null, osm });
+  // Among the real city the square is its own, its paving ending at a kerb where the city's ground goes on; the lamps,
+  // planters and benches move with its back.
+  const back = frame.back;
+  const end = osm ? SQ.a1 : R.a0 - K;
+  const paving = osm ? s.lit : s.floor;
+  const slabs = osm ? SLABS : PAVING;
+  const props = back - SQ.a0;
   const G = frame.y;
   const X = frame.X;
   // A station's second hall comes up among houses of its own.
@@ -112,13 +132,11 @@ export function buildStreet(s: Section, physics: Physics, index: number, exits: 
 
   // The square, open over the stairs underground: the cut runs from the far wall of the hall's stairwell to the top step.
   const well = { a0: 22.7, a1: STREET.stairTop, z: 2.8 };
-  // The paving stops at the kerbs, whose tops lie level with it: two faces in one plane flicker.
-  const K = 0.15;
-  if (door) ground(s.floor, SQ.a0, R.a0 - K, -SQ.halfW, SQ.halfW, G, PAVING);
+  if (door) ground(paving, SQ.a0, end, -SQ.halfW, SQ.halfW, G, slabs);
   else {
-    ground(s.floor, SQ.a0, well.a0, -SQ.halfW, SQ.halfW, G, PAVING);
-    for (const side of [-1, 1]) ground(s.floor, well.a0, well.a1, side * well.z, side * SQ.halfW, G, PAVING);
-    ground(s.floor, well.a1, R.a0 - K, -SQ.halfW, SQ.halfW, G, PAVING);
+    ground(paving, back, well.a0, -SQ.halfW, SQ.halfW, G, slabs);
+    for (const side of [-1, 1]) ground(paving, well.a0, well.a1, side * well.z, side * SQ.halfW, G, slabs);
+    ground(paving, well.a1, end, -SQ.halfW, SQ.halfW, G, slabs);
   }
   if (!osm) {
     // Pavements along the road, a kerb above it.
@@ -132,7 +150,14 @@ export function buildStreet(s: Section, physics: Physics, index: number, exits: 
   } else {
     // Among the real city: ground to walk on round the square (the city's own lies a little under it, see
     // `streetOsm.ts`), and an end to the walking out of sight of the square, where the city goes on.
-    const { square: q, walk: w } = frame;
+    const { walk: w } = frame;
+    // Out of a door, the hall's own building stands behind the square: no street floor through it.
+    const q = frame.hall ? { ...frame.square, x0: Math.min(frame.square.x0, frame.hall.x0), x1: Math.max(frame.square.x1, frame.hall.x1) } : frame.square;
+    // A kerb round the square, its top a finger under the paving, down to the city's ground; none against the hall's front.
+    const kerb = (a0: number, a1: number, z0: number, z1: number) => box(s.lit, a0, a1, G - 0.32, G - 0.01, z0, z1, KERB, false, ['ny'], 4);
+    for (const side of [-1, 1]) kerb(back - (door ? 0 : 0.2), SQ.a1 + 0.2, side * SQ.halfW, side * (SQ.halfW + 0.2));
+    kerb(SQ.a1, SQ.a1 + 0.2, -SQ.halfW, SQ.halfW);
+    if (!door) kerb(back - 0.2, back, -SQ.halfW, SQ.halfW);
     const floor = (x0: number, x1: number, z0: number, z1: number) => { if (x1 > x0 && z1 > z0) physics.box({ x: x0, y: G - 0.5, z: z0 }, { x: x1, y: G, z: z1 }); };
     floor(w.x0, w.x1, w.z0, q.z0);
     floor(w.x0, w.x1, q.z1, w.z1);
@@ -291,22 +316,22 @@ export function buildStreet(s: Section, physics: Physics, index: number, exits: 
     lamp(R.a1 + 1.2, z + 8, -1);
   }
   for (const side of [-1, 1]) {
-    lamp(12, side * (SQ.halfW - 1.2), -side);
-    lamp(30, side * (SQ.halfW - 1.2), -side);
+    lamp(12 + props, side * (SQ.halfW - 1.2), -side);
+    lamp(30 + props, side * (SQ.halfW - 1.2), -side);
   }
 
   // Benches and planters with small spruces on the square.
   const spruce = new CylinderGeometry(0, 0.8, 2.2, 7);
   for (const side of [-1, 1]) {
-    for (const a of [14, 26]) {
+    for (const a of [14 + props, 26 + props]) {
       const z = side * 7.5;
       box(s.lit, a - 1.1, a + 1.1, G, G + 0.8, z - 1.1, z + 1.1, CONCRETE, true, ['ny']);
       s.lit.geometry(spruce, m.makeTranslation(X(a), G + 1.9, z), mix(rgb(0x22422c), rgb(0x365c3a), r(50 + a + side)));
     }
     const bz = side * 9.5;
-    box(s.lit, 19, 22, G + 0.42, G + 0.5, bz - 0.25, bz + 0.25, rgb(0x6a4a32), true);
-    box(s.lit, 19, 22, G + 0.5, G + 0.95, bz + side * 0.22, bz + side * 0.28, rgb(0x6a4a32));
-    for (const a of [19.3, 21.7]) box(s.lit, a - 0.05, a + 0.05, G, G + 0.42, bz - 0.25, bz + 0.25, rgb(0x2e3238));
+    box(s.lit, 19 + props, 22 + props, G + 0.42, G + 0.5, bz - 0.25, bz + 0.25, rgb(0x6a4a32), true);
+    box(s.lit, 19 + props, 22 + props, G + 0.5, G + 0.95, bz + side * 0.22, bz + side * 0.28, rgb(0x6a4a32));
+    for (const a of [19.3 + props, 21.7 + props]) box(s.lit, a - 0.05, a + 0.05, G, G + 0.42, bz - 0.25, bz + 0.25, rgb(0x2e3238));
   }
   spruce.dispose();
 
@@ -341,11 +366,11 @@ export function buildStreet(s: Section, physics: Physics, index: number, exits: 
     };
     const white = rgb(0xffffff);
     const lift = G + 0.02;
-    if (door) flat(SQ.a0 + 0.4, R.a0, -SQ.halfW, SQ.halfW, lift, white);
+    if (door) flat(SQ.a0 + 0.4, end, -SQ.halfW, SQ.halfW, lift, white);
     else {
-      flat(SQ.a0, well.a0, -SQ.halfW, SQ.halfW, lift, white);
+      flat(back, well.a0, -SQ.halfW, SQ.halfW, lift, white);
       for (const side of [-1, 1]) flat(well.a0, well.a1, side * well.z, side * SQ.halfW, lift, white);
-      flat(well.a1, R.a0, -SQ.halfW, SQ.halfW, lift, white);
+      flat(well.a1, end, -SQ.halfW, SQ.halfW, lift, white);
     }
     if (!osm) {
       for (const side of [-1, 1]) flat(SQ.a1, R.a0, side * SQ.halfW, side * R.halfLen, lift, white);
