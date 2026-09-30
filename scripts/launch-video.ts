@@ -60,10 +60,11 @@ const SCENES: Scene[] = [
     captionAt: 0.6,
   },
   {
-    // Out in the open at Gamla stan, as a red line train comes in off the bridge.
+    // Out in the open at Gamla stan, looking out past the platform's end into the daylight over the tracks and the
+    // houses, as a red line train comes in off the bridge.
     name: 'Gamla stan',
     view: 'game',
-    place: `{ const s = __us.world.stations[31]; __stand(s.cx - 68, 1.1, -9.3, -Math.PI / 2 - 0.2); }`,
+    place: `{ const s = __us.world.stations[31]; __stand(s.cx - 62, 1.1, -10.2, Math.PI / 2 - 0.12, 0.03); }`,
     // A red line train in off the bridge: the next on the green line's track beside would come in out of shot.
     start: `__before(31, 1, 7, 1);`,
     seconds: BAR,
@@ -193,7 +194,8 @@ const SCENES: Scene[] = [
     // Where the dive lands: Stadion's rainbow arching over the vault, as a train comes in under it.
     name: 'Stadion',
     view: 'game',
-    place: `{ const s = __us.world.stations[__station('Stadion')]; __stand(s.cx - 14, 1.1, 2.4, -Math.PI / 2 - 0.35, 0.25); }`,
+    // Turned from the bench beside, where a man flickered between sitting and standing.
+    place: `{ const s = __us.world.stations[__station('Stadion')]; __stand(s.cx - 14, 1.1, 2.4, -Math.PI / 2 - 0.6, 0.25); }`,
     start: `__before(__station('Stadion'), 2, 5.5);`,
     seconds: BAR,
     speed: 1.3,
