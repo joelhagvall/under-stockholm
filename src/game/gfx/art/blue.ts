@@ -8,8 +8,8 @@ import { ellipse, poly, vault, type Vault, type WallPen } from '../stationArt';
  * frieze of birch trunks and steamboats (Birgit Broms), Stadshagen's cracked
  * grey rock and pleated sports pictures (Lasse Lindqvist), Västra skogen's
  * tiled forms (Sivert Lindblom), Näckrosen's framed showcases and lily pond
- * (Lizzie Olsson Arle), Huvudsta's hanging garden (Per Holmberg), Rissne's
- * history of the world in handwriting (Madeleine Drakenberg and Rolf H
+ * (Lizzie Olsson-Arle), Huvudsta's hanging garden (Per Holmberg), Rissne's
+ * history of the world in handwriting (Madeleine Dranger and Rolf H
  * Reimers), Rinkeby's gold runes (Nisse Zetterberg), Duvbo's fossils (Gösta
  * Sillén) and Hjulsta's framed paintings. Drawn from descriptions and photos
  * in the spirit of the originals, not traced.

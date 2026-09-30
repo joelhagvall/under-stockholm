@@ -67,8 +67,11 @@ export interface StreetOsm {
 
 /** How far out the ground is laid from the middle of the square: the fog closes in before. */
 const GROUND_REACH = 420;
-/** Heights of the ground's layers under the paving. */
-const LAYER = { base: -0.25, grass: -0.2, wood: -0.18, paved: -0.15, water: -0.12, path: -0.09, road: -0.05 };
+/**
+ * Heights of the ground's layers under the paving, each kind a layer of its own: two kinds at one height flicker
+ * where they overlap (a car park on a square, a pedestrian street across a road).
+ */
+const LAYER = { base: -0.25, grass: -0.2, wood: -0.18, paved: -0.16, asphalt: -0.145, sand: -0.13, water: -0.115, path: -0.09, pedestrian: -0.07, road: -0.05 };
 const PAVING = (p: Vector3): RGB => mix(rgb(0xa8a49c), rgb(0xc4c0b6), fbm3(p.x * 0.4, 0, p.z * 0.4, 2, 601));
 const ASPHALT = (p: Vector3): RGB => mix(rgb(0x37383b), rgb(0x4b4c50), fbm3(p.x * 0.3, 0, p.z * 0.3, 3, 602));
 const PLINTH = (p: Vector3): RGB => mix(rgb(0x6c665e), rgb(0x857e74), fbm3(p.x * 0.3, p.y * 0.3, p.z * 0.3, 2, 603));
@@ -78,7 +81,7 @@ const WATER = (p: Vector3): RGB => mix(rgb(0x5a7c98), rgb(0x9ab4c8), fbm3(p.x * 
 const GRAVEL = (p: Vector3): RGB => mix(rgb(0xa89c86), rgb(0xc2b8a2), fbm3(p.x * 0.5, 0, p.z * 0.5, 2, 604));
 const SAND = (p: Vector3): RGB => mix(rgb(0xd2c29a), rgb(0xe2d6b2), fbm3(p.x * 0.5, 0, p.z * 0.5, 2, 605));
 /** By area kind (see the file's `format`): paint and height. */
-const GROUNDS: Array<[(p: Vector3) => RGB, number]> = [[GRASS, LAYER.grass], [WOOD, LAYER.wood], [WATER, LAYER.water], [PAVING, LAYER.paved], [ASPHALT, LAYER.paved], [SAND, LAYER.paved]];
+const GROUNDS: Array<[(p: Vector3) => RGB, number]> = [[GRASS, LAYER.grass], [WOOD, LAYER.wood], [WATER, LAYER.water], [PAVING, LAYER.paved], [ASPHALT, LAYER.asphalt], [SAND, LAYER.sand]];
 /** Inner city plaster, as on the square's own houses; the suburbs' blocks of flats; villas. */
 const PLASTER = [0xe0bf6a, 0xebdcbc, 0xd08a4a, 0xd9a090, 0xc6bfae, 0xe6cf98, 0xb86a4a, 0xd8d0bc];
 const FLATS = [0xe8dcc0, 0xc86a4a, 0xf0e2a8, 0xe6e6e0, 0xb8c4c8, 0xd8c8a8, 0xb86a4a];
@@ -322,7 +325,7 @@ export function* streetOsmSteps(s: Section, physics: Physics, file: StreetFile, 
   yield;
   // Roads, pedestrian streets and paths: a strip along each, overlapping at the bends.
   const roadPaint = [ASPHALT, PAVING, GRAVEL];
-  const roadY = [LAYER.road, LAYER.road, LAYER.path];
+  const roadY = [LAYER.road, LAYER.pedestrian, LAYER.path];
   const roads = file.roads.map((road) => ({ kind: road[0], width: road[1] / 10, name: road[2], line: points(road, 3, (road.length - 3) / 2, laid) }));
   for (const { kind, width, line } of roads) {
     const y = G + roadY[kind];

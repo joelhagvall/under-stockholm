@@ -342,7 +342,7 @@ const redSky: Theme = { ...pattern(0x4a3230, warmLamp, (p) => {
   return mix(rgb(0x2a2b28), rgb(0x44443e), g);
 }), art: (arc) => solnaCentrumTexture(arc) };
 
-// Näckrosen (Lizzie Olsson Arle): a pale grey-white cave with framed
+// Näckrosen (Lizzie Olsson-Arle): a pale grey-white cave with framed
 // showcases along the walls, and a lily pond painted in the vault (see `art/blue.ts`).
 const lilies: Theme = { ...pattern(0x55555a, coolLamp, (p) => mix(rgb(0xb4b3ae), rgb(0xdedcd6), grain(p, 52, 0.3))), art: (arc) => nackrosenTexture(arc) };
 
@@ -393,7 +393,7 @@ const rose = pattern(0x4a3a36, warmLamp, (p) => {
 // under a red duct on red columns (see `details/blue.ts`).
 const fossils: Theme = { ...pattern(0x38383a, coolLamp, (p) => mix(rgb(0x2c2c2a), rgb(0x4a4a46), grain(p, 63))), art: (arc) => duvboTexture(arc) };
 
-// Rissne (Madeleine Drakenberg and Rolf H Reimers): a white station with the
+// Rissne (Madeleine Dranger and Rolf H Reimers): a white station with the
 // history of the world handwritten along the track walls (see `art/blue.ts`).
 const timeline: Theme = { ...pattern(0x5c5a56, coolLamp, (p) => mix(rgb(0xd4d2cc), rgb(0xf0eee8), grain(p, 65))), art: (arc) => rissneTexture(arc) };
 
@@ -424,7 +424,7 @@ export const BLUE_LINE: LineDef = {
   ],
   ghost: { name: 'Kymlinge', route: '11', from: 'Hallonbergen', after: KYMLINGE_AFTER },
   stations: [
-    { name: 'Kungsträdgården', map: [0.565, 0.445], sl: 9340, riders: 9850, rise: 26, architecture: 'garden', exits: 'Kungsträdgården · Arsenalsgatan', halls: [{ end: 'outbound', from: 37, incline: true, exits: 'Jakobsgatan' }, { end: 'inbound', corridor: 16, incline: true, exits: 'Grevgränd' }], look: { split: true }, theme: garden },
+    { name: 'Kungsträdgården', map: [0.565, 0.445], sl: 9340, riders: 9850, rise: 26, architecture: 'garden', exits: 'Kungsträdgården · Arsenalsgatan', halls: [{ end: 'outbound', from: 37, incline: true, exits: 'Jakobsgatan' }, { end: 'inbound', corridor: 16, incline: true, exits: 'Arsenalsgatan' }], look: { split: true }, theme: garden },
     {
       name: 'T-Centralen',
       map: [0.5, 0.45],
@@ -446,8 +446,8 @@ export const BLUE_LINE: LineDef = {
     { name: 'Stadshagen', map: [0.38, 0.415], sl: 9307, riders: 14050, rise: 11, architecture: 'sport', look: { split: true }, exits: 'Stadshagsvägen · Mariedalsvägen', halls: [{ end: 'outbound', incline: true, exits: 'Sankt Göransgatan' }, { end: 'inbound', incline: true, exits: 'Stadshagens idrottsplats' }], theme: sport },
     { name: 'Västra skogen', map: [0.35, 0.385], sl: 9306, riders: 7850, rise: 33, architecture: 'forest', exits: 'Västra skogen · Solna', halls: [{ end: 'outbound', from: -51 }], theme: forest },
     // The branches. Their `riders` are estimates in the same spirit, not SL's figures.
-    { name: 'Solna centrum', map: [0.345, 0.33], sl: 9305, riders: 11000, rise: 23, architecture: 'redSky', exits: 'Solna centrum · Solna stadshus', halls: [{ end: 'outbound', incline: true, exits: 'Frösundaleden' }, { end: 'inbound', from: 45 }], branch: '11', gap: JUNCTION_RUN, look: { floor: 0xb8b8b4, split: true }, theme: redSky },
-    { name: 'Näckrosen', map: [0.335, 0.285], sl: 9304, riders: 4000, rise: 13, architecture: 'rock', look: { split: true }, exits: 'Filmstaden · Råsundavägen', halls: [{ end: 'outbound', incline: true, exits: 'Ravinstigen' }, { end: 'inbound', corridor: 45, incline: true, exits: 'Råsundavägen' }], branch: '11', theme: lilies },
+    { name: 'Solna centrum', map: [0.345, 0.33], sl: 9305, riders: 11000, rise: 23, architecture: 'redSky', exits: 'Solna centrum · Solna stadshus', halls: [{ end: 'outbound', incline: true, exits: 'Frösundaleden' }, { end: 'inbound', from: 45 }], branch: '11', gap: JUNCTION_RUN, transfer: text.announcements.tvarbanaTransfer, look: { floor: 0xb8b8b4, split: true }, theme: redSky },
+    { name: 'Näckrosen', map: [0.335, 0.285], sl: 9304, riders: 4000, rise: 13, architecture: 'rock', look: { split: true }, exits: 'Filmstaden · Råsundavägen', halls: [{ end: 'outbound', incline: true, exits: 'Storskogstorget' }, { end: 'inbound', corridor: 45, incline: true, exits: 'Råsundavägen' }], branch: '11', theme: lilies },
     { name: 'Hallonbergen', map: [0.32, 0.24], sl: 9303, riders: 6000, rise: 20, architecture: 'drawings', exits: 'Hallonbergens centrum', halls: [{ end: 'outbound', incline: true, exits: 'Lötsjövägen' }], branch: '11', theme: crayons },
     // Up on its viaduct in the open, between the tunnels from Hallonbergen and to Husby.
     { name: 'Kista', map: [0.3, 0.19], sl: 9302, riders: 16000, architecture: 'rock', exits: 'Kista Galleria · Kista centrum', halls: [{ end: 'inbound', from: -61, down: true }, { end: 'outbound', from: -55, down: true }], branch: '11', gap: KYMLINGE_RUN, open: true, theme: circuit },
@@ -457,7 +457,7 @@ export const BLUE_LINE: LineDef = {
     { name: 'Solna strand', map: [0.29, 0.355], sl: 9326, riders: 3000, rise: 20, architecture: 'cubes', exits: 'Solna strand · Huvudstaleden', halls: [{ end: 'outbound', incline: true }], branch: '10', look: { floor: 0xb4b4b0, columns: 'none' }, theme: sky },
     { name: 'Sundbybergs centrum', map: [0.26, 0.335], sl: 9325, riders: 10000, rise: 18, architecture: 'rock', exits: 'Sundbybergs torg · Pendeltåg', halls: [{ end: 'inbound', incline: true }, { end: 'outbound', incline: true, exits: 'Prästgårdsgatan' }], branch: '10', transfer: text.announcements.sundbybergTransfer, look: { floor: 0x8a4c44, split: true }, theme: rose },
     { name: 'Duvbo', map: [0.23, 0.315], sl: 9324, riders: 2500, rise: 19, architecture: 'rock', exits: 'Duvbo', halls: [{ end: 'inbound', incline: true, exits: 'Tulegatan' }], branch: '10', look: { floor: 0x55565a, columns: 'none' }, theme: fossils },
-    { name: 'Rissne', map: [0.2, 0.295], sl: 9323, riders: 4500, rise: 24, architecture: 'rock', exits: 'Rissne centrum', halls: [{ end: 'outbound', incline: true, exits: 'Rissnehissen' }], branch: '10', look: { floor: 0xe6e0d4, columns: 'none' }, theme: timeline },
+    { name: 'Rissne', map: [0.2, 0.295], sl: 9323, riders: 4500, rise: 24, architecture: 'rock', exits: 'Rissne centrum', halls: [{ end: 'outbound', incline: true, exits: 'Rissne torg' }], branch: '10', look: { floor: 0xe6e0d4, columns: 'none' }, theme: timeline },
     { name: 'Rinkeby', map: [0.17, 0.275], sl: 9322, riders: 8000, rise: 21, architecture: 'rock', look: { split: true }, exits: 'Rinkeby torg', halls: [{ end: 'inbound', incline: true }], branch: '10', theme: treasure },
     { name: 'Tensta', map: [0.14, 0.255], sl: 9321, riders: 7000, rise: 13, architecture: 'kinship', exits: 'Tensta centrum', halls: [{ end: 'outbound', incline: true }, { end: 'inbound', from: 37, exits: 'Tenstagången' }], branch: '10', look: { floor: 0x2a2a2c, split: true }, theme: mural },
     { name: 'Hjulsta', map: [0.11, 0.235], sl: 9320, riders: 3000, rise: 13, architecture: 'rock', exits: 'Hjulsta', halls: [{ end: 'inbound', corridor: 15, incline: true }], branch: '10', theme: paintings },

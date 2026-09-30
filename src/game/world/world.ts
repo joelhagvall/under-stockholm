@@ -1223,6 +1223,19 @@ function hallSpan(net: Network, i: number, hall: HallDef): [number, number] {
 }
 
 /**
+ * Where the `k`th hall of a station's plan comes up on the street, along x from the station's middle: the top of its
+ * stairs, or the middle of the square beside the tracks for a hall under them. For checking the plans against where
+ * the real entrances are (`tests/hall-sides.test.ts`).
+ */
+export function hallStreetX(net: Network, i: number, hall: HallDef, k: number): number {
+  if (hall.down) {
+    const { square } = underHall(hall, k);
+    return (square.x0 + square.x1) / 2;
+  }
+  return hallDir(hall) * ((hall.from ?? CAVE_HALF_L) + escalatorRun(stationRise(net, i)) + (hall.corridor ?? 0) + STREET.stairTop);
+}
+
+/**
  * Where a hall under the tracks lies along x, from the station's middle (the `k`th hall of its plan): from the foot of
  * its escalators on, and how far out it and the square its stairs come up on reach, signed toward that end.
  */

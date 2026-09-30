@@ -56,7 +56,7 @@ import { Hud } from './hud';
 import { cabinSeats, nearestSeat } from './journey';
 import { Crowd, occupiedSeatPoses, trainPassengerPoses } from './crowd';
 import { lang, setLang, text } from './i18n/text';
-import { DOOR_HALF_W, PLATFORM_HALF_L, PLATFORM_HALF_W, PLATFORM_Y, TRAIN_HALF_L, TRAIN_HALF_W, trackSide, UNDERPASS_DEPTH } from './layout';
+import { DOOR_HALF_W, HALL_HALF_W, PLATFORM_HALF_L, PLATFORM_HALF_W, PLATFORM_Y, TRAIN_HALF_L, TRAIN_HALF_W, trackSide, UNDERPASS_DEPTH } from './layout';
 import { isLineTerminal, NETWORK, networkServices, networkSlots, ridership, serviceDestination, stationIndex as indexOf } from './line';
 import { Night, stationLight } from './night';
 import { Operations, startTime } from './operations';
@@ -76,7 +76,7 @@ import { Warnings } from './warnings';
 import { Wind, type WindTrain } from './wind';
 import { AdaptiveResolution, RENDER_SCALES } from './resolution';
 import { World } from './world/world';
-import type { DepartureRow } from './world/station';
+import { underHall, type DepartureRow } from './world/station';
 import { Sky, SKY_RADIUS } from './world/sky';
 import { setDaylight } from './world/section';
 import { LOADING_SLICE_MS, nextFrame } from './frames';
@@ -2013,15 +2013,23 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     const street = here.area === 'street' ? upHall!.exit.street : null;
     const open = street ? world.streetOpen(here.station!, player.camera.position)
       : here.area === 'hall' || here.area === 'escalator' || here.area === 'service' ? 0 : world.outdoorAt(player.camera.position);
-    const skyAbove = here.area === 'hall' && upHall!.exit.open > 0;
+    // Up the side stairs from a hall under the tracks, the second flight climbs in an open cut.
+    const sideStairs = here.area === 'hall' && !!upHall!.exit.across && upHall!.exit.across * player.feet.z > HALL_HALF_W + 0.5;
+    const skyAbove = here.area === 'hall' && (upHall!.exit.open > 0 || sideStairs);
+    // There, in a hall whose stairs open to the sky and in one with a door straight out (onto the street in the open,
+    // or onto the square beside the tracks under a viaduct), the city and the sky show as they are outside, with no
+    // dark houses far off: the fog and the view are the street's, while its rain and light stay outside. Within the
+    // hall the fog never reaches either way.
+    const door = here.area === 'hall' && (!!upHall!.exit.across || (upHall!.exit.cut === 0 && !!upHall!.exit.street));
+    const seen = skyAbove || door ? 1 : open;
     sky.update(player.camera.position, time, weather.state);
     setDaylight(sky.daylight);
     const fog = scene.fog as Fog;
-    fog.color.copy(underground).lerp(sky.horizon, open);
-    fog.near = 30 + 50 * open;
-    fog.far = 175 + 235 * open;
+    fog.color.copy(underground).lerp(sky.horizon, seen);
+    fog.near = 30 + 50 * seen;
+    fog.far = 175 + 235 * seen;
     (scene.background as Color).copy(fog.color);
-    const far = Math.max(185 + 235 * open, skyAbove ? SKY_RADIUS + 20 : 0);
+    const far = Math.max(185 + 235 * seen, skyAbove ? SKY_RADIUS + 20 : 0);
     if (Math.abs(player.camera.far - far) > 4) { player.camera.far = far; player.camera.updateProjectionMatrix(); }
     hemisphere.intensity = 2.4 * (1 + open * Math.max(0, sky.daylight - 0.4));
     updatePower(open);
@@ -2195,10 +2203,20 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
           const s = world.stations[i];
           player.teleport(s.spawn, s.exitDir > 0 ? -Math.PI / 2 : Math.PI / 2);
         },
-        /** Up on the street out of a station's hall `k` (the station by name or index), at the top of its stairs or out of its door, facing out. */
+        /**
+         * Up on the street out of a station's hall `k` (the station by name or index), at the top of its stairs or out
+         * of its door, facing out; from a hall under the tracks in the open, on the square its side stairs come up on.
+         */
         street(station: number | string, k = 0) {
           const s = typeof station === 'number' ? world.stations[station] : world.stations.find((t) => t.name === station);
           const hall = s?.halls[k];
+          const plan = s && net.stations[s.index].halls?.[k];
+          if (s && hall?.exit.across && plan?.down) {
+            // Out on the square beyond the top of the stairs, which come up in its middle.
+            const { square, across } = underHall(plan, k);
+            player.teleport(new Vector3(s.cx + (square.x0 + square.x1) / 2, -s.ground + 0.6, across > 0 ? square.z1 - 4 : square.z0 + 4), across > 0 ? Math.PI : 0);
+            return;
+          }
           if (!hall?.exit.street) return;
           const { exit } = hall;
           player.teleport(new Vector3(exit.x + hall.dir * (exit.cut + (exit.cut ? 2 : 6)), exit.street!.y + 0.1, 0), hall.dir > 0 ? -Math.PI / 2 : Math.PI / 2);

@@ -6,6 +6,7 @@
 // With `--device`, the scenes also run on an Android phone over USB: Chrome on the phone, driven through adb, with
 // the dev server reached through `adb reverse`. That is the only measurement with a phone's real GPU.
 // Options: --url http://localhost:5180/ (default), --seconds 6, --only desktop|phone|device, --scene <parts of names, comma separated>,
+// --names <whole names, separated by |> (exactly these scenes, as `scripts/check.ts` runs a failed one again),
 // --why (what the frames over 50 ms spent their time on), --json <file> (the numbers, for `scripts/check.ts`),
 // --device (the phone too).
 
@@ -19,6 +20,7 @@ const BASE = arg('url', 'http://localhost:5180/');
 const SECONDS = Number(arg('seconds', '6'));
 const ONLY = arg('only', '');
 const SCENES_WANTED = arg('scene', '').toLowerCase().split(',').map((s) => s.trim()).filter(Boolean);
+const NAMES_WANTED = arg('names', '').split('|').filter(Boolean);
 const JSON_OUT = arg('json', '');
 const DEVICE = process.argv.includes('--device') || ONLY === 'device';
 const CHROME = process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -189,6 +191,7 @@ async function run(name: string, p: Profile, report: FpsReport): Promise<void> {
     const results: Record<string, Result> = {};
     for (const scene of SCENES) {
       if (SCENES_WANTED.length && !SCENES_WANTED.some((s) => scene.name.toLowerCase().includes(s))) continue;
+      if (NAMES_WANTED.length && !NAMES_WANTED.includes(scene.name)) continue;
       // Aboard, a jump in time would leave the train behind: set it before boarding instead.
       const aboard = scene.set.includes('ride()');
       await page.evaluate('__us.time = __fpsBase');

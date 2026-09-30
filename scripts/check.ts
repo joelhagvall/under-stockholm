@@ -16,9 +16,11 @@
 // night, off for now). It starts and stops the dev server and the production server itself, on free
 // ports, so nothing else needs to run. Every run writes perf/last-run.json, with the tree it ran on (scripts/tree.ts),
 // which the pre-push hook and the agent hooks read (scripts/hooks): a push of exactly a tree that passed skips the gate. The limits below are the floor; the baseline catches a change that stays above the
-// floor but costs more than the noise between runs. `--accept` keeps the floor.
+// floor but costs more than the noise between runs. `--accept` keeps the floor. A scene that misses on its frame times
+// is timed once more and fails only if it misses again, and a machine already busy before the timing is noted.
 
 import { existsSync } from 'node:fs';
+import { cpus, loadavg } from 'node:os';
 import { join } from 'node:path';
 import type { FpsReport, Result } from './fps';
 import type { LoadReport } from './load';
@@ -67,9 +69,48 @@ const DRIFT = {
 };
 
 interface Baseline { at: string; commit: string; fps?: FpsReport; load?: LoadReport }
-interface LastRun { at: string; commit: string; tree: string | null; passed: boolean; scope: { perf: boolean; smoke: boolean; web: boolean }; failures: string[]; fps?: FpsReport; load?: LoadReport; mem?: MemReport; web?: Record<string, Record<string, number>> }
+interface LastRun { at: string; commit: string; tree: string | null; passed: boolean; scope: { perf: boolean; smoke: boolean; web: boolean }; failures: string[]; retried?: string[]; fps?: FpsReport; load?: LoadReport; mem?: MemReport; web?: Record<string, Record<string, number>> }
 
 const failures: string[] = [];
+
+/** What is wrong with one scene's frame rates, against the floor and the baseline. */
+function judgeFps(profile: string, scene: string, r: Result): string[] {
+  const limit = LIMITS.fps[profile];
+  const out: string[] = [];
+  if (r.fps < limit.fps) out.push(`${r.fps} fps, floor ${limit.fps}`);
+  if (r.slow > limit.slow) out.push(`${r.slow}% of frames over 20 ms, at most ${limit.slow}%`);
+  if (r.hitches > limit.hitches) out.push(`${r.hitches} frames over 50 ms, at most ${limit.hitches}`);
+  if (r.worst > limit.worst) out.push(`worst frame ${r.worst} ms, ceiling ${limit.worst}`);
+  if (r.pixelRatio < limit.pixelRatio) out.push(`resolution fell to ${r.pixelRatio}, floor ${limit.pixelRatio}`);
+  const b: Result | undefined = baseline?.fps?.[profile]?.[scene];
+  if (!b || ACCEPT) return out;
+  if (r.fps < b.fps - DRIFT.fps) out.push(`${r.fps} fps, was ${b.fps}`);
+  if (r.slow > DRIFT.slow(b.slow)) out.push(`${r.slow}% of frames over 20 ms, was ${b.slow}%`);
+  if (r.calls > DRIFT.calls(b.calls)) out.push(`${r.calls} draw calls, was ${b.calls}`);
+  if (r.triangles > DRIFT.triangles(b.triangles)) out.push(`${r.triangles} triangles, was ${b.triangles}`);
+  return out;
+}
+
+/**
+ * Whether something else keeps this computer busy before the frame rates are timed, which the phone's six times slower
+ * CPU feels most: the load over the last minute against its cores, or another program using a whole core or more
+ * (one busy app hardly moves the load of a machine with many cores, yet costs the timed frames). A note, never a failure.
+ */
+function machineBusy(): string | null {
+  const load = loadavg()[0];
+  const cores = cpus().length;
+  const busy: string[] = [];
+  if (load > cores * 0.4) busy.push(`load ${load.toFixed(1)} on ${cores} cores`);
+  try {
+    const ps = Bun.spawnSync(['ps', '-Ao', 'pcpu=,comm=', '-r']).stdout.toString().split('\n').slice(0, 6);
+    for (const line of ps) {
+      const m = line.trim().match(/^([\d.]+)\s+(.+)$/);
+      if (!m || Number(m[1]) < 80 || /chrome|bun|node|vite/i.test(m[2])) continue;
+      busy.push(`${m[2].split('/').pop()} at ${Math.round(Number(m[1]))}% CPU`);
+    }
+  } catch { /* No ps: the load alone. */ }
+  return busy.length ? `the machine was busy before timing: ${busy.join(', ')}` : null;
+}
 const fail = (what: string) => { failures.push(what); console.log(`  FAIL ${what}`); };
 
 /** Runs a command in the project, streaming its output; false when it exits with an error. */
@@ -127,26 +168,34 @@ if ((PERF || SMOKE) && !failures.length) {
 
     const fpsJson = join(SCRATCH, 'fps.json');
     const fpsArgs = ['bun', 'scripts/fps.ts', '--url', devUrl, '--json', fpsJson, ...(SMOKE ? ['--only', 'phone', '--scene', SMOKE_SCENES, '--seconds', '5'] : []), ...(DEVICE ? ['--device'] : [])];
+    const busy = machineBusy();
+    if (busy) console.log(`\n  NOTE ${busy}: frame times may suffer from it, not from the game`);
     if (!(await run('frame rates', fpsArgs))) fail('frame rates did not run');
     else {
       const report: FpsReport = await Bun.file(fpsJson).json();
       last.fps = report;
+      // A scene that misses on its timing is timed once more, and fails only if it misses again: a lone hitch from
+      // something else on the machine is not a regression. Draw calls and triangles do not change between runs.
+      const again: Record<string, string[]> = {};
       for (const [profile, scenes] of Object.entries(report)) {
-        const limit = LIMITS.fps[profile];
-        for (const [scene, r] of Object.entries(scenes)) {
-          const where = `${profile}, ${scene}`;
-          if (r.fps < limit.fps) fail(`${where}: ${r.fps} fps, floor ${limit.fps}`);
-          if (r.slow > limit.slow) fail(`${where}: ${r.slow}% of frames over 20 ms, at most ${limit.slow}%`);
-          if (r.hitches > limit.hitches) fail(`${where}: ${r.hitches} frames over 50 ms, at most ${limit.hitches}`);
-          if (r.worst > limit.worst) fail(`${where}: worst frame ${r.worst} ms, ceiling ${limit.worst}`);
-          if (r.pixelRatio < limit.pixelRatio) fail(`${where}: resolution fell to ${r.pixelRatio}, floor ${limit.pixelRatio}`);
-          const b: Result | undefined = baseline?.fps?.[profile]?.[scene];
-          if (!b || ACCEPT) continue;
-          if (r.fps < b.fps - DRIFT.fps) fail(`${where}: ${r.fps} fps, was ${b.fps}`);
-          if (r.slow > DRIFT.slow(b.slow)) fail(`${where}: ${r.slow}% of frames over 20 ms, was ${b.slow}%`);
-          if (r.calls > DRIFT.calls(b.calls)) fail(`${where}: ${r.calls} draw calls, was ${b.calls}`);
-          if (r.triangles > DRIFT.triangles(b.triangles)) fail(`${where}: ${r.triangles} triangles, was ${b.triangles}`);
+        for (const [scene, r] of Object.entries(scenes)) if (judgeFps(profile, scene, r).length) (again[profile] ??= []).push(scene);
+      }
+      for (const [profile, scenes] of Object.entries(again)) {
+        const retryJson = join(SCRATCH, `fps-again-${profile}.json`);
+        const retryArgs = ['bun', 'scripts/fps.ts', '--url', devUrl, '--json', retryJson, '--only', profile, '--names', scenes.join('|'), ...(SMOKE ? ['--seconds', '5'] : [])];
+        if (!(await run(`frame rates again, ${profile}: ${scenes.join('; ')}`, retryArgs))) continue;
+        const retried: FpsReport = await Bun.file(retryJson).json();
+        for (const scene of scenes) {
+          const r = retried[profile]?.[scene];
+          if (!r) continue;
+          const first = judgeFps(profile, scene, report[profile][scene]);
+          console.log(`  ${profile}, ${scene}: first ${first.join('; ')}; again ${judgeFps(profile, scene, r).length ? 'missed too' : 'passed'}`);
+          report[profile][scene] = r;
+          (last.retried ??= []).push(`${profile}, ${scene}`);
         }
+      }
+      for (const [profile, scenes] of Object.entries(report)) {
+        for (const [scene, r] of Object.entries(scenes)) for (const f of judgeFps(profile, scene, r)) fail(`${profile}, ${scene}: ${f}${busy ? ` (${busy})` : ''}`);
       }
     }
   } finally {

@@ -159,17 +159,18 @@ export const RED_LINE: LineDef = {
       theme: desert },
     { name: 'Vårberg', map: [0.15, 0.825], sl: 9286, riders: 4500, architecture: 'rock', exits: 'Vårbergs centrum', halls: [{ end: 'outbound', from: 35 }], branch: '13', open: true, theme: rock(0x46483e, warmLamp, 0x5a7044, 0x9ab078, 105) },
     { name: 'Vårby gård', map: [0.13, 0.855], sl: 9285, riders: 3500, architecture: 'rock', exits: 'Vårby gård', halls: [{ end: 'inbound', from: -68, down: true, beside: 1 }], branch: '13', open: true, theme: rock(0x44484a, coolLamp, 0x586878, 0x98a8b8, 106) },
-    // Masmo: charcoal rock under a dark mesh ceiling, blue-grey mesh along the tracks and painted mesh plates.
-    { name: 'Masmo', map: [0.11, 0.88], sl: 9284, riders: 3000, rise: 24, architecture: 'tiles', exits: 'Masmo', halls: [{ end: 'outbound', from: 0, corridor: 45 }], branch: '13', look: { ceiling: 'flat', floor: 0x6e7072, columns: 'none' },
+    // Masmo: charcoal rock under a dark mesh ceiling, blue-grey mesh along the tracks and painted mesh plates. The platform lies
+    // 20 to 45 m inside Masmoberget, but its one way in is a long level passage from Solhagavägen to a hall a flight above it.
+    { name: 'Masmo', map: [0.11, 0.88], sl: 9284, riders: 3000, rise: 7, architecture: 'tiles', exits: 'Masmo', halls: [{ end: 'outbound', from: 0, corridor: 45 }], branch: '13', look: { ceiling: 'flat', floor: 0x6e7072, columns: 'none' },
       theme: sunDown },
     { name: 'Fittja', map: [0.09, 0.9], sl: 9283, riders: 6000, architecture: 'rock', exits: 'Fittja centrum', halls: [{ end: 'inbound' }], branch: '13', open: true, theme: rock(0x484642, warmLamp, 0x6a5a4a, 0xa89880, 107) },
-    // Alby: moss green rock covered in bright painted figures.
-    { name: 'Alby', map: [0.07, 0.92], sl: 9282, riders: 6000, rise: 16, architecture: 'rock', exits: 'Alby centrum', halls: [{ end: 'inbound', corridor: 30, incline: true, exits: 'Tingstorget' }], branch: '13', look: { floor: 0xc8c6be, split: true }, theme: jungle },
+    // Alby: moss green rock covered in bright painted figures. Its ways in are from Alby centrum and, up a long escalator, Lagmansbacken on Albyberget.
+    { name: 'Alby', map: [0.07, 0.92], sl: 9282, riders: 6000, rise: 16, architecture: 'rock', exits: 'Alby centrum', halls: [{ end: 'inbound', corridor: 30, incline: true, exits: 'Tingstorget' }, { end: 'outbound', from: -15, exits: 'Lagmansbacken' }], branch: '13', look: { floor: 0xc8c6be, split: true }, theme: jungle },
     { name: 'Hallunda', map: [0.05, 0.94], sl: 9281, riders: 5000, architecture: 'rock', exits: 'Hallunda centrum', halls: [{ end: 'outbound', from: -61, down: true, beside: 2 }], branch: '13', open: true, theme: rock(0x4a443c, warmLamp, 0x8a5a38, 0xc88a58, 108) },
     { name: 'Norsborg', map: [0.03, 0.96], sl: 9280, riders: 4500, architecture: 'rock', exits: 'Norsborg', halls: [{ end: 'outbound', from: -62, down: true, beside: 2 }], branch: '13', open: true, theme: rock(0x46464a, coolLamp, 0x5a5e66, 0x9aa0a8, 109) },
     // Route 14 toward Fruängen.
     // Midsommarkransen: shiny beige tiles under a low vault and a dark floor; a midsummer wreath hangs over the platform.
-    { name: 'Midsommarkransen', map: [0.37, 0.69], sl: 9264, riders: 6000, rise: 12, architecture: 'tiles', exits: 'Tellusborgsvägen · Midsommarkransen', halls: [{ end: 'inbound', from: 12, corridor: 40, exits: 'Tegelbruksvägen' }], branch: '14', gap: JUNCTION_RUN, look: { ceiling: 'vault', floor: 0x4a4a4e, columns: 'none', split: true },
+    { name: 'Midsommarkransen', map: [0.37, 0.69], sl: 9264, riders: 6000, rise: 12, architecture: 'tiles', exits: 'Svandammsvägen · Tegelbruksvägen', halls: [{ end: 'inbound', from: 12, corridor: 40 }], branch: '14', gap: JUNCTION_RUN, look: { ceiling: 'vault', floor: 0x4a4a4e, columns: 'none', split: true },
       theme: wreath },
     { name: 'Telefonplan', map: [0.362, 0.73], sl: 9263, riders: 7000, architecture: 'rock', exits: 'Telefonplan · Konstfack', halls: [{ end: 'outbound' }], branch: '14', open: true, theme: morse },
     { name: 'Hägerstensåsen', map: [0.354, 0.77], sl: 9262, riders: 4500, architecture: 'rock', exits: 'Hägerstensåsen', halls: [{ end: 'inbound' }, { end: 'inbound', from: -68, down: true, beside: 2 }], branch: '14', open: true, theme: rock(0x44463e, warmLamp, 0x606a48, 0xa0a878, 110) },
