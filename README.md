@@ -8,6 +8,8 @@
 
 Every visitor shares the same timetable, and the trains can follow SL's live metro. Change lines at T-Centralen, feel Stockholm's real weather at the exits, find Kymlinge, or drive a C20 yourself. TypeScript, three.js and Rapier, no game engine.
 
+A [Hägvall Labs](https://hagvall-labs.com/) game by [Joel Hägvall](https://joelhagvall.com/).
+
 ## Play
 
 Play it at [understockholm.com](https://understockholm.com/), or run it yourself:
@@ -29,15 +31,15 @@ Locally the trains follow SL's blue line out of the box. For all three lines, pu
 
 ## Nine things that matter
 
-- **The whole metro.** All 100 stations on seven routes, plus Kymlinge. The blue line from Kungsträdgården to Akalla (past Kymlinge) and Hjulsta, the red line from Ropsten and Mörby centrum to Norsborg and Fruängen, the green line from Hässelby strand to Skarpnäck, Farsta strand and Hagsätra. Red and green share their platforms through the city; the suburbs run in the open air.
-- **Real SL trains.** SL's live metro drives the game's trains by default (*Riktiga tåg (SL)* in the pause menu goes back to the timetable), all three lines when the relay has Trafiklab's GTFS keys, the blue line alone without them. Real destinations, real departure times, trains that wait at the platform until the real one leaves. Silverpilen still slips in between them. The landing page shows each line live, from SL or the timetable.
-- **Stockholm, right now.** Game time is Unix time, so every visitor sees the same trains. Clocks show Stockholm time. Weather at the exits follows the real sky. Rush hour, the night shutdown, the seasons, escalators that stand still when SL reports them broken, and a power cut a couple of times a year that leaves everyone in the dark at once.
-- **A timetable, not a hope.** A train's position, speed and doors are a pure function of the clock. Block signals, turnbacks and an emergency-brake override sit on that, so trains cannot collide.
-- **Drive it.** Press `K` for a practice C20 from the cab: master controller, ATC braking curve, doors, and a score for stopping with the nose at the board.
-- **Places you were never meant to see.** Staff corridors, a shelter under Rådhuset, Kymlinge, Silverpilen, inspectors, a staff key, a time machine to 1975, and a discovery book of what you have not found yet.
-- **The network from above.** Every line as a glowing tube under a dark Stockholm, trains with fading trails from the same timetables (or SL's), a time scrubber, and a long-exposure poster of any day's runs to save or share.
-- **No engine hiding the work.** Procedural caves, canvas textures, baked vertex lighting, built a slice at a time. The landing page stays small. three.js and Rapier (about 1 MB compressed) load only when you enter.
-- **The small stuff is the point.** Snus on a bench, a street paper vendor, a sneeze and a "prosit", stand on the right, Kanelbullens dag, bottle bags clinking on Fridays. The full list is in [FEATURES.md](docs/FEATURES.md).
+- **The whole metro.** All 100 stations on three lines and seven routes, the suburbs in the open air, plus Kymlinge, the station that never opened.
+- **Real SL trains.** SL's live metro drives the game's trains: real destinations, real departures. Silverpilen, the silver ghost train, still slips in between.
+- **Stockholm, right now.** Game time is Unix time, so every visitor sees the same trains, the real weather at the exits and the night shutdown.
+- **A timetable, not a hope.** A train's position, speed and doors are a pure function of the clock, so trains cannot collide.
+- **Drive it.** Press `K` for a C20 cab: master controller, ATC braking curve and a score for stopping at the board.
+- **Places you were never meant to see.** Staff corridors, a shelter under Rådhuset, a time machine to 1975 and a book of what you have not found yet.
+- **The network from above.** Every line as a glowing tube under a dark Stockholm, every train a light, any day's runs as a poster.
+- **No engine hiding the work.** Procedural caves, canvas textures and baked light. three.js and Rapier load only when you enter.
+- **The small stuff is the point.** Snus on a bench, a sneeze and a "prosit", bottle bags clinking on Fridays. More in [FEATURES.md](docs/FEATURES.md).
 
 ## Stack
 
@@ -50,7 +52,7 @@ The simulation is split into small domain modules rather than one monolithic gam
 
 Station art is a generated interpretation, not a survey. See [DESIGN.md](docs/DESIGN.md).
 
-## Getting started
+## Development
 
 | Script | What it does |
 | --- | --- |
