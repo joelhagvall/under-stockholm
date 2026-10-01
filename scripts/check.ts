@@ -151,7 +151,9 @@ await Bun.write(join(SCRATCH, '.keep'), '');
 // 1. The quick gates: types, tests and the build with its size budgets.
 if (!(await run('typecheck', ['bunx', 'tsc', '--noEmit']))) fail('typecheck');
 if (!(await run('tests', ['bun', 'test']))) fail('tests');
-if (!(await run('build and size budgets', ['bunx', 'vite', 'build'])) || !(await run('size budgets', ['bun', 'scripts/check-budgets.ts']))) fail('build or size budgets');
+// Built for the local production server, which the audits read, as a build without SITE_URL would be, but said
+// outright: the warning about a missing address is for a build meant to go somewhere.
+if (!(await run('build and size budgets', ['bunx', 'vite', 'build'], { SITE_URL: process.env.SITE_URL ?? 'http://localhost:4173/' })) || !(await run('size budgets', ['bun', 'scripts/check-budgets.ts']))) fail('build or size budgets');
 // The Worker and the hub in wrangler dev, on the build's assets: the limits of docs/DRIFT.md section 3, end to end.
 else if (!(await run('the Worker\'s limits', ['bun', 'scripts/worker-check.ts']))) fail('the Worker\'s limits');
 
