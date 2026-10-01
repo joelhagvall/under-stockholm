@@ -10,9 +10,12 @@ import type { Physics } from '../physics';
 import type { Section } from './section';
 
 /** Station-specific architecture stays in the baked layers, including all small details. */
-/** @param free whether the island is clear for something `half` long either side of `x`: no pier where a way up starts */
-export function stationArchitecture(s: Section, physics: Physics, def: StationDef, cx: number, exitDir: 1 | -1 = 1, free: (x: number, half?: number) => boolean = () => true): void {
-  platformArt(s, physics, def, cx, exitDir);
+/**
+ * @param free whether the island is clear for something `half` long either side of `x`: no pier where a way up starts
+ * @param claim keeps a stretch of the island for what stands on it, so no clock hangs over it (see `DetailSite.claim`)
+ */
+export function stationArchitecture(s: Section, physics: Physics, def: StationDef, cx: number, exitDir: 1 | -1 = 1, free: (x: number, half?: number) => boolean = () => true, claim: (x: number, half: number) => void = () => {}): void {
+  platformArt(s, physics, def, cx, exitDir, claim);
   const stone = rgb(0xc9c5b8);
   const red = rgb(0xab4437);
   const green = rgb(0x355b49);
@@ -135,7 +138,7 @@ function solid(s: Section, geo: BoxGeometry | CylinderGeometry | SphereGeometry,
  * red urns and palace torsos, Solna centrum's moose in a lit showcase, Hallonbergen's
  * hopscotch and shocking-pink railings, and Solna strand's cloud cubes.
  */
-function platformArt(s: Section, physics: Physics, def: StationDef, cx: number, exitDir: 1 | -1): void {
+function platformArt(s: Section, physics: Physics, def: StationDef, cx: number, exitDir: 1 | -1, claim: (x: number, half: number) => void): void {
   const y0 = PLATFORM_Y;
   if (def.architecture === 'garden') {
     const red = rgb(0xb8322a);
@@ -168,6 +171,7 @@ function platformArt(s: Section, physics: Physics, def: StationDef, cx: number, 
     const mx = cx + exitDir * 20;
     const frame = rgb(0x2a2b2e);
     const hx = 1.8, hz = 0.85, top = 2.9;
+    claim(mx, hx);
     s.lit.box({ x: mx - hx, y: y0, z: -hz }, { x: mx + hx, y: y0 + 0.35, z: hz }, frame);
     s.lit.box({ x: mx - hx, y: y0 + top - 0.2, z: -hz }, { x: mx + hx, y: y0 + top, z: hz }, frame);
     for (const x of [-hx, hx]) for (const z of [-hz, hz]) s.lit.box({ x: mx + x - 0.05, y: y0, z: z - 0.05 }, { x: mx + x + 0.05, y: y0 + top, z: z + 0.05 }, frame);
@@ -240,9 +244,12 @@ function platformArt(s: Section, physics: Physics, def: StationDef, cx: number, 
     };
     for (const side of [-1, 1]) {
       for (let k = 0; k < 8; k++) {
-        const x = cx - CAVE_HALF_L + 12 + k * 19 + (rnd() - 0.5) * 6;
+        let x = cx - CAVE_HALF_L + 12 + k * 19 + (rnd() - 0.5) * 6;
         const y = 2.6 + rnd() * 3.2;
         const size = 1.2 + rnd() * 0.7;
+        // Clear of the name boards on the wall: one low enough to meet a board moves along beside it.
+        const board = D.nameBoardDxs.map((dx) => cx + dx).find((b) => Math.abs(x - b) < D.nameBoardHalfX + size);
+        if (board !== undefined && y - size < D.nameBoardY + 0.4) x = board + Math.sign(x - board || 1) * (D.nameBoardHalfX + size);
         // Half sunk into the rock, half out in the air.
         cube(x, y, side * (wallZ(y) - size * 0.2), size);
       }

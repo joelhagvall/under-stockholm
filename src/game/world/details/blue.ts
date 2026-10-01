@@ -150,10 +150,11 @@ const radhuset: Detail = ({ s, physics, cx, free }) => {
 };
 
 /** Fridhemsplan: a Blekinge boat under its red-brown sail in a glass showcase over blue wave tiles. */
-const fridhemsplan: Detail = ({ s, physics, cx, exitDir, free }) => {
+const fridhemsplan: Detail = ({ s, physics, cx, exitDir, free, claim }) => {
   const bx = cx - exitDir * 18;
   if (!free(bx, 3)) return;
   const hx = 2.6, hz = 0.8, base = PLATFORM_Y + 0.75, top = PLATFORM_Y + 3.4;
+  claim(bx, hx);
   // The tiled base, in waves of blue.
   s.lit.box({ x: bx - hx, y: PLATFORM_Y, z: -hz }, { x: bx + hx, y: base, z: hz }, (p) => mix(rgb(0x2f5fa8), rgb(0x5a88c8), Math.sin(p.x * 6 + Math.sin(p.y * 12) * 1.5) * 0.5 + 0.5), [], 0.25);
   // The case's black frame, and a pale back of splashed plaster seen through the glass.
@@ -249,9 +250,10 @@ const solnaStrand: Detail = (site) => {
  * platform, the billowing red brick of the Kronan crispbread factory and the
  * blue wooden bazaar with its flag.
  */
-const sundbyberg: Detail = ({ s, physics, cx, exitDir, free }) => {
+const sundbyberg: Detail = ({ s, physics, cx, exitDir, free, claim }) => {
   const bx = cx + exitDir * 20;
   if (free(bx, 3)) {
+    claim(bx, 2.6);
     // A brick wall bellying out like a sail, with dark windows: a grid bent by a bulge.
     const len = 5, tall = 3.6, nx = 12, ny = 8;
     const at = (i: number, j: number, side: number) => {
@@ -270,6 +272,7 @@ const sundbyberg: Detail = ({ s, physics, cx, exitDir, free }) => {
   }
   const wx = cx - exitDir * 20;
   if (free(wx, 2.5)) {
+    claim(wx, 2.1);
     const blue = rgb(0x2a6a8a), white = rgb(0xece8e0), top = PLATFORM_Y + 3.0;
     s.lit.box({ x: wx - 2, y: PLATFORM_Y, z: -0.25 }, { x: wx + 2, y: top, z: 0.25 }, (p) => (Math.abs(Math.sin(p.x * 16)) > 0.93 ? mix(blue, rgb(0x1a4a64), 0.6) : blue), [], 0.1);
     // A gable over the front, white trim, windows and the flag on its pole.

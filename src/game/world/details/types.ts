@@ -16,6 +16,8 @@ export interface DetailSite {
   tiled: boolean;
   /** Whether the island is clear for something `half` long either side of `x` (escalators may go through it). */
   free(x: number, half?: number): boolean;
+  /** Keeps the island from `x - half` to `x + half` for this detail: no clock hangs over it, nor does the art plaque stand on it. */
+  claim(x: number, half: number): void;
 }
 
 /** A station's own objects on its platform: sculptures, showcases, columns, fences between the tracks. */

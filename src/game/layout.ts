@@ -372,6 +372,9 @@ export const STATION_DESIGN = {
   corniceY: 4.9,
   nameBoardY: 3.05,
   nameBoardZ: CAVE_HALF_W - STATION_ROCK_INSET - SIGN_LAYOUT.rockClearance,
+  /** The name boards along the track walls, as offsets from the middle, and the half length of one underground. */
+  nameBoardDxs: [-60, -36, -12, 12, 36, 60],
+  nameBoardHalfX: 2.1,
   displayY: 3.65,
   galleryZ: 1.1,
   birdY: 5.7,

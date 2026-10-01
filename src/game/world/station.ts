@@ -684,6 +684,9 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   innerSpans.push(...stairWells.map((w) => [w.x0 - 1, w.x1 + 1] as [number, number]));
   /** Is the island clear for something `half` long either side of `x`? */
   const free = (x: number, half = 0) => !innerSpans.some(([x0, x1]) => x + half > x0 && x - half < x1);
+  /** Stretches of the island a station's own detail stands on (see `DetailSite.claim`): clocks and the plaque keep off them. */
+  const claimed: Array<[number, number]> = [];
+  const clear = (x: number, half = 0) => free(x, half) && !claimed.some(([x0, x1]) => x + half > x0 && x - half < x1);
   const benches = benchXs(cx).filter((x) => free(x, 2));
   /** The information pillars along the island, as offsets from the middle. */
   const pillars = PILLAR_DXS.filter((dx) => free(cx + dx, 0.4));
@@ -1007,7 +1010,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
         physics.box({ x: x - 0.4, y: PLATFORM_Y, z: zi - 0.4 }, { x: x + 0.4, y: top, z: zi + 0.4 });
       }
     }
-  } else stationArchitecture(s, physics, def, cx, e, free);
+  } else stationArchitecture(s, physics, def, cx, e, free, (x, half) => claimed.push([x - half, x + half]));
   // Two platform tunnels joined by a middle vault: a wall down the island between its openings, up into the ceiling.
   if (def.look?.split && !outdoor && !twin) {
     // Well into the rock over a cave's rough crown, or through a tiled ceiling, flat or vaulted: its top is never seen.
@@ -1034,7 +1037,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   }
   yield;
   // The station's own sculptures, showcases and fittings (`details/`), a stage of their own.
-  stationOwnDetails(line.id, { s, physics, def, cx, exitDir: e, islands, outdoor, tiled, free });
+  stationOwnDetails(line.id, { s, physics, def, cx, exitDir: e, islands, outdoor, tiled, free, claim: (x, half) => claimed.push([x - half, x + half]) });
   yield;
   if (!outdoor) for (let x = p0 + 6; x < p1; x += 9) {
     for (const side of [-1, 1]) s.light(x, vaulted ? VAULT_WALL_H - 0.4 : STATION_DESIGN.corniceY, side * (halfW - 1.6), lampColor, 0.75, 8);
@@ -1083,7 +1086,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   const plaque = artWalk.plaque(def.name);
   const artInteractables: Interactable[] = [];
   if (plaque) {
-    const ax = [cx + 4.5, cx - 4.5, cx + 24].find((x) => free(x, 0.6)) ?? cx + 4.5;
+    const ax = [cx + 4.5, cx - 4.5, cx + 24].find((x) => clear(x, 0.6)) ?? cx + 4.5;
     const zi = islands[0];
     s.lit.box({ x: ax - 0.04, y: PLATFORM_Y, z: zi - 0.04 }, { x: ax + 0.04, y: PLATFORM_Y + 1.9, z: zi + 0.04 }, rgb(0x2a2c30));
     s.lit.box({ x: ax - 0.5, y: PLATFORM_Y + 0.9, z: zi - 0.05 }, { x: ax + 0.5, y: PLATFORM_Y + 2.2, z: zi + 0.05 }, rgb(0x1d2a3a));
@@ -1096,7 +1099,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   // Hanging clocks showing the real time.
   const clocks: CanvasSign[] = [];
   for (const zi of islands) {
-    for (const dx of [-18, 18].filter((d) => free(cx + d, 0.5))) {
+    for (const dx of [-18, 18].filter((d) => clear(cx + d, 0.5))) {
       const face = createCanvasSign(256, 256);
       clocks.push(face);
       const x = cx + dx;
@@ -1152,7 +1155,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   // Station name boards on the walls above the tracks (and on the middle wall of a shared station).
   const board = nameBoard(def.name, line);
   const boardZ = halfW - (CAVE_HALF_W - STATION_DESIGN.nameBoardZ);
-  for (let x = cx - 60; x <= cx + 60; x += 24) {
+  for (const x of STATION_DESIGN.nameBoardDxs.map((dx) => cx + dx)) {
     for (const side of [-1, 1]) {
       // Outdoors they hang from the canopy's edges, facing the tracks.
       // Outdoors they hang from the roof's eaves, and beyond the roof stand on two posts.
@@ -1171,8 +1174,8 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
         }
         continue;
       }
-      place(s, board, 4.2, 0.64, new Vector3(x, STATION_DESIGN.nameBoardY, side * boardZ), new Vector3(0, 0, -side));
-      if (twin) place(s, board, 4.2, 0.64, new Vector3(x, STATION_DESIGN.nameBoardY, side * (TRACK_Z - TRAIN_HALF_W - 1.5 + 0.02)), new Vector3(0, 0, side));
+      place(s, board, STATION_DESIGN.nameBoardHalfX * 2, 0.64, new Vector3(x, STATION_DESIGN.nameBoardY, side * boardZ), new Vector3(0, 0, -side));
+      if (twin) place(s, board, STATION_DESIGN.nameBoardHalfX * 2, 0.64, new Vector3(x, STATION_DESIGN.nameBoardY, side * (TRACK_Z - TRAIN_HALF_W - 1.5 + 0.02)), new Vector3(0, 0, side));
     }
   }
 
