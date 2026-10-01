@@ -45,7 +45,7 @@ Locally the trains follow SL's blue line out of the box. For all three lines, pu
 
 - [Bun](https://bun.sh), [Vite](https://vite.dev), TypeScript
 - [three.js](https://threejs.org) for rendering (WebGL)
-- [Rapier](https://rapier.rs) (`@dimforge/rapier3d-compat`) for physics
+- [Rapier](https://rapier.rs) (`@dimforge/rapier3d`) for physics
 - No game engine. Geometry and textures are generated. Train sound, the announcement chime and the door warning are generated at runtime, and the browser's Swedish voice reads the announcements. A sneeze, a sigh and bottles clinking are public domain and CC0 recordings.
 
 The simulation is split into small domain modules rather than one monolithic game loop. Time, routes, live SL, festivities, carriage life, disruptions, the emergency brake, discoveries, 1975 and other players each have their own module: `operations.ts`, `routes.ts`, `realService.ts`, `festivities.ts`, `carriageLife.ts`, `disruptions.ts`, `emergencyBrake.ts`, `discoveries.ts`, `era.ts`, `ghosts.ts`. The [full tree](docs/FEATURES.md#project-structure).
@@ -84,10 +84,28 @@ The build fails if the landing page or the game grows past its compressed budget
 
 The rest of the ideas are in [IDEAS.md](docs/IDEAS.md).
 
+## Data and credits
+
+Live data reaches the game only through the relay (a Cloudflare Worker in production, [DRIFT.md](docs/DRIFT.md)), which asks each source once per interval for every player. Browsers never call them.
+
+| Source | Used for | Licence |
+| --- | --- | --- |
+| [SL](https://www.trafiklab.se/api/our-apis/sl/) via Trafiklab: Transport and Deviations | Live departures, disruptions, broken escalators | SL's open data terms |
+| [Trafiklab GTFS Regional](https://www.trafiklab.se/api/gtfs-datasets/gtfs-regional/), Samtrafiken | Live trains on all three lines | CC0 1.0 |
+| [Open-Meteo](https://open-meteo.com/) | The weather at the exits | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+| [SMHI](https://www.smhi.se/) | Weather warnings for Stockholm County | SMHI's open data terms, source named in the game |
+| [Sveriges Radio](https://www.sverigesradio.se/), P4 Stockholm | Headlines in the game's newspapers | [SR's API terms](https://www.sverigesradio.se/artikel/api-villkor) |
+| [OpenStreetMap](https://www.openstreetmap.org/copyright), © OpenStreetMap contributors | Buildings round the open-air stations, streets out of the exits, the city in the network view | [ODbL](https://opendatacommons.org/licenses/odbl/) |
+| [Copernicus DEM GLO-30](https://registry.opendata.aws/copernicus-dem/) | The ground's heights in the network view | © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA, all rights reserved |
+| Albert Guillaumes' [station plans](http://stations.albertguillaumes.cat/) | Where each station's halls, inclined lifts and long passages lie | Reference only, no drawings in the repository |
+| Wikimedia Commons and Freesound | A sneeze, a sigh and bottles clinking | Public domain and CC0 ([sources](public/audio/sfx/README.md)) |
+
+The map data lives in `src/game/world/osm/`, `src/network/city/` and `src/network/terrain.json`, fetched by `scripts/osm.ts`, `scripts/osm-streets.ts`, `scripts/osm-city.ts` and `scripts/terrain.ts`. Built with [three.js](https://threejs.org) (MIT) and [Rapier](https://rapier.rs) (Apache 2.0).
+
 ## Disclaimer
 
-A fan project. Not affiliated with or endorsed by SL or Region Stockholm.
+A fan project. Not affiliated with or endorsed by SL, Region Stockholm, Sveriges Radio or SMHI.
 
 ## License
 
-The code is MIT ([LICENSE](LICENSE)). It covers this project's own work, not SL's or Region Stockholm's names and marks. The sounds in `public/audio/sfx/` are public domain and CC0 (sources in its README). The buildings round the stations in the open air and the streets out of the exits come from [OpenStreetMap](https://www.openstreetmap.org/copyright) (© OpenStreetMap contributors): the files in `src/game/world/osm/` and `src/network/city/` are map data under the Open Database License (ODbL), fetched by `scripts/osm.ts`, `scripts/osm-streets.ts` and `scripts/osm-city.ts`. The ground's heights in the network view (`src/network/terrain.json`, made by `scripts/terrain.ts`) come from the Copernicus DEM GLO-30: © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. Which end of the platform each station's ticket halls stand at, and where there are inclined lifts and long passages, was read from Albert Guillaumes' [station plans](http://stations.albertguillaumes.cat/), used as a reference only: none of the drawings are in the repository. The recorded C20 announcements are not part of the repository ([why](public/audio/README.md)).
+The code is MIT ([LICENSE](LICENSE)). It covers this project's own work, not SL's or Region Stockholm's names and marks, nor the data above, which keeps its own licence. The recorded C20 announcements are not part of the repository ([why](public/audio/README.md)).
