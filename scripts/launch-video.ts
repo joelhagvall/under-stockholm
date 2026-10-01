@@ -1,7 +1,7 @@
-// The launch video (video/under-stockholm-launch.mp4, not committed): 41 seconds, 4:5 at 1080x1350 for a phone's
+// The launch video (video/under-stockholm-launch.mp4, not committed): 45.6 seconds, 4:5 at 1080x1350 for a phone's
 // feed (LinkedIn), cut to the music's bars. A train into T-Centralen under the hook from the first frame, the real
-// ride aboard, Gamla stan in the open, rush hour and the sigh behind you on the escalator, then a quick run up onto the
-// street in the snow, the cab out onto the viaduct at Kista, 1975 and Kymlinge, the power cut, a day on the whole
+// ride aboard, a station on each beat, Gamla stan in the open, the sigh behind you on the escalator at rush hour, then a run from the ticket hall up
+// the stairs onto the street on an autumn evening, the cab out onto the viaduct at Kista, 1975 and Kymlinge, the power cut, a day on the whole
 // network, a click on Stadion that dives down into it, and the title with the address. Captions in Swedish, like the launch post (LAUNCH.md). Filmed
 // and scored in the page through `capture.ts` and `music.ts`.
 // Needs `bun run dev` running and ffmpeg. Options: --url http://localhost:5180/ (default), --wide (16:9 at 1080p, to
@@ -24,6 +24,15 @@ const FRAMES = join(tmpdir(), 'launch-video-frames');
 /** Every cut falls on a bar: 100 beats a minute, four to the bar. */
 const BPM = 100;
 const BAR = (60 / BPM) * 4;
+
+/**
+ * The montage's stations, one on each beat of two bars, which way each looks off the platform's length, and how far
+ * along x from where one arrives the camera stands (at Skarpnäck a passenger walks through the arrival spot).
+ */
+const MONTAGE: Array<[string, 1 | -1, number?]> = [
+  ['Solna centrum', 1], ['Hallonbergen', -1], ['Kungsträdgården', -1], ['Solna strand', -1],
+  ['Skarpnäck', 1, 8], ['Tekniska högskolan', -1], ['Fridhemsplan', 1], ['Globen', -1],
+];
 
 const SCENES: Scene[] = [
   {
@@ -59,6 +68,25 @@ const SCENES: Scene[] = [
     caption: ['Kliv på', 'Nästa station ropas ut ombord'],
     captionAt: 0.6,
   },
+  // A station on each beat, across the three lines, from red to white, green, black, brick and pale, and out into
+  // the daylight.
+  ...MONTAGE.map(([name, side, along = 0], k): Scene => ({
+    name: `Montage ${name}`,
+    view: 'game',
+    // Turned a little off the platform's length, toward the vault and the walls.
+    place: `{
+      __us.goto(__station(${JSON.stringify(name)}));
+      const p = __us.player, yaw = p.yaw;
+      p.teleport(p.feet.clone().setX(p.feet.x + ${along}), yaw + ${0.5 * side});
+      p.pitch = 0.14;
+      __us.world.ensureBuilt(p.feet.x);
+    }`,
+    each: `__us.player.yaw -= ${0.0025 * side};`,
+    seconds: BAR / 4,
+    caption: ['Varje station sin egen', 'Konsten, berget och kaklet från de riktiga'],
+    // In over the first cut, then held over the rest.
+    captionAt: k ? -1 : 0,
+  })),
   {
     // Out in the open at Gamla stan, looking out past the platform's end into the daylight over the tracks and the
     // houses, as a red line train comes in off the bridge.
@@ -72,22 +100,12 @@ const SCENES: Scene[] = [
     caption: ['Ut i dagsljuset', 'Över Riddarfjärden och ut i förorterna'],
   },
   {
-    // The City passage at eight in the morning.
-    name: 'Rush hour',
-    view: 'game',
-    place: `__clock(8, 10); __us.city();`,
-    each: `__us.player.yaw += 0.0016;`,
-    seconds: BAR,
-    speed: 1.2,
-    caption: ['Rusning klockan åtta', 'Alla ser samma tåg, på riktig tid'],
-    captionAt: 0.15,
-  },
-  {
     // Standing still on the left of T-Centralen's escalator at rush hour, riding up and looking up the flight the way it
     // goes (looking back down at the one stuck behind read as riding down).
     name: 'Escalator',
     view: 'game',
-    place: `{
+    // The crowd comes up from the City passage at rush hour: a few seconds among it first, once, fill the flight.
+    place: `__clock(8, 10); if (!window.__rush) { window.__rush = true; __us.city(); __us.step(4, 15); } {
       const e = __us.world.stations[1].escalators[0], lane = e.stoppedLane === 1 ? -1 : 1, along = lane > 0 ? 3 : 20;
       const y = 1.1 + Math.min(e.rise, Math.max(0, (along - 1.25) * Math.tan(Math.PI / 6)));
       __stand(e.wallX + e.dir * along, y + 0.05, e.z + lane * 1.18 - 0.28 * e.dir * lane, -e.dir * lane * Math.PI / 2, 0.3 * lane);
@@ -99,15 +117,27 @@ const SCENES: Scene[] = [
     captionAt: 0.15,
   },
   {
-    // Up out of the exit among the real city round it (OpenStreetMap's houses and streets), as the snow comes down on
-    // a winter evening.
+    // From Odenplan's ticket hall up its stairs toward the sky over the open top, and out among the real city round the
+    // exit (OpenStreetMap's houses and streets) on an overcast autumn evening, as the launch day's weather was, turning
+    // to look along the street. After half past nine, when the pigeons that scatter up the stairs have gone.
     name: 'Street',
     view: 'game',
-    place: `__clock(17, 40); __us.setWeather('snow'); __us.goto(__station('Odenplan')); __us.step(2, 15); __us.street('Odenplan'); __us.player.pitch = 0.08;`,
-    each: `__us.player.yaw += 0.0015;`,
-    seconds: BAR,
-    caption: ['Upp på gatan', 'Riktiga kvarter runt varje uppgång, i vädret just nu'],
-    captionAt: 0.15,
+    // Up on the street first, so the city round the exit is built before the walk.
+    place: `__clock(21, 40); __us.setWeather('cloudy'); __us.goto(__station('Odenplan')); __us.step(2, 15); __us.street('Odenplan');`,
+    // Along the hall from its wall (`a`, see `HALL_LEN` and `STREET` in layout.ts): level to the stairs at 19, up to the
+    // landing at 26, on under the sky from 23, up the second flight in its open cut from 32 to 42.5, and the street.
+    each: `{
+      const h = __us.world.stations[__station('Odenplan')].halls[0], Y = h.bounds.y, T = f / ${FPS};
+      const k = Math.min(1, T / 4), e = k * k * (3 - 2 * k), a = 16 + 31 * e;
+      const lerp = (a0, a1, y0, y1) => y0 + (y1 - y0) * Math.min(1, Math.max(0, (a - a0) / (a1 - a0)));
+      const y = a < 26 ? lerp(19, 26, Y, Y + 3.4) : lerp(32, 42.5, Y + 3.4, Y + 8.5);
+      const turn = Math.max(0, (T - 3.2) / 1.6), out = h.dir > 0 ? -Math.PI / 2 : Math.PI / 2;
+      __us.player.teleport(__us.player.feet.clone().set(h.x(a), y + 0.05, 0), out + 0.9 * turn * turn * (3 - 2 * turn));
+      __us.player.pitch = a < 42 ? 0.22 : 0.22 - 0.16 * Math.min(1, (a - 42) / 4);
+    }`,
+    seconds: 2 * BAR,
+    caption: ['Upp på gatan', 'Varje uppgång leder ut i riktiga kvarter, i vädret just nu'],
+    captionAt: 0.6,
   },
   {
     // In the cab at speed in the tunnel past Kymlinge, and out of it into Kista up on its viaduct in daylight.
@@ -211,9 +241,9 @@ const SCENES: Scene[] = [
   },
 ];
 
-// The music follows the film: the tunnel and the ride with the chords and the rail joints, the arpeggio in the open
-// air, the drums from rush hour through the quick cuts, almost nothing in the dark, a rise into the network, another
-// through the dive, and the last chord ringing under the title.
+// The music follows the film: the tunnel and the ride with the chords and the rail joints, the arpeggio and a kick on
+// each cut of the montage, the drums from the open air through the quick cuts, almost nothing in the dark, a rise into
+// the network, another through the dive, and the last chord ringing under the title.
 const full = { pad: 1, bass: 1, arp: 1, kick: 1, hat: 0.8, rail: 0.5 };
 // No recorded announcement goes in: the C20 voice is not ours to publish.
 const score: Score = {
@@ -223,9 +253,11 @@ const score: Score = {
     { pad: 1, rail: 0.6, bell: 0.8 },
     { pad: 1, bass: 0.6, rail: 0.6 },
     { pad: 1, bass: 0.6, rail: 0.6, bell: 0.5 },
-    { pad: 1, bass: 0.8, arp: 0.8, rail: 0.7, riser: 0.6 },
+    { pad: 1, bass: 0.8, arp: 0.8, kick: 1, rail: 0.6 },
+    { pad: 1, bass: 0.8, arp: 0.8, kick: 1, riser: 0.6 },
     full,
     { ...full, bell: 0.6 },
+    full,
     full,
     { ...full, bell: 0.6 },
     full,
