@@ -1,6 +1,6 @@
 import { usesTouchControls } from './device';
 import { saveLang, type Lang } from './lang';
-import { comingBack, savedPlace } from './place';
+import { comingBack, reloadForNewer, reopening, savedPlace, staleBuild } from './place';
 
 document.documentElement.classList.toggle('touch-device', usesTouchControls());
 // Following the link to the other language is a choice, and the game's menus keep to it.
@@ -67,6 +67,8 @@ function game(): void {
       await startGame(game, { showcase, physicsReady, resume: again, station, life, since });
     } catch (err) {
       console.error(err);
+      // A page left open across a deploy: the new build opens the game instead.
+      if (staleBuild(err) && reloadForNewer({ showcase, again, station, life })) return;
       // Reported as the game would (`game/crash.ts`, a small chunk): a start that fails on someone's machine is known.
       void import('./game/crash').then(({ reportError }) => reportError(err, true)).catch(() => {});
       menu.hidden = false;
@@ -80,7 +82,10 @@ function game(): void {
   start.addEventListener('click', () => void launch(false));
   tour.addEventListener('click', () => void launch(true));
   resume.addEventListener('click', () => void launch(false, true));
+  // Loaded again for a newer build: what was being opened opens.
+  const reopen = reopening();
   if (comingBack()) void launch(false, true);
+  else if (reopen && !reopen.view && !new URLSearchParams(location.search).has('liv')) void launch(!!reopen.showcase, !!reopen.again, reopen.station, !!reopen.life);
   // A life on the blue line: a link, so it can be shared, that opens the game straight into it.
   const lifeLink = document.getElementById('life') as HTMLAnchorElement;
   lifeLink.addEventListener('click', (e) => {
@@ -123,6 +128,7 @@ function game(): void {
       statusEl.textContent = '';
     } catch (err) {
       console.error(err);
+      if (staleBuild(err) && reloadForNewer({ view: name })) return;
       done(true);
       statusEl.textContent = failed(err);
       button.focus();
@@ -130,7 +136,7 @@ function game(): void {
   };
   for (const [name, [button]] of Object.entries(views)) {
     button.addEventListener('click', () => void openView(name));
-    if (new URLSearchParams(location.search).has(name)) void openView(name);
+    if (new URLSearchParams(location.search).has(name) || reopen?.view === name) void openView(name);
   }
 }
 if (__GAME__) game();

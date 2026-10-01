@@ -40,6 +40,16 @@ test('reports group by message and where in the code, the most frequent first', 
   expect(data.groups[0].sample.kind).toBe('touch');
 });
 
+test('the same error from two builds is one group', () => {
+  const stack = (hash: string, name: string, col: number) => `Error: no context\n    at new ${name} (/assets/silverpilen-${hash}.js:4220:${col})`;
+  const a = parseError({ ...sample, message: 'Error: no context', stack: stack('B4s9k2hY', 'jd', 24418) }, 1)!;
+  const b = parseError({ ...sample, message: 'Error: no context', stack: stack('DMGk-5N4', '_d', 24402) }, 2)!;
+  const c = parseError({ ...sample, message: 'Error: no context', stack: 'Error: no context\n    at elsewhere (/assets/boot-CvImGse4.js:1:1)' }, 3)!;
+  const data = groupErrors([a, b, c]);
+  expect(data.groups).toHaveLength(2);
+  expect(data.groups[0]).toMatchObject({ n: 2, frame: 'at new _d (/assets/silverpilen-DMGk-5N4.js:4220:24402)' });
+});
+
 test('the page escapes what players sent', () => {
   const r = parseError({ ...sample, message: '<img src=x onerror=alert(1)>' })!;
   expect(errorsPage(groupErrors([r]))).not.toContain('<img');

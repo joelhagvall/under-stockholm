@@ -15,6 +15,11 @@ import { noise3 } from './gfx/noise';
 const MAX = 32;
 /** Twice a second, as the relay sends snapshots: incoming messages are what the hub is billed for. */
 const SEND_EVERY = 0.5;
+/**
+ * An unchanged pose still goes this often, in real milliseconds, so the relay does not take a player standing still
+ * for gone (IDLE_MS in `server/pose.ts`). Not game time, which a slow tab's capped frames run far behind.
+ */
+const KEEP_ALIVE_MS = 5000;
 /** Others are drawn this far behind, so there is nearly always a snapshot on each side to blend between. */
 const DELAY = 0.8;
 /** Close codes from the relay (`server/pose.ts`): the day's budget is spent, or it is full. */
@@ -52,6 +57,7 @@ export class Ghosts {
   private sendTimer = 0;
   private clock = 0;
   private lastSent = '';
+  private lastSentAt = 0;
   private enabled = false;
   /** Server clock minus local clock, in seconds, once known. */
   clockOffset: number | null = null;
@@ -161,12 +167,18 @@ export class Ghosts {
     this.clock += dt;
     this.sendTimer -= dt;
     if (this.dozing) { this.dozing = false; this.connect(); }
-    if (this.socket?.readyState === WebSocket.OPEN && this.sendTimer <= 0) {
+    const now = performance.now();
+    if (this.socket?.readyState === WebSocket.OPEN && (this.sendTimer <= 0 || now - this.lastSentAt >= KEEP_ALIVE_MS)) {
       this.sendTimer = SEND_EVERY;
-      const pose = [me.x, me.y, me.z, me.yaw, me.ride, me.lx, me.lz].map((v) => Math.round(v * 100) / 100);
+      // The player's yaw runs on with every turn; the relay takes only a few turns' worth, so it goes as an angle.
+      const yaw = Math.atan2(Math.sin(me.yaw), Math.cos(me.yaw));
+      const pose = [me.x, me.y, me.z, yaw, me.ride, me.lx, me.lz].map((v) => Math.round(v * 100) / 100);
       const message = JSON.stringify({ t: 'p', p: pose });
-      if (message !== this.lastSent) { this.socket.send(message); this.lastSent = message; }
-      else if (this.clock % 5 < SEND_EVERY) this.socket.send(message);
+      if (message !== this.lastSent || now - this.lastSentAt >= KEEP_ALIVE_MS) {
+        this.socket.send(message);
+        this.lastSent = message;
+        this.lastSentAt = now;
+      }
     }
     this.mesh.visible = this.remotes.size > 0;
     if (!this.enabled || !this.mesh.visible) return;

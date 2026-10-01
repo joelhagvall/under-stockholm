@@ -1,3 +1,4 @@
+import './gfx/roundRect';
 import { usesTouchControls } from '../device';
 import { chosenLang, saveLang } from '../lang';
 import { TouchControls } from './touchControls';

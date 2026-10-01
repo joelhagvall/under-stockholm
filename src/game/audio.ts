@@ -60,7 +60,8 @@ export class Audio {
 
   start(): void {
     if (this.ctx) {
-      void this.ctx.resume();
+      // A phone may refuse to start its audio device (a call, another app): the game plays on silent.
+      this.ctx.resume().catch(() => {});
       return;
     }
     const ctx = new AudioContext();

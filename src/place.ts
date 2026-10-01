@@ -48,3 +48,50 @@ export function comingBack(): boolean {
     return false;
   }
 }
+
+const NEWER = 'under-stockholm:newer';
+
+/** What the landing page was opening: the game (with `launch`'s arguments) or a view by name. */
+export interface Opening {
+  view?: string;
+  showcase?: boolean;
+  again?: boolean;
+  station?: string;
+  life?: boolean;
+}
+
+/**
+ * Whether `err` is a chunk of an earlier build that is no longer there: a page left open across a deploy asks for
+ * files the new one replaced.
+ */
+export const staleBuild = (err: unknown): boolean =>
+  /dynamically imported module|Importing a module script failed|Unable to preload CSS/.test(String(err));
+
+/**
+ * Loads the page again, from the current build, to open `what` once it is up. False, and nothing done, when it did so
+ * within the last minute: the files are missing for some other reason, and the page says so instead.
+ */
+export function reloadForNewer(what: Opening): boolean {
+  try {
+    const last = JSON.parse(sessionStorage.getItem(NEWER) ?? 'null') as { at?: number } | null;
+    if (last?.at && Date.now() - last.at < 60_000) return false;
+    sessionStorage.setItem(NEWER, JSON.stringify({ at: Date.now(), what }));
+  } catch {
+    return false;
+  }
+  location.reload();
+  return true;
+}
+
+/** What the page was opening when it was loaded again for a newer build, once. */
+export function reopening(): Opening | null {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(NEWER) ?? 'null') as { at: number; what?: Opening } | null;
+    if (!saved?.what) return null;
+    // The time stays, so a page that fails again within the minute does not go round.
+    sessionStorage.setItem(NEWER, JSON.stringify({ at: saved.at }));
+    return saved.what;
+  } catch {
+    return null;
+  }
+}

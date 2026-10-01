@@ -67,18 +67,24 @@ export interface ErrorGroup {
 
 export type ErrorAggregate = { since: number | null; count: number; day: number; groups: ErrorGroup[] };
 
+/**
+ * Where in the code, the same from one build to the next: the chunk's name, without its hash, the minified names and
+ * the line and column, which every deploy changes. A frame outside the build is kept whole.
+ */
+const chunkOf = (frame: string) => /\/assets\/([\w-]+?)-[\w-]{8}\.(?:js|wasm)\b/.exec(frame)?.[1] ?? frame;
+
 /** The reports grouped by message and where in the code, the most frequent first. */
 export function groupErrors(reports: ErrorReport[], now = Date.now()): ErrorAggregate {
   const groups = new Map<string, ErrorGroup>();
   for (const r of reports) {
     const frame = r.stack.split('\n').map((l) => l.trim()).find((l) => l && !l.startsWith(r.message.slice(0, 20))) ?? '';
-    const key = `${r.message}\n${frame}`;
+    const key = `${r.message}\n${chunkOf(frame)}`;
     const g = groups.get(key) ?? { message: r.message, frame, n: 0, fatal: 0, touch: 0, first: r.at, last: r.at, sample: r };
     g.n++;
     if (r.fatal) g.fatal++;
     if (r.kind === 'touch') g.touch++;
     g.first = Math.min(g.first, r.at);
-    if (r.at >= g.last) { g.last = r.at; g.sample = r; }
+    if (r.at >= g.last) { g.last = r.at; g.sample = r; g.frame = frame; }
     groups.set(key, g);
   }
   return {

@@ -73,6 +73,11 @@ export function reportError(err: unknown, fatal: boolean): void {
 export function watchErrors(): void {
   if (watching) return;
   watching = true;
-  window.addEventListener('error', (e) => reportError(e.error ?? e.message, false));
+  window.addEventListener('error', (e) => {
+    // Only the game's own scripts: another origin's error reaches the page as a bare "Script error.", and what the
+    // browser itself puts into the page (an in-app browser's helpers) throws from the page's address.
+    if (!e.error || !/\/(assets|src|node_modules)\//.test(e.filename)) return;
+    reportError(e.error, false);
+  });
   window.addEventListener('unhandledrejection', (e) => reportError(e.reason, false));
 }

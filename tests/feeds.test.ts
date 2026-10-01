@@ -1,4 +1,5 @@
 import { afterAll, afterEach, expect, setSystemTime, test } from 'bun:test';
+import { createFeeds, SourceError } from '../server/feedCore';
 import { handleFeeds } from '../server/feeds';
 import { LINES } from '../src/landing/lines';
 
@@ -120,4 +121,29 @@ test('SR news reaches the papers through the relay, parsed and twice an hour at 
   advance(20 * 60);
   await ask('news');
   expect(calls).toBe(1);
+});
+
+test('a short GTFS outage keeps every line from the last copy; a long one falls back to the blue line', async () => {
+  let gtfsUp = true;
+  const every = { 1: { departures: [] }, 2: { departures: [] }, 3: { departures: [] } };
+  const feeds = createFeeds({
+    gtfs: async () => { if (!gtfsUp) throw new SourceError('opendata.samtrafiken.se 502', 502, 0); return every; },
+    log: () => {},
+  });
+  const calls = countingFetch(() => ({ departures: [] }));
+  const sl = async () => ((await (await feeds.handle(new URL('http://relay/feeds/sl')))!.json()) as { data: Record<string, unknown> }).data;
+  expect(Object.keys(await sl())).toEqual(['1', '2', '3']);
+  gtfsUp = false;
+  advance(20);
+  // The copy from before, SL not asked.
+  expect(Object.keys(await sl())).toEqual(['1', '2', '3']);
+  expect(calls.length).toBe(0);
+  // Still down once the copy is too old: the Transport API, for the blue line.
+  advance(5 * 60);
+  expect(Object.keys(await sl()).length).toBe(12);
+  expect(calls.length).toBe(12);
+  // Back up: every line again.
+  gtfsUp = true;
+  advance(20);
+  expect(Object.keys(await sl())).toEqual(['1', '2', '3']);
 });

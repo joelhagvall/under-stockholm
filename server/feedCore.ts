@@ -8,6 +8,7 @@
 // Every answer is { at, data }, `at` being when the relay fetched it (epoch ms):
 //   GET /feeds/sl          data: { [site]: { departures } }   SL departures at every metro station from GTFS Regional
 //                          with Trafiklab keys (server/gtfs.ts), else at the blue line's from SL's Transport API
+//                          (also when GTFS has failed for longer than its last copy keeps)
 //   GET /feeds/deviations  data: SL's traffic information, as SL sends it
 //   GET /feeds/weather     data: Open-Meteo's answer, as it sends it
 //   GET /feeds/warnings    data: SMHI's warnings for Stockholms län only
@@ -109,6 +110,8 @@ export function createFeeds(options: FeedOptions = {}): Feeds {
   const lastLists = new Map<number, { list: DepartureList; at: number }>();
   /** When each request to SL in the last minute was sent. */
   const slSent: number[] = [];
+  /** When GTFS Regional last answered with every line's departures. */
+  let gtfsAt = 0;
 
   /** Takes up to `want` requests from SL's budget. */
   function slBudget(want: number): number {
@@ -128,8 +131,11 @@ export function createFeeds(options: FeedOptions = {}): Feeds {
         if (options.gtfs) {
           try {
             const lists = await options.gtfs();
-            if (lists) return lists;
+            if (lists) { gtfsAt = Date.now(); return lists; }
           } catch (err) {
+            // A short outage keeps the last copy, every line's, for as long as it keeps (SL_KEEP), and asks GTFS again
+            // after the usual pause: the Transport API would narrow it to the blue line. Only a longer one falls back.
+            if (Date.now() - gtfsAt < SL_KEEP * 1000) throw err;
             log(`feed sl (GTFS), using the Transport API: ${err instanceof Error ? err.message : err}`);
           }
         }
