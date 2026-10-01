@@ -607,14 +607,14 @@ export function rinkebyTexture(arcLength: number): Art {
 // ---------------------------------------------------------------- Duvbo
 
 /**
- * Dark bare rock with Gösta Sillén's pale concrete reliefs pressed into it,
- * as if fossils were found in the rock: ammonites, ferns, fish bones, tools
- * and lines of old script.
+ * Grey-brown bare rock with Gösta Sillén's pale concrete reliefs pressed into it, as if found in the rock: ragged
+ * slabs filled with grids like windows, fields of dots, rows of little bones, spirals and ribs, after photos of the
+ * real station. Each motif keeps to its own cell of the slab, so none crosses another.
  */
 export function duvboTexture(arcLength: number): Art {
   const period = 30;
   return { period, texture: vault('duvbo', period, arcLength, 1985, (v) => {
-    rockBase(v, '#3a3a38', ['20, 20, 18', '90, 88, 82', '60, 60, 56']);
+    rockBase(v, '#5e584e', ['40, 36, 30', '120, 112, 98', '80, 74, 64']);
     const { rnd } = v;
     for (const edge of [0, 1] as const) {
       v.wall(edge, ({ ctx: g, wrap: w }) => {
@@ -626,34 +626,41 @@ export function duvboTexture(arcLength: number): Art {
             const ang = (a / 16) * Math.PI * 2;
             outline.push([x + l / 2 + Math.cos(ang) * (l / 2) * (0.85 + rnd() * 0.2), lo + t / 2 + Math.sin(ang) * (t / 2) * (0.85 + rnd() * 0.2)]);
           }
-          const marks: Array<[number, number, number]> = [];
-          for (let i = 0; i < 12; i++) marks.push([x + 0.5 + rnd() * (l - 1), lo + 0.45 + rnd() * (t - 0.9), Math.floor(rnd() * 4)]);
+          // Three cells across and two up, inside the outline, one motif each.
+          const cells: Array<[number, number, number]> = [];
+          const cw = (l * 0.7) / 3, ch = (t * 0.62) / 2, x0 = x + l * 0.15, y0 = lo + t * 0.19;
+          for (let c = 0; c < 3; c++) for (let r = 0; r < 2; r++) cells.push([x0 + (c + 0.5) * cw, y0 + (r + 0.5) * ch, Math.floor(rnd() * 5)]);
           w(() => {
-            poly(g, outline, '#bdbab2', '#8a8780', 0.05);
-            g.strokeStyle = '#6a6862'; g.lineWidth = 0.035; g.lineCap = 'round';
-            for (const [px, ph, kind] of marks) {
-              g.save();
-              g.translate(px, ph);
-              g.scale(1.7, 1.7);
-              const mx = 0, mh = 0;
+            poly(g, outline, '#c4c0b6', '#8a8780', 0.05);
+            g.strokeStyle = '#6a6862'; g.fillStyle = '#6a6862'; g.lineWidth = 0.035; g.lineCap = 'round';
+            const hw = cw * 0.38, hh = ch * 0.38;
+            for (const [cx, cy, kind] of cells) {
               g.beginPath();
               if (kind === 0) {
-                // An ammonite.
-                for (let a = 0; a < 18; a++) { const r = 0.02 + a * 0.014, ang = a * 0.7; if (a) g.lineTo(mx + Math.cos(ang) * r, mh + Math.sin(ang) * r); else g.moveTo(mx + r, mh); }
+                // A spiral, like an ammonite.
+                for (let a = 0; a < 22; a++) { const r = 0.02 + a * Math.min(hw, hh) / 22, ang = a * 0.7; if (a) g.lineTo(cx + Math.cos(ang) * r, cy + Math.sin(ang) * r); else g.moveTo(cx + r, cy); }
+                g.stroke();
               } else if (kind === 1) {
-                // A fern frond.
-                g.moveTo(mx, mh - 0.3); g.lineTo(mx, mh + 0.3);
-                for (let f = -0.25; f < 0.3; f += 0.08) { g.moveTo(mx, mh + f); g.lineTo(mx - 0.14, mh + f + 0.06); g.moveTo(mx, mh + f); g.lineTo(mx + 0.14, mh + f + 0.06); }
+                // A grid of small windows.
+                for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) g.fillRect(cx - hw + i * hw * 0.72, cy - hh + j * hh * 0.72, hw * 0.42, hh * 0.42);
               } else if (kind === 2) {
-                // Fish bones.
-                g.moveTo(mx - 0.3, mh); g.lineTo(mx + 0.25, mh); g.lineTo(mx + 0.35, mh + 0.07); g.moveTo(mx + 0.25, mh); g.lineTo(mx + 0.35, mh - 0.07);
-                for (let f = -0.2; f < 0.2; f += 0.06) { g.moveTo(mx + f, mh - 0.1); g.lineTo(mx + f, mh + 0.1); }
+                // A field of dots.
+                for (let i = 0; i < 5; i++) for (let j = 0; j < 4; j++) { g.moveTo(cx - hw + i * hw * 0.5 + 0.03, cy - hh + j * hh * 0.66); g.arc(cx - hw + i * hw * 0.5, cy - hh + j * hh * 0.66, 0.03, 0, Math.PI * 2); }
+                g.fill();
+              } else if (kind === 3) {
+                // A row of little bones, each lying along the row.
+                for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
+                  const bx = cx - hw * 0.5 + i * hw, by = cy - hh * 0.4 + j * hh * 0.8, bl = hw * 0.35;
+                  g.moveTo(bx - bl, by); g.lineTo(bx + bl, by);
+                  g.moveTo(bx - bl + 0.04, by); g.arc(bx - bl, by, 0.04, 0, Math.PI * 2);
+                  g.moveTo(bx + bl + 0.04, by); g.arc(bx + bl, by, 0.04, 0, Math.PI * 2);
+                }
+                g.stroke();
               } else {
-                // Script.
-                for (let r = 0; r < 3; r++) { g.moveTo(mx - 0.3, mh + r * 0.1); for (let c = 0; c < 8; c++) g.lineTo(mx - 0.3 + c * 0.08, mh + r * 0.1 + (c % 2 ? 0.04 : 0)); }
+                // Ribs: short arcs one above the other.
+                for (let i = 0; i < 4; i++) { const ry = cy - hh + i * hh * 0.6; g.moveTo(cx - hw, ry); g.quadraticCurveTo(cx, ry + hh * 0.3, cx + hw, ry); }
+                g.stroke();
               }
-              g.stroke();
-              g.restore();
             }
           });
         }

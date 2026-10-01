@@ -389,7 +389,7 @@ const rose = pattern(0x4a3a36, warmLamp, (p) => {
   return mix(rgb(0x7e5040), rgb(0xc2907a), g * 0.8 + 0.2);
 });
 
-// Duvbo (Gösta Sillén): dark rock with pale fossil reliefs (see `art/blue.ts`),
+// Duvbo (Gösta Sillén): grey-brown rock with pale fossil-like reliefs (see `art/blue.ts`),
 // under a red duct on red columns (see `details/blue.ts`).
 const fossils: Theme = { ...pattern(0x38383a, coolLamp, (p) => mix(rgb(0x2c2c2a), rgb(0x4a4a46), grain(p, 63))), art: (arc) => duvboTexture(arc) };
 
@@ -401,8 +401,7 @@ const timeline: Theme = { ...pattern(0x5c5a56, coolLamp, (p) => mix(rgb(0xd4d2cc
 // Viking finds (see `art/blue.ts`), and a gilded sun of oars in the vault (see `details/blue.ts`).
 const treasure: Theme = { ...pattern(0x553428, warmLamp, (p) => mix(rgb(0x803a22), rgb(0xd88058), grain(p, 66, 0.6))), art: (arc) => rinkebyTexture(arc) };
 
-// Tensta (Helga Henschen, "En ros till invandrarna"): naive animals, plants,
-// a rose and a sun on white, and solidarity in eighteen languages (see `stationArt.ts`).
+// Tensta (Helga Henschen): white rock with blue hollows and a blue railing along the track walls (see `stationArt.ts`).
 const mural: Theme = { ...pattern(0x57524c, warmLamp, (p) => {
   const g = grain(p, 68, 0.25);
   if (p.y < 1.3) return mix(rgb(0xd9d4c8), rgb(0xe9e4d8), g);

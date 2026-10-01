@@ -248,17 +248,9 @@ export function solnaCentrumTexture(arcLength: number): { texture: Texture; peri
 
 // ---------------------------------------------------------------- Tensta
 
-/** "Solidaritet", the title of Helga Henschen's work, in eighteen languages. */
-export const TENSTA_WORDS = [
-  'SOLIDARITET', 'SOLIDARITY', 'SOLIDARIDAD', 'SOLIDARITÉ', 'SOLIDARITÄT', 'SOLIDARIETÀ', 'SOLIDARNOŚĆ', 'DAYANIŞMA', 'SOLIDAARISUUS',
-  'تضامن', 'همبستگی', 'ΑΛΛΗΛΕΓΓΥΗ', 'СОЛИДАРНОСТЬ', 'SOLIDARIEDADE', 'SOLIDARNOST', 'SOLIDARITATE', 'SZOLIDARITÁS', 'SOLIDARITEIT',
-];
-
 /**
- * White walls and vault with naive, colourful paintings: climbing plants, a
- * big pink rose, an orange sun and animals (an elephant, a moose, a lion, a
- * horse, penguins above a walrus), and along both track walls panels with
- * "solidarity" in eighteen languages, each in its own colour.
+ * White rock with its hollows painted sky blue and leaves drifting over the vault, and a blue pipe railing along both
+ * track walls over the dark foot of the rock.
  */
 export function tenstaTexture(arcLength: number): { texture: Texture; period: number } {
   const period = 36;
@@ -283,102 +275,16 @@ export function tenstaTexture(arcLength: number): { texture: Texture; period: nu
         ctx.fillStyle = color; ctx.fill(); ctx.restore();
       });
     }
-    const panelColors = ['#e63946', '#f28c1c', '#2a9d8f', '#3a86ff', '#8d5fd3', '#e8407a', '#2f7d3b', '#d8a31a', '#264653'];
     for (const edge of [0, 1] as const) {
-      wall(edge, ({ ctx: g, wrap: w, text }) => {
-        g.fillStyle = '#e9e4d8';
-        g.fillRect(-period, -1, period * 3, 1.6);
-        // Nine panels a wall, eighteen words a period.
-        for (let k = 0; k < 9; k++) {
-          const x = 2 + k * 4;
-          const color = panelColors[(k + edge * 4) % panelColors.length];
-          w(() => { g.fillStyle = color; g.fillRect(x - 1.4, 1.6, 2.8, 0.75); });
-          text(TENSTA_WORDS[k + edge * 9], x, 1.98, 0.36, '#ffffff');
-        }
-        // Climbing plants between the panels.
-        for (let k = 0; k < 9; k++) {
-          const x = 4 + k * 4;
-          w(() => {
-            g.strokeStyle = '#2f7d3b'; g.lineWidth = 0.07; g.lineCap = 'round';
-            g.beginPath(); g.moveTo(x, 1.3); g.bezierCurveTo(x + 0.4, 2.2, x - 0.4, 3.2, x + 0.2, 4.2); g.stroke();
-            for (let l = 0; l < 6; l++) {
-              const y = 1.6 + l * 0.45, s = l % 2 ? 1 : -1;
-              g.save(); g.translate(x + s * 0.1, y); g.rotate(s * 0.7);
-              g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(s * 0.2, 0.18, s * 0.42, 0); g.quadraticCurveTo(s * 0.2, -0.18, 0, 0);
-              g.fillStyle = '#3f9a4a'; g.fill(); g.restore();
-            }
-          });
-        }
-        const outline = '#1a1a1a';
-        // The rose.
+      wall(edge, ({ ctx: g, wrap: w }) => {
+        g.fillStyle = '#56565a';
+        g.fillRect(-period, -1, period * 3, 2.1);
+        // The railing: two pipes along the wall, on posts.
         w(() => {
-          const x = 7.5 + edge * 14, y = 3.5;
-          g.strokeStyle = '#2f7d3b'; g.lineWidth = 0.08;
-          g.beginPath(); g.moveTo(x, y); g.lineTo(x + 0.1, 2.5); g.stroke();
-          for (let r = 5; r > 0; r--) ellipse(g, x, y, 0.18 * r, 0.15 * r, r % 2 ? '#e8407a' : '#c92a63', outline, 0.03);
-        });
-        // The sun.
-        w(() => {
-          const x = 17 - edge * 8, y = 4.1;
-          g.strokeStyle = '#f28c1c'; g.lineWidth = 0.08;
-          for (let r = 0; r < 16; r++) {
-            const a = (r / 16) * Math.PI * 2;
-            g.beginPath(); g.moveTo(x + Math.cos(a) * 0.75, y + Math.sin(a) * 0.75); g.lineTo(x + Math.cos(a) * 1.1, y + Math.sin(a) * 1.1); g.stroke();
-          }
-          ellipse(g, x, y, 0.62, 0.62, '#f28c1c', outline, 0.03);
-        });
-        // An elephant.
-        w(() => {
-          const x = 12 + edge * 12, y = 2.7;
-          ellipse(g, x, y + 0.5, 0.9, 0.55, '#9a9fa6', outline);
-          ellipse(g, x + 0.95, y + 0.75, 0.42, 0.38, '#9a9fa6', outline);
-          g.strokeStyle = '#9a9fa6'; g.lineWidth = 0.18; g.lineCap = 'round';
-          g.beginPath(); g.moveTo(x + 1.25, y + 0.7); g.quadraticCurveTo(x + 1.5, y + 0.2, x + 1.35, y); g.stroke();
-          for (const lx of [-0.6, -0.25, 0.3, 0.65]) { g.fillStyle = '#9a9fa6'; g.fillRect(x + lx, y - 0.25, 0.22, 0.5); }
-          ellipse(g, x + 1.05, y + 0.85, 0.05, 0.05, outline);
-        });
-        // A moose.
-        w(() => {
-          const x = 27 - edge * 20, y = 2.8;
-          ellipse(g, x, y + 0.55, 0.85, 0.4, '#6b4a2e', outline);
-          poly(g, [[x + 0.7, y + 0.7], [x + 1.25, y + 1.05], [x + 1.45, y + 0.8], [x + 0.85, y + 0.45]], '#6b4a2e', outline);
-          for (const lx of [-0.55, -0.3, 0.35, 0.6]) { g.fillStyle = '#6b4a2e'; g.fillRect(x + lx, y - 0.35, 0.12, 0.65); }
-          g.strokeStyle = '#d8c7a0'; g.lineWidth = 0.06;
-          for (const s of [-1, 1]) { g.beginPath(); g.moveTo(x + 1.15, y + 1.05); g.lineTo(x + 1.15 + s * 0.35, y + 1.45); g.lineTo(x + 1.15 + s * 0.2, y + 1.3); g.stroke(); }
-        });
-        // A lion with a big mane.
-        w(() => {
-          const x = 31 + edge * 2, y = 3.1;
-          ellipse(g, x - 0.7, y + 0.35, 0.75, 0.35, '#d8a31a', outline);
-          ellipse(g, x, y + 0.6, 0.55, 0.55, '#b8651a', outline);
-          ellipse(g, x, y + 0.6, 0.32, 0.32, '#e0b94a', outline);
-          for (const lx of [-1.2, -0.3]) { g.fillStyle = '#d8a31a'; g.fillRect(x + lx, y - 0.25, 0.14, 0.5); }
-        });
-        // A big purple mammoth, and a primeval beast in maroon like a cave painting.
-        w(() => {
-          const x = 20.5 + edge * 8, y = 2.5;
-          ellipse(g, x, y + 0.9, 1.3, 0.75, '#7a5a9a', outline);
-          ellipse(g, x + 1.15, y + 1.25, 0.5, 0.5, '#7a5a9a', outline);
-          g.strokeStyle = '#7a5a9a'; g.lineWidth = 0.22; g.lineCap = 'round';
-          g.beginPath(); g.moveTo(x + 1.5, y + 1.1); g.quadraticCurveTo(x + 1.8, y + 0.4, x + 1.6, y + 0.1); g.stroke();
-          g.strokeStyle = '#f2ede2'; g.lineWidth = 0.07;
-          g.beginPath(); g.moveTo(x + 1.35, y + 0.9); g.quadraticCurveTo(x + 1.9, y + 0.7, x + 2.0, y + 1.1); g.stroke();
-          for (const lx of [-0.9, -0.5, 0.4, 0.8]) { g.fillStyle = '#7a5a9a'; g.fillRect(x + lx, y - 0.2, 0.3, 0.6); }
-          const bx = edge ? 14 : 15.5, by = 3.3;
-          g.strokeStyle = '#8a3040'; g.lineWidth = 0.06;
-          g.beginPath(); g.ellipse(bx, by, 0.8, 0.38, 0, 0, Math.PI * 2); g.stroke();
-          for (const lx of [-0.5, -0.25, 0.3, 0.55]) { g.beginPath(); g.moveTo(bx + lx, by - 0.3); g.lineTo(bx + lx, by - 0.8); g.stroke(); }
-          g.beginPath(); g.moveTo(bx + 0.7, by + 0.2); g.lineTo(bx + 1.1, by + 0.45); g.lineTo(bx + 1.2, by + 0.2); g.moveTo(bx + 1.0, by + 0.45); g.lineTo(bx + 0.9, by + 0.85); g.moveTo(bx + 1.1, by + 0.45); g.lineTo(bx + 1.35, by + 0.8); g.stroke();
-        });
-        // Penguins huddled above a walrus.
-        w(() => {
-          const x = 1.5 + edge * 16, y = 2.6;
-          ellipse(g, x + 0.6, y + 0.35, 0.95, 0.4, '#8a5a3a', outline);
-          g.fillStyle = '#f2ede2'; g.fillRect(x + 1.35, y + 0.1, 0.06, 0.35); g.fillRect(x + 1.48, y + 0.1, 0.06, 0.35);
-          for (let p = 0; p < 5; p++) {
-            ellipse(g, x + p * 0.32, y + 1.15, 0.13, 0.28, '#1a1a1a');
-            ellipse(g, x + p * 0.32, y + 1.1, 0.08, 0.2, '#f7f5ef');
-          }
+          g.fillStyle = '#2a4f9c';
+          g.fillRect(-period, 1.55, period * 3, 0.07);
+          g.fillRect(-period, 2.1, period * 3, 0.07);
+          for (let k = 0; k < 9; k++) g.fillRect(4 + k * 4 - 0.04, 0.9, 0.08, 1.5);
         });
       });
     }
