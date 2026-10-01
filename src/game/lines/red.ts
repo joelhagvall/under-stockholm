@@ -113,7 +113,7 @@ export const RED_LINE: LineDef = {
     // Universitetet: grey rock over white tiles lettered with human rights, Linnaeus's journeys on sea green, a dark floor.
     { name: 'Universitetet', map: [0.568, 0.24], sl: 9203, riders: 12000, rise: 17, architecture: 'rock', exits: 'Stockholms universitet', halls: [{ end: 'outbound', incline: true }], branch: '14', transfer: text.announcements.roslagsbanaTransfer, look: { floor: 0x4e5054, split: true }, theme: rights },
     // Tekniska högskolan: pale rock under a blue sky, science on the walls and a glass dodecahedron in the vault.
-    { name: 'Tekniska högskolan', map: [0.558, 0.31], sl: 9204, riders: 12000, rise: 10, architecture: 'rock', exits: 'Valhallavägen · KTH', halls: [{ end: 'outbound', corridor: 20, incline: true, exits: 'Danderydsgatan' }, { end: 'inbound', incline: true, exits: 'Valhallavägen' }], branch: '14', transfer: text.announcements.roslagsbanaTransfer, look: { floor: 0x3a3c40, split: true }, theme: science },
+    { name: 'Tekniska högskolan', map: [0.558, 0.31], sl: 9204, riders: 12000, rise: 10, architecture: 'rock', exits: 'Valhallavägen · KTH', halls: [{ end: 'outbound', corridor: 20, incline: true, exits: 'Danderydsgatan' }, { end: 'inbound', incline: true, exits: 'Valhallavägen · Odengatan' }], branch: '14', transfer: text.announcements.roslagsbanaTransfer, look: { floor: 0x3a3c40, split: true }, theme: science },
     // Stadion: the whole grotto sky blue, with a rainbow arching over the platform.
     { name: 'Stadion', map: [0.553, 0.36], sl: 9205, riders: 6000, rise: 22, architecture: 'rock', exits: 'Valhallavägen · Stadion', halls: [{ end: 'inbound', corridor: 10, incline: true, exits: 'Stadion · Idrottshögskolan' }, { end: 'outbound', incline: true, exits: 'Karlavägen · Nybrogatan' }], branch: '14', look: { floor: 0x3e4046, split: true }, theme: sky },
     // The trunk through the city.
@@ -175,6 +175,6 @@ export const RED_LINE: LineDef = {
     { name: 'Telefonplan', map: [0.362, 0.73], sl: 9263, riders: 7000, architecture: 'rock', exits: 'Telefonplan · Konstfack', halls: [{ end: 'outbound' }], branch: '14', open: true, theme: morse },
     { name: 'Hägerstensåsen', map: [0.354, 0.77], sl: 9262, riders: 4500, architecture: 'rock', exits: 'Hägerstensåsen', halls: [{ end: 'inbound' }, { end: 'inbound', from: -68, down: true, beside: 2 }], branch: '14', open: true, theme: rock(0x44463e, warmLamp, 0x606a48, 0xa0a878, 110) },
     { name: 'Västertorp', map: [0.346, 0.81], sl: 9261, riders: 4500, architecture: 'rock', exits: 'Västertorps centrum', halls: [{ end: 'inbound', from: -68, down: true, beside: 1 }, { end: 'inbound' }], branch: '14', open: true, theme: rock(0x4a4640, warmLamp, 0x7a6450, 0xb49c80, 111) },
-    { name: 'Fruängen', map: [0.338, 0.85], sl: 9260, riders: 7500, architecture: 'rock', exits: 'Fruängens centrum', halls: [{ end: 'inbound', from: -68, down: true }], branch: '14', open: true, theme: rock(0x444448, coolLamp, 0x585c66, 0x98a0aa, 112) },
+    { name: 'Fruängen', map: [0.338, 0.85], sl: 9260, riders: 7500, architecture: 'rock', exits: 'Fruängens centrum', halls: [{ end: 'inbound', from: -68, down: true, exits: 'Fruängstorget' }], branch: '14', open: true, theme: rock(0x444448, coolLamp, 0x585c66, 0x98a0aa, 112) },
   ],
 };
