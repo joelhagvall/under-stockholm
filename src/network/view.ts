@@ -1014,6 +1014,8 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
         try { for (let i = 0; i < seconds * rate && !disposed; i++) frame(); } finally { manualDt = null; }
       },
       dive: (name: string) => dive(STATIONS.findIndex((st) => st.name === name)),
+      /** Where a station is in the scene, for the launch video to look at it from close by. */
+      station: (name: string) => stationPos[STATIONS.findIndex((st) => st.name === name)].clone(),
       /** Where a station is on screen, in CSS pixels. */
       where(name: string) {
         const p = new Vector3().copy(stationPos[STATIONS.findIndex((st) => st.name === name)]).project(camera);
