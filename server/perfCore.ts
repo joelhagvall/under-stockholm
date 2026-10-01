@@ -6,6 +6,10 @@ export interface PerfReport {
   /** When it was received, epoch milliseconds (set by the relay). */
   at: number;
   kind: 'desktop' | 'touch';
+  /** Git version of the client; empty for reports from older builds. */
+  build: string;
+  /** Null for older clients or when battery saver changed during the measured frames. */
+  battery: boolean | null;
   /** Played time the frames cover. */
   seconds: number;
   frames: number;
@@ -52,6 +56,8 @@ export function parsePerf(raw: unknown, at = Date.now()): PerfReport | null {
   const round = (v: number, digits = 1) => Math.round(v * 10 ** digits) / 10 ** digits;
   return {
     v: 1, at, kind: r.kind,
+    build: typeof r.build === 'string' && /^[\w.-]{1,64}$/.test(r.build) ? r.build : '',
+    battery: typeof r.battery === 'boolean' ? r.battery : null,
     seconds: round(r.seconds), frames: Math.round(r.frames), fps: round(r.fps), p95: round(r.p95), hitches: Math.round(r.hitches),
     work: finite(r.work, r.hitches) ? Math.round(r.work) : -1,
     scale: Math.round(r.scale), pixelRatio: round(r.pixelRatio, 2), loadS: round(r.loadS), dpr: round(r.dpr, 2), w: Math.round(r.w), h: Math.round(r.h),
@@ -119,12 +125,33 @@ function workShare(reports: PerfReport[]): number | null {
   return hitches ? Math.round((100 * reports.reduce((s, r) => s + r.work, 0)) / hitches) / 100 : 0;
 }
 
-export type PerfAggregate = { since: number | null; count: number; all: Record<string, PerfSummary>; day: Record<string, PerfSummary> };
+export interface BuildPerformance {
+  build: string;
+  battery: boolean | null;
+  last: number;
+  desktop: PerfSummary;
+  touch: PerfSummary;
+}
+
+export type PerfAggregate = { since: number | null; count: number; all: Record<string, PerfSummary>; day: Record<string, PerfSummary>; builds: BuildPerformance[] };
 
 /** The aggregate over all kept reports, by class of device, and over the last day. */
 export function aggregate(reports: PerfReport[], now = Date.now()): PerfAggregate {
   const by = (rs: PerfReport[]) => ({ desktop: summarize(rs.filter((r) => r.kind === 'desktop')), touch: summarize(rs.filter((r) => r.kind === 'touch')) });
-  return { since: reports[0]?.at ?? null, count: reports.length, all: by(reports), day: by(reports.filter((r) => now - r.at < 86_400_000)) };
+  const versions = new Map<string, { build: string; battery: boolean | null; last: number; reports: PerfReport[] }>();
+  for (const r of reports) {
+    // Stored reports from before these fields were added stay in their own unknown group.
+    const build = r.build ?? '';
+    const battery = typeof r.battery === 'boolean' ? r.battery : null;
+    const key = `${build}\n${battery}`;
+    const version = versions.get(key) ?? { build, battery, last: r.at, reports: [] };
+    version.last = Math.max(version.last, r.at);
+    version.reports.push(r);
+    versions.set(key, version);
+  }
+  const builds = [...versions.values()].sort((a, b) => b.last - a.last).slice(0, 12)
+    .map(({ build, battery, last, reports }) => ({ build, battery, last, ...by(reports) }));
+  return { since: reports[0]?.at ?? null, count: reports.length, all: by(reports), day: by(reports.filter((r) => now - r.at < 86_400_000)), builds };
 }
 
 /** Today's requests to the hub against one of its daily budgets, in production only. */
@@ -134,14 +161,22 @@ export type Budgets = { players: BudgetUse; data: BudgetUse };
 
 /** The aggregate as a plain page, for a browser, with today's budgets when the relay keeps them. */
 export function perfPage(data: PerfAggregate, budgets?: Budgets): string {
+  const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const headings = '<tr><th></th><th>visits</th><th>fps</th><th>fps p10</th><th>p95 ms</th><th>hitches/min, mean</th><th>median</th><th>in the game\'s code</th><th>downscaled</th><th>load s</th><th>load p90</th></tr>';
   const row = (label: string, s: PerfSummary) => `<tr><td>${label}</td><td>${s.n}</td><td>${s.fps.median}</td><td>${s.fps.p10}</td><td>${s.p95.median}</td><td>${s.hitchesPerMinute}</td><td>${s.hitchesMedian}</td><td>${s.hitchesWork === null ? '' : `${Math.round(s.hitchesWork * 100)}%`}</td><td>${Math.round(s.downscaled * 100)}%</td><td>${s.loadS.median}</td><td>${s.loadS.p90}</td></tr>`;
+  const builds = data.builds.map((b) => {
+    const label = `${escape(b.build || '(unknown build)')}, battery ${b.battery === null ? 'unknown or changed' : b.battery ? 'on' : 'off'}`;
+    return (b.desktop.n ? row(`${label}, desktop`, b.desktop) : '') + (b.touch.n ? row(`${label}, touch`, b.touch) : '');
+  }).join('');
   const gpus = (s: PerfSummary) => s.gpus.map((g) => `<tr><td>${g.gpu.replace(/</g, '&lt;')}</td><td>${g.n}</td><td>${g.fps}</td></tr>`).join('');
   return `<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><title>Under Stockholm | performance</title>
 <style>body{font:14px/1.5 system-ui;margin:2em;color:#222}table{border-collapse:collapse;margin:1em 0}td,th{border:1px solid #ccc;padding:4px 10px;text-align:right}td:first-child,th:first-child{text-align:left}</style>
 <h1>Under Stockholm: how it runs for players</h1>
 ${budgets ? budgetLine('Other players', budgets.players, 'other players are paused') + budgetLine('Feeds, notes and reports', budgets.data, 'they wait') : ''}<p>${data.count} reports since ${data.since ? new Date(data.since).toISOString().slice(0, 10) : 'never'}. One per visit, after two minutes of play. Medians unless said otherwise.</p>
-<table><tr><th></th><th>visits</th><th>fps</th><th>fps p10</th><th>p95 ms</th><th>hitches/min, mean</th><th>median</th><th>in the game's code</th><th>downscaled</th><th>load s</th><th>load p90</th></tr>
+<table>${headings}
 ${row('desktop, all', data.all.desktop)}${row('touch, all', data.all.touch)}${row('desktop, last day', data.day.desktop)}${row('touch, last day', data.day.touch)}</table>
+<h2>By build and battery saver</h2><p>The 12 most recently seen build and mode groups, over all kept reports. Unknown includes older clients and visits whose battery saver changed.</p>
+<table>${headings}${builds}</table>
 <h2>By GPU</h2><table><tr><th>desktop</th><th>visits</th><th>fps</th></tr>${gpus(data.all.desktop)}</table>
 <table><tr><th>touch</th><th>visits</th><th>fps</th></tr>${gpus(data.all.touch)}</table>`;
 }

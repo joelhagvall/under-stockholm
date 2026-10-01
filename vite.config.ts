@@ -1,10 +1,14 @@
 import { existsSync, readdirSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { defineConfig, type Plugin, type ViteDevServer } from 'vite';
 import { ICONS } from './scripts/icon.ts';
 
 // Set by scripts/dev.ts, which starts the relay on a free port.
 const relay = process.env.RELAY_PORT && `http://localhost:${process.env.RELAY_PORT}`;
+
+/** The code's Git version, shared by every report from this build; local edits are marked as dirty. */
+const BUILD = execFileSync('git', ['describe', '--always', '--dirty', '--abbrev=12'], { cwd: import.meta.dirname, encoding: 'utf8' }).trim();
 
 /**
  * The landing page alone, without the game (LANDING_ONLY=1, `bun run deploy --landing`): the game, the network view and
@@ -122,7 +126,7 @@ export default defineConfig({
   plugins: [site(), recordings()],
   // Constants, so the landing page alone leaves the game's code out of the build instead of only never running it,
   // and a build without the recordings never asks for them.
-  define: { __GAME__: JSON.stringify(!LANDING_ONLY), __RECORDINGS__: JSON.stringify(RECORDINGS) },
+  define: { __GAME__: JSON.stringify(!LANDING_ONLY), __RECORDINGS__: JSON.stringify(RECORDINGS), __BUILD__: JSON.stringify(BUILD) },
   // Plain `bunx vite` too starts away from Vite's default 5173, which other projects on this machine use.
   server: {
     port: 5180,

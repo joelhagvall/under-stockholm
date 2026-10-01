@@ -7,6 +7,8 @@ export interface ErrorReport {
   /** When it was received, epoch milliseconds (set by the relay). */
   at: number;
   kind: 'desktop' | 'touch';
+  /** Git version of the client; empty for reports from older builds. */
+  build: string;
   /** The game stopped (the frame threw), rather than played on. */
   fatal: boolean;
   message: string;
@@ -38,7 +40,8 @@ export function parseError(raw: unknown, at = Date.now()): ErrorReport | null {
   if (!message) return null;
   const played = typeof r.played === 'number' && Number.isFinite(r.played) ? Math.max(0, Math.min(86_400, Math.round(r.played))) : 0;
   return {
-    v: 1, at, kind: r.kind, fatal: r.fatal === true, message, stack: clean(r.stack, 1500, true), where: clean(r.where, 40),
+    v: 1, at, kind: r.kind, build: typeof r.build === 'string' && /^[\w.-]{1,64}$/.test(r.build) ? r.build : '',
+    fatal: r.fatal === true, message, stack: clean(r.stack, 1500, true), where: clean(r.where, 40),
     played, gpu: clean(r.gpu, 80), ua: clean(r.ua, 200), lang: clean(r.lang, 8),
   };
 }
@@ -63,6 +66,8 @@ export interface ErrorGroup {
   last: number;
   /** The newest report of the group, whole. */
   sample: ErrorReport;
+  /** Report counts per client version; the empty key is a report from an older client. */
+  builds: Record<string, number>;
 }
 
 export type ErrorAggregate = { since: number | null; count: number; day: number; groups: ErrorGroup[] };
@@ -72,19 +77,23 @@ export type ErrorAggregate = { since: number | null; count: number; day: number;
  * the line and column, which every deploy changes. A frame outside the build is kept whole.
  */
 const chunkOf = (frame: string) => /\/assets\/([\w-]+?)-[\w-]{8}\.(?:js|wasm)\b/.exec(frame)?.[1] ?? frame;
+/** Import and preload failures name the missing asset in the message as well as in the stack. */
+const messageOf = (message: string) => message.replace(/\/assets\/([\w-]+?)-[\w-]{8}\.(js|css|wasm)\b/g, '/assets/$1.$2');
 
 /** The reports grouped by message and where in the code, the most frequent first. */
 export function groupErrors(reports: ErrorReport[], now = Date.now()): ErrorAggregate {
   const groups = new Map<string, ErrorGroup>();
   for (const r of reports) {
     const frame = r.stack.split('\n').map((l) => l.trim()).find((l) => l && !l.startsWith(r.message.slice(0, 20))) ?? '';
-    const key = `${r.message}\n${chunkOf(frame)}`;
-    const g = groups.get(key) ?? { message: r.message, frame, n: 0, fatal: 0, touch: 0, first: r.at, last: r.at, sample: r };
+    const key = `${messageOf(r.message)}\n${chunkOf(frame)}`;
+    const g = groups.get(key) ?? { message: r.message, frame, n: 0, fatal: 0, touch: 0, first: r.at, last: r.at, sample: r, builds: Object.create(null) as Record<string, number> };
     g.n++;
+    const build = r.build ?? '';
+    g.builds[build] = (g.builds[build] ?? 0) + 1;
     if (r.fatal) g.fatal++;
     if (r.kind === 'touch') g.touch++;
     g.first = Math.min(g.first, r.at);
-    if (r.at >= g.last) { g.last = r.at; g.sample = r; g.frame = frame; }
+    if (r.at >= g.last) { g.last = r.at; g.sample = r; g.frame = frame; g.message = r.message; }
     groups.set(key, g);
   }
   return {
@@ -101,7 +110,8 @@ const when = (ms: number) => new Date(ms).toISOString().slice(0, 16).replace('T'
 /** The groups as a plain page, for a browser. */
 export function errorsPage(data: ErrorAggregate): string {
   const rows = data.groups.map((g) => `<tr><td>${g.n}</td><td>${g.fatal}</td><td>${g.touch}</td><td>${when(g.last)}</td><td><details><summary>${escape(g.message)}<br><small>${escape(g.frame)}</small></summary>
-<p>${escape(g.sample.where || '(no station)')}, ${g.sample.played} s in, ${escape(g.sample.gpu || '(unknown gpu)')}<br>${escape(g.sample.ua)}</p><pre>${escape(g.sample.stack)}</pre></details></td></tr>`).join('');
+<p>Builds: ${Object.entries(g.builds).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([build, n]) => `${escape(build || '(unknown)')}: ${n}`).join(', ')}<br>
+${escape(g.sample.where || '(no station)')}, ${g.sample.played} s in, ${escape(g.sample.gpu || '(unknown gpu)')}<br>${escape(g.sample.ua)}</p><pre>${escape(g.sample.stack)}</pre></details></td></tr>`).join('');
   return `<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><title>Under Stockholm | errors</title>
 <style>body{font:14px/1.5 system-ui;margin:2em;color:#222}table{border-collapse:collapse;margin:1em 0}td,th{border:1px solid #ccc;padding:4px 10px;vertical-align:top;text-align:right}td:last-child,th:last-child{text-align:left}pre{white-space:pre-wrap;font-size:12px}small{color:#666}</style>
 <h1>Under Stockholm: errors players met</h1>

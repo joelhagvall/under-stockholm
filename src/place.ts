@@ -62,10 +62,12 @@ export interface Opening {
 
 /**
  * Whether `err` is a chunk of an earlier build that is no longer there: a page left open across a deploy asks for
- * files the new one replaced.
+ * files the new one replaced. A missing physics binary can arrive as HTML or a 404's text, which fails WASM's
+ * magic bytes instead of the module import. Other compile errors still go through the normal error report.
  */
 export const staleBuild = (err: unknown): boolean =>
-  /dynamically imported module|Importing a module script failed|Unable to preload CSS/.test(String(err));
+  /dynamically imported module|Importing a module script failed|Unable to preload CSS/.test(String(err)) ||
+  /(?:WebAssembly|wasm).*?(?:expected magic word|failed to match magic number)/i.test(String(err));
 
 /**
  * Loads the page again, from the current build, to open `what` once it is up. False, and nothing done, when it did so

@@ -44,13 +44,17 @@ export class Telemetry {
   private work = 0;
   private played = 0;
   private sent = false;
+  /** Null when battery saver changed during the sample; an unset value means no frames yet. */
+  private battery: boolean | null | undefined;
 
   /** @param url the relay's HTTP address, or null to send nothing */
   constructor(private readonly url: string | null, private readonly facts: () => Facts) {}
 
   /** A frame of play, milliseconds since the last, and how long the game's own code took of it. */
-  frame(ms: number, workMs: number): void {
+  frame(ms: number, workMs: number, battery: boolean): void {
     if (this.sent || !this.url || !(ms > 0) || ms > AWAY_MS) return;
+    if (!this.frames.length) this.battery = battery;
+    else if (this.battery !== battery) this.battery = null;
     this.frames.push(ms);
     if (ms > 50 && workMs > ms / 2) this.work++;
     this.played += ms / 1000;
@@ -69,6 +73,8 @@ export class Telemetry {
     const nav = navigator as Navigator & { deviceMemory?: number };
     const report = {
       v: 1,
+      build: __BUILD__,
+      battery: this.battery ?? null,
       kind: f.touch ? 'touch' : 'desktop',
       ...summarizeFrames(this.frames),
       work: this.work,

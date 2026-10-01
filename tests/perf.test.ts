@@ -79,3 +79,36 @@ test('the client sums up its frame times', () => {
   expect(s.p95).toBe(16.7);
   expect(s.hitches).toBe(6);
 });
+
+test('versions and battery saver are separated, with old reports in an unknown group', () => {
+  const { build: _build, battery: _battery, ...legacy } = parsePerf(sample, 1)!;
+  const reports = [
+    legacy as PerfReport,
+    parsePerf({ ...sample, build: 'build-a', battery: false, fps: 60 }, 2)!,
+    parsePerf({ ...sample, build: 'build-a', battery: true, fps: 30 }, 3)!,
+    parsePerf({ ...sample, build: 'build-b', battery: false, fps: 55 }, 4)!,
+    parsePerf({ ...sample, build: 'build-b', battery: null, fps: 45 }, 5)!,
+  ];
+  const data = aggregate(reports, 6);
+  expect(data.builds).toHaveLength(5);
+  expect(data.builds.find((b) => b.build === 'build-a' && b.battery === false)!.touch.fps.median).toBe(60);
+  expect(data.builds.find((b) => b.build === 'build-a' && b.battery === true)!.touch.fps.median).toBe(30);
+  expect(data.builds[0]).toMatchObject({ build: 'build-b', battery: null, last: 5 });
+  expect(data.builds[4]).toMatchObject({ build: '', battery: null });
+  expect(data.all.touch.n).toBe(5);
+  const page = perfPage(data);
+  expect(page).toContain('build-a, battery on, touch');
+  expect(page).toContain('build-a, battery off, touch');
+  expect(page).toContain('(unknown build), battery unknown or changed, touch');
+  expect(parsePerf({ ...sample, build: '<script>', battery: 'on' })!).toMatchObject({ build: '', battery: null });
+  expect(parsePerf({ ...sample, build: 'a'.repeat(65) })!.build).toBe('');
+});
+
+test('only the most recent twelve version and mode groups are expanded', () => {
+  const reports = Array.from({ length: 20 }, (_, i) => parsePerf({ ...sample, build: `build-${i}`, battery: false }, i)!);
+  const data = aggregate(reports, 20);
+  expect(data.count).toBe(20);
+  expect(data.builds).toHaveLength(12);
+  expect(data.builds[0].build).toBe('build-19');
+  expect(data.builds[11].build).toBe('build-8');
+});

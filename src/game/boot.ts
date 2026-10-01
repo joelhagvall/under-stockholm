@@ -1756,7 +1756,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
           hud.tip(text.battery.tip, 8);
         }
       }
-      telemetry?.frame(frameMs, workMs);
+      telemetry?.frame(frameMs, workMs, settings.value.battery);
     }
     if (!freezeTimetable) time += dt;
     if (followClock || (realOn && !fixedClock)) {

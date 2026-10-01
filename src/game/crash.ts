@@ -54,6 +54,7 @@ export function reportError(err: unknown, fatal: boolean): void {
     try { known = facts(); } catch { /* The world may be what broke. */ }
     const report = {
       v: 1,
+      build: __BUILD__,
       kind: document.documentElement.classList.contains('touch-device') ? 'touch' : 'desktop',
       fatal,
       message,

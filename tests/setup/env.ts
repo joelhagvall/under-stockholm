@@ -4,4 +4,4 @@
 for (const key of Object.keys(process.env)) if (key.startsWith('TRAFIKLAB_')) delete process.env[key];
 
 // Vite's build constants (vite.config.ts), as in development.
-Object.assign(globalThis, { __GAME__: true, __RECORDINGS__: true });
+Object.assign(globalThis, { __GAME__: true, __RECORDINGS__: true, __BUILD__: 'test-build' });

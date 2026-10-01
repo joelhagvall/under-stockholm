@@ -156,6 +156,7 @@ if (!(await run('tests', ['bun', 'test']))) fail('tests');
 if (!(await run('build and size budgets', ['bunx', 'vite', 'build'], { SITE_URL: process.env.SITE_URL ?? 'http://localhost:4173/' })) || !(await run('size budgets', ['bun', 'scripts/check-budgets.ts']))) fail('build or size budgets');
 // The Worker and the hub in wrangler dev, on the build's assets: the limits of docs/DRIFT.md section 3, end to end.
 else if (!(await run('the Worker\'s limits', ['bun', 'scripts/worker-check.ts']))) fail('the Worker\'s limits');
+if (!failures.length && !(await run('startup recovery', ['bun', 'scripts/startup-check.ts']))) fail('startup recovery');
 
 // 2. Performance: leaks, frame rates and loading, against the dev server (unminified names) and the production build.
 if ((PERF || SMOKE) && !failures.length) {

@@ -54,3 +54,30 @@ test('the page escapes what players sent', () => {
   const r = parseError({ ...sample, message: '<img src=x onerror=alert(1)>' })!;
   expect(errorsPage(groupErrors([r]))).not.toContain('<img');
 });
+
+test('missing assets group across hashes in the message and keep the newest original report', () => {
+  for (const [name, extension, prefix] of [
+    ['boot', 'js', 'TypeError: Failed to fetch dynamically imported module: '],
+    ['boot', 'css', 'Error: Unable to preload CSS for '],
+    ['rapier_wasm3d_bg', 'wasm', 'Error: Failed to fetch '],
+  ]) {
+    const message = (hash: string) => `${prefix}https://understockholm.com/assets/${name}-${hash}.${extension}`;
+    const a = parseError({ ...sample, message: message('AAAAAAAA'), stack: '', build: 'old-build' }, 1)!;
+    const b = parseError({ ...sample, message: message('BBBBBBBB'), stack: '', build: 'new-build' }, 2)!;
+    const c = parseError({ ...sample, message: `${prefix}https://understockholm.com/assets/other-BBBBBBBB.${extension}`, stack: '' }, 3)!;
+    const groups = groupErrors([a, b, c]).groups;
+    expect(groups).toHaveLength(2);
+    expect(groups[0].message).toBe(b.message);
+    expect(groups[0].sample).toBe(b);
+    expect(groups[0].builds).toEqual({ 'old-build': 1, 'new-build': 1 });
+    expect(errorsPage(groupErrors([a, b]))).toContain('old-build: 1, new-build: 1');
+  }
+});
+
+test('old reports and invalid build identifiers are accepted without inventing a version', () => {
+  expect(parseError(sample)!.build).toBe('');
+  expect(parseError({ ...sample, build: '<script>' })!.build).toBe('');
+  expect(parseError({ ...sample, build: 'a'.repeat(65) })!.build).toBe('');
+  const { build: _build, ...old } = parseError(sample)!;
+  expect(groupErrors([old as ErrorReport]).groups[0].builds).toEqual({ '': 1 });
+});
