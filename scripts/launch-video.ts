@@ -1,9 +1,9 @@
-// The launch video (video/under-stockholm-launch.mp4, not committed): 45.6 seconds, 4:5 at 1080x1350 for a phone's
+// The launch video (video/under-stockholm-launch.mp4, not committed): 30 seconds, 4:5 at 1080x1350 for a phone's
 // feed (LinkedIn), cut to the music's bars. A train into T-Centralen under the hook from the first frame, the real
-// ride aboard, a station on each beat, Gamla stan in the open, the sigh behind you on the escalator at rush hour, then a run from the ticket hall up
-// the stairs onto the street on an autumn evening, the cab out onto the viaduct at Kista, 1975 and Kymlinge, the power cut, a day on the whole
-// network, a click on Stadion that dives down into it, and the title with the address. Captions in Swedish, like the launch post (LAUNCH.md). Filmed
-// and scored in the page through `capture.ts` and `music.ts`.
+// ride aboard, a station on each beat, a run from the ticket hall up the stairs onto the street on an autumn evening,
+// the cab out onto the viaduct at Kista, the power cut, the whole network with every train a light on it and a click
+// on Stadion that dives down into it, and the title with the address. Captions in Swedish, like the launch post
+// (LAUNCH.md). Filmed and scored in the page through `capture.ts` and `music.ts`.
 // Needs `bun run dev` running and ffmpeg. Options: --url http://localhost:5180/ (default), --wide (16:9 at 1080p, to
 // video/under-stockholm-launch-wide.mp4), --out <file> (another file than the default), --stills (one frame per
 // scene, to set up the shots), --scene <part of a name>.
@@ -63,10 +63,10 @@ const SCENES: Scene[] = [
       const t = v.train.position;
       __stand(t.x - ahead * 10, 1.1, t.z + 0.15, ahead > 0 ? -Math.PI / 2 : Math.PI / 2, -0.03);
     }`,
-    seconds: 2 * BAR,
+    seconds: BAR,
     speed: 1,
     caption: ['Kliv på', 'Nästa station ropas ut ombord'],
-    captionAt: 0.6,
+    captionAt: 0.15,
   },
   // A station on each beat, across the three lines, from red to white, green, black, brick and pale, and out into
   // the daylight.
@@ -87,35 +87,6 @@ const SCENES: Scene[] = [
     // In over the first cut, then held over the rest.
     captionAt: k ? -1 : 0,
   })),
-  {
-    // Out in the open at Gamla stan, looking out past the platform's end into the daylight over the tracks and the
-    // houses, as a red line train comes in off the bridge.
-    name: 'Gamla stan',
-    view: 'game',
-    place: `{ const s = __us.world.stations[31]; __stand(s.cx - 62, 1.1, -10.2, Math.PI / 2 - 0.12, 0.03); }`,
-    // A red line train in off the bridge: the next on the green line's track beside would come in out of shot.
-    start: `__before(31, 1, 7, 1);`,
-    seconds: BAR,
-    speed: 1.3,
-    caption: ['Ut i dagsljuset', 'Över Riddarfjärden och ut i förorterna'],
-  },
-  {
-    // Standing still on the left of T-Centralen's escalator at rush hour, riding up and looking up the flight the way it
-    // goes (looking back down at the one stuck behind read as riding down).
-    name: 'Escalator',
-    view: 'game',
-    // The crowd comes up from the City passage at rush hour: a few seconds among it first, once, fill the flight.
-    place: `__clock(8, 10); if (!window.__rush) { window.__rush = true; __us.city(); __us.step(4, 15); } {
-      const e = __us.world.stations[1].escalators[0], lane = e.stoppedLane === 1 ? -1 : 1, along = lane > 0 ? 3 : 20;
-      const y = 1.1 + Math.min(e.rise, Math.max(0, (along - 1.25) * Math.tan(Math.PI / 6)));
-      __stand(e.wallX + e.dir * along, y + 0.05, e.z + lane * 1.18 - 0.28 * e.dir * lane, -e.dir * lane * Math.PI / 2, 0.3 * lane);
-    }`,
-    // Ride a while first, so a walker has caught up and stands stuck on the step behind.
-    start: `__us.step(10, 15);`,
-    seconds: BAR,
-    caption: ['Stå till höger', 'Annars suckar någon bakom dig'],
-    captionAt: 0.15,
-  },
   {
     // From Odenplan's ticket hall up its stairs toward the sky over the open top, and out among the real city round the
     // exit (OpenStreetMap's houses and streets) on an overcast autumn evening, as the launch day's weather was, turning
@@ -155,30 +126,10 @@ const SCENES: Scene[] = [
     captionAt: 0.15,
   },
   {
-    // Rådhuset in 1975, as a train comes in.
-    name: '1975',
-    view: 'game',
-    place: `__us.stopDriving(); __us.era.set('1975', false); { const s = __us.world.stations[2]; __stand(s.cx - 12, 1.1, 0.5, -Math.PI / 2 - 0.4, 0.15); }`,
-    start: `__before(2, 2, 4);`,
-    seconds: BAR,
-    caption: ['Åk tillbaka till 1975'],
-    captionAt: 0.15,
-  },
-  {
-    // The station that never opened.
-    name: 'Kymlinge',
-    view: 'game',
-    place: `__us.era.set('now', false); __us.kymlinge(); __us.player.pitch = 0.04;`,
-    each: `__us.player.yaw += 0.002;`,
-    seconds: BAR,
-    caption: ['Hitta Kymlinge', 'Stationen som aldrig öppnade'],
-    captionAt: 0.15,
-  },
-  {
     // The power cut on T-Centralen's platform: the tubes die and the phone torches come out.
     name: 'Power cut',
     view: 'game',
-    place: `{ const s = __us.world.stations[1]; __stand(s.cx - 12, 1.1, 0.5, -Math.PI / 2 - 0.4, 0.15); }`,
+    place: `__us.stopDriving(); { const s = __us.world.stations[1]; __stand(s.cx - 12, 1.1, 0.5, -Math.PI / 2 - 0.4, 0.15); }`,
     start: `__us.powerCut(0.3, 90);`,
     each: `__us.player.yaw += 0.001;`,
     seconds: BAR,
@@ -187,35 +138,24 @@ const SCENES: Scene[] = [
     captionAt: 0.5,
   },
   {
-    // Every line at its real depth, a day running past, as the camera circles.
-    name: 'The whole network',
-    view: 'network',
-    place: `document.querySelector('.net-day').click(); __net.camera.position.set(-10 + 22, 62, 88);`,
-    // The trains' lights a little larger than in the view, so one sees them run along the lines.
-    each: `{ const c = __net.camera.position, a = 0.004, x = c.x + 10; c.x = x * Math.cos(a) - c.z * Math.sin(a) - 10; c.z = x * Math.sin(a) + c.z * Math.cos(a); c.y -= 0.12; __net.trains.material.size = 11; }`,
-    seconds: BAR,
-    // The view's day runs 1440 times faster than the clock: slower here, or the trains jump between frames and flicker.
-    speed: 0.3,
-    caption: ['Ett dygn på en minut', 'Varje tåg under staden'],
-    captionAt: 0.15,
-  },
-  {
-    // Back to now, and a click on Stadion: the camera dives down to it.
+    // The whole network with every train as a light running along it, held a moment so they are seen, then a click on
+    // Stadion: the camera dives down to it.
     name: 'Dive',
     view: 'network',
     place: `{ const day = document.querySelector('.net-day'); if (day.getAttribute('aria-pressed') === 'true') day.click(); }`,
     each: `{
+      __net.trains.material.size = 11;
       const T = f / ${FPS}, p = __net.where('Stadion'), c = document.querySelector('.net canvas');
-      const k = Math.min(1, Math.max(0, T / 0.7)), e = k * k * (3 - 2 * k);
+      const k = Math.min(1, Math.max(0, (T - 0.2) / 0.9)), e = k * k * (3 - 2 * k);
       const x = p.x + 160 * (1 - e), y = p.y + 100 * (1 - e);
       const at = { clientX: x, clientY: y, pointerType: 'mouse', bubbles: true, isPrimary: true };
-      if (T < 0.9) c.dispatchEvent(new PointerEvent('pointermove', at));
-      if (f === Math.round(0.9 * ${FPS})) { c.dispatchEvent(new PointerEvent('pointerdown', at)); c.dispatchEvent(new PointerEvent('pointerup', at)); }
-      window.__pointer = T < 1.3 ? { x: x * 2, y: y * 2, label: e > 0.85 ? 'Stadion' : null, press: T > 0.9 && T < 1.05 } : null;
+      if (T < 1.25) c.dispatchEvent(new PointerEvent('pointermove', at));
+      if (f === Math.round(1.25 * ${FPS})) { c.dispatchEvent(new PointerEvent('pointerdown', at)); c.dispatchEvent(new PointerEvent('pointerup', at)); }
+      window.__pointer = T < 1.65 ? { x: x * 2, y: y * 2, label: e > 0.85 ? 'Stadion' : null, press: T > 1.25 && T < 1.4 } : null;
     }`,
-    seconds: BAR,
-    // The dive after the click runs quicker than life, so it goes down in the second left of the bar.
-    speed: 1.8,
+    seconds: 1.5 * BAR,
+    // The dive after the click runs a little quicker than life, so it goes down in the two seconds left of the scene.
+    speed: 1.2,
     fadeOut: 0.4,
     caption: ['Hela nätet, just nu', 'Klicka på en station och gå ner'],
     captionAt: 0,
@@ -234,16 +174,16 @@ const SCENES: Scene[] = [
   {
     name: 'Title',
     view: 'card',
-    seconds: 2 * BAR,
-    fadeOut: 1.6,
+    seconds: BAR,
+    fadeOut: 1,
     caption: ['Under Stockholm', 'Spela gratis på understockholm.com'],
-    captionAt: 0.2,
+    captionAt: 0.05,
   },
 ];
 
 // The music follows the film: the tunnel and the ride with the chords and the rail joints, the arpeggio and a kick on
-// each cut of the montage, the drums from the open air through the quick cuts, almost nothing in the dark, a rise into
-// the network, another through the dive, and the last chord ringing under the title.
+// each cut of the montage, the drums up the stairs and in the cab, almost nothing in the dark, a rise through the dive,
+// and the last chord ringing under the title.
 const full = { pad: 1, bass: 1, arp: 1, kick: 1, hat: 0.8, rail: 0.5 };
 // No recorded announcement goes in: the C20 voice is not ours to publish.
 const score: Score = {
@@ -251,19 +191,13 @@ const score: Score = {
   bars: [
     { pad: 0.8, rail: 0.4 },
     { pad: 1, rail: 0.6, bell: 0.8 },
-    { pad: 1, bass: 0.6, rail: 0.6 },
     { pad: 1, bass: 0.6, rail: 0.6, bell: 0.5 },
     { pad: 1, bass: 0.8, arp: 0.8, kick: 1, rail: 0.6 },
     { pad: 1, bass: 0.8, arp: 0.8, kick: 1, riser: 0.6 },
     full,
     { ...full, bell: 0.6 },
-    full,
-    full,
-    { ...full, bell: 0.6 },
-    full,
     { ...full, riser: 0.5 },
     { pad: 0.6, riser: 1 },
-    { ...full, bell: 0.8 },
     { pad: 1, bass: 0.8, arp: 0.8, riser: 1 },
     { ...full, bell: 0.8 },
     { pad: 1, bell: 1, ring: true },
