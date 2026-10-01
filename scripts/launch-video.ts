@@ -30,7 +30,7 @@ const BAR = (60 / BPM) * 4;
  * along x from where one arrives the camera stands (at Skarpnäck a passenger walks through the arrival spot).
  */
 const MONTAGE: Array<[string, 1 | -1, number?]> = [
-  ['Solna centrum', 1], ['Hallonbergen', -1], ['Kungsträdgården', -1], ['Solna strand', -1],
+  ['Solna centrum', 1], ['Hallonbergen', -1], ['Kungsträdgården', -1], ['Solna strand', 1],
   ['Skarpnäck', 1, 8], ['Tekniska högskolan', -1], ['Fridhemsplan', 1], ['Globen', -1],
 ];
 
