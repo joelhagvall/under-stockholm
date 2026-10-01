@@ -295,6 +295,9 @@
 }
 .settings-reset { margin-top: 10px; }
 .settings-pad { color: var(--muted); font-size: 13px; }
+.settings-sources { margin: 0; padding: 0; list-style: none; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.settings-sources a { color: inherit; text-underline-offset: 3px; }
+.settings-sources a:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
 .hud-map.is-closed { display: none; }
 @media (max-width: 520px) { .settings-row { grid-template-columns: 1fr 4em; } .settings-row input { grid-column: 1 / -1; grid-row: 2; } }
 /* A first-time hint: the same shape as the interaction prompt, a little higher and in the line's blue. */

@@ -886,6 +886,8 @@
     "gamepad": "Handkontroll: vänster spak går, höger spak tittar, A hoppar, X använder, B sätter dig, LB eller vänster spak intryckt springer, Y visar kartan, Start pausar.",
     "gamepadOn": "Handkontroll ansluten",
     "gamepadOff": "Handkontrollen kopplades bort",
+    "sources": "Källor",
+    "credits": { "trains": "Tåg och störningar", "weather": "Väder", "warnings": "Vädervarningar", "news": "Tidningsrubriker", "map": "Hus och gator" },
     "actions": {
       "forward": "Framåt",
       "back": "Bakåt",

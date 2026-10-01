@@ -1,6 +1,16 @@
 import { lang, text } from './i18n/text';
 import { ACTIONS, CHANNELS, FOV, keyName, SENSITIVITY, settings, type Action, type Channel } from './settings';
 
+type Source = 'trains' | 'weather' | 'warnings' | 'news' | 'map';
+/** Where the live and map data comes from, credited as each source asks (Open-Meteo is CC BY 4.0: a link to it and the licence). */
+const SOURCES: Array<{ what: Source; name: string; url: string; licence?: { name: string; url: string } }> = [
+  { what: 'trains', name: 'SL, Trafiklab', url: 'https://www.trafiklab.se/' },
+  { what: 'weather', name: 'Open-Meteo', url: 'https://open-meteo.com/', licence: { name: 'CC BY 4.0', url: 'https://creativecommons.org/licenses/by/4.0/' } },
+  { what: 'warnings', name: 'SMHI', url: 'https://www.smhi.se/' },
+  { what: 'news', name: 'Sveriges Radio P4 Stockholm', url: 'https://www.sverigesradio.se/' },
+  { what: 'map', name: '© OpenStreetMap', url: 'https://www.openstreetmap.org/copyright' },
+];
+
 /**
  * The settings card in the pause menu: sliders for look and sound, and a button per action to rebind its key.
  * Everything is saved as it changes; the game listens through `settings.on`.
@@ -139,5 +149,24 @@ export class SettingsPanel {
     pad.textContent = text.settings.gamepad;
     card.append(pad);
 
+    const sources = section(text.settings.sources);
+    const list = document.createElement('ul');
+    list.className = 'settings-sources';
+    const link = (name: string, url: string) => {
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.translate = false;
+      a.textContent = name;
+      return a;
+    };
+    for (const source of SOURCES) {
+      const item = document.createElement('li');
+      item.append(`${text.settings.credits[source.what]}: `, link(source.name, source.url));
+      if (source.licence) item.append(' (', link(source.licence.name, source.licence.url), ')');
+      list.append(item);
+    }
+    sources.append(list);
   }
 }

@@ -246,6 +246,8 @@
     "gamepad": "Gamepad: left stick walks, right stick looks, A jumps, X uses, B sits, LB or pressing the left stick runs, Y shows the map, Start pauses.",
     "gamepadOn": "Gamepad connected",
     "gamepadOff": "Gamepad disconnected",
+    "sources": "Sources",
+    "credits": { "trains": "Trains and disruptions", "weather": "Weather", "warnings": "Weather warnings", "news": "Newspaper headlines", "map": "Buildings and streets" },
     "actions": {
       "forward": "Forward",
       "back": "Back",
