@@ -138,7 +138,9 @@ export class PlatformLife {
     if (h < 8 || h > 23) { hideFigure(this.mesh, COLLECTOR); return; }
     const pose = collectorPose(time + s.index * 37, s.cx);
     pose.z += islandNear(s, feet);
-    this.draw(COLLECTOR, { x: pose.x, z: pose.z, yaw: pose.yaw, walking: !pose.searching, carry: 'bag', sway: pose.searching ? 0.45 + Math.sin(this.clock * 3) * 0.08 : 0 });
+    // At a bin a little forward over it, the head turning as he looks through it. The body pivots at the feet (a figure
+    // has no hips), so a deep or rocking lean reads as a plank tipping back and forth.
+    this.draw(COLLECTOR, { x: pose.x, z: pose.z, yaw: pose.yaw, walking: !pose.searching, carry: 'bag', sway: pose.searching ? 0.1 : 0, look: pose.searching ? Math.sin(this.clock * 1.3) * 0.35 : undefined });
     const near = Math.hypot(pose.x - feet.x, pose.z - feet.z) < 12;
     if (near && this.collectorSeen !== s.index) {
       this.collectorSeen = s.index;
