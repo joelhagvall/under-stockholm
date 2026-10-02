@@ -1,7 +1,7 @@
 # Every leak scenario (`bun run mem`), which the push only samples. WebGL runs on the CPU here (scripts/chrome.ts):
 # slow, but it checks resource ownership alongside the local hardware-rendered tests.
-name: Leaks
-# Run by hand until the CPU-rendered scenarios have proved themselves on a Linux runner.
+name: Leaks (manual)
+# An optional background diagnostic: the first complete Linux run took 43 minutes. Keep it off push and PR triggers.
 on:
   workflow_dispatch:
 permissions:

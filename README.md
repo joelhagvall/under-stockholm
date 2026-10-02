@@ -70,6 +70,10 @@ Station art is a generated interpretation, not a survey. See [DESIGN.md](docs/DE
 | `bun run fps` | Real frame rates in headless Chrome on this machine's GPU, as a desktop and as a phone; `--device` adds an Android phone over USB (needs `bun run dev`) |
 | `bun run load` | Time from click to playing, desktop and slow 4G phone (needs `bun run serve:prod`) |
 
+During ordinary edits, run `bun run typecheck` and the relevant test files with `bun test`. Before a push, use `bun run check --quick`, or `--smoke` for game changes; the push hook runs the needed level unless that exact tree has already passed. Use `--perf` for world, build-step or frame-loop changes and `--web` for landing page changes. `bun run check` with no flags and `bun run release` run the full gate, which also runs before every deploy.
+
+GitHub's Quick job runs on pushes to main and pull requests; Web runs on relevant pushes to main. **Leaks (manual)** is an optional background check, started from Actions with **Run workflow**. Its first complete Linux CPU run took 43 minutes. Use it for Linux-specific leak investigations or when a full Linux check is requested, rather than waiting for it during ordinary edits or pushes. Local memory and performance checks use the GPU and give faster feedback.
+
 The build fails if the landing page or the game grows past its compressed budget, and `bun run check` fails if it got slower than the numbers in `perf/baseline.json`. After launch, the relay's `/perf` page shows how the game runs for players: one anonymous report per visit (frame times, resolution, loading, class of device; no identifiers), and `/errors` what went wrong in their games.
 
 `?debug` never pauses and exposes `window.__us`. `?natet` opens the network view, `?liv` a life on the blue line and `?debug&stromavbrott` a power cut a few seconds in. URL params for time, weather and Silverpilen, plus the relay and how to add a station, are in [FEATURES.md](docs/FEATURES.md#debug-and-the-relay).
