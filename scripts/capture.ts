@@ -5,6 +5,7 @@
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import puppeteer, { type Browser, type Page } from 'puppeteer-core';
+import { CHROME, GPU_ARGS } from './chrome';
 
 export interface Scene {
   name: string;
@@ -46,7 +47,6 @@ export interface Film {
   url?: string;
 }
 
-const CHROME = process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
 // Helpers for the scenes, in the page: `stand` places the camera, `before` sets the clock a little before the next
 // train on a track reaches a station, `station` finds a station by name, `clock` sets the time of day in Stockholm,
@@ -196,7 +196,7 @@ export async function studio(film: Film): Promise<{ browser: Browser; page: Page
   const browser = await puppeteer.launch({
     executablePath: CHROME,
     headless: true,
-    args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--mute-audio', '--autoplay-policy=no-user-gesture-required'],
+    args: [...GPU_ARGS, '--mute-audio', '--autoplay-policy=no-user-gesture-required'],
   });
   const page = await browser.newPage();
   await page.setViewport({ width: film.width, height: film.height, deviceScaleFactor: 2 });

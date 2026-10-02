@@ -948,6 +948,12 @@ export class World {
     this.show(x);
   }
 
+  /** Whether a build within the player's streaming reach is still queued, waiting for data, or unfinished. */
+  hasPendingBuild(x: number): boolean {
+    const near = (entry: Lazy) => Math.max(0, entry.x0 - x, x - entry.x1) < BUILD_REACH;
+    return (this.building !== null && near(this.building.entry)) || this.paused.some((p) => near(p.entry)) || this.lazy.some(near);
+  }
+
   update(dt: number, time: number, focusX?: number): void {
     for (const u of this.updaters) u(dt);
     this.kymlinge.update(time);

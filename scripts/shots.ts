@@ -15,13 +15,13 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import puppeteer, { type Page } from 'puppeteer-core';
+import { CHROME, GPU_ARGS } from './chrome';
 
 const arg = (name: string, fallback: string) => {
   const i = process.argv.indexOf(`--${name}`);
   return i > 0 ? process.argv[i + 1] : fallback;
 };
 const BASE = arg('url', 'http://localhost:5180/');
-const CHROME = process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const OUT = 'shots';
 const NOW = join(OUT, 'now');
 const PREV = join(OUT, 'prev');
@@ -79,7 +79,7 @@ if (existsSync(NOW)) {
 }
 mkdirSync(NOW, { recursive: true });
 
-const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
+const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: [...GPU_ARGS] });
 try {
   const page = await browser.newPage();
   await page.setViewport({ width: WIDTH, height: HEIGHT });

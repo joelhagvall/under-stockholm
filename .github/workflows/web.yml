@@ -1,0 +1,34 @@
+# Lighthouse and pa11y on both landing pages (`bun run check --web`) when the landing page or what serves it changed.
+name: Web
+on:
+  push:
+    branches: [main]
+    paths:
+      - index.html
+      - en/**
+      - src/*
+      - src/i18n/**
+      - src/landing/**
+      - public/**
+      - server/headers.ts
+      - scripts/serve.ts
+      - vite.config.ts
+      - package.json
+      - bun.lock
+      - .github/workflows/web.yml
+      - .github/actions/setup/**
+      - scripts/chrome.ts
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: ./.github/actions/setup
+      - run: bun run check --web

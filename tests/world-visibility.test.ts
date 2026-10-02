@@ -2,6 +2,24 @@ import { expect, test } from 'bun:test';
 import { BoxGeometry, Group, Mesh, MeshBasicMaterial } from 'three';
 import { World } from '../src/game/world/world';
 
+test('settling at a station ignores distant builds and waits for nearby queued data and paused work', () => {
+  const entry = (x0: number, x1: number) => ({ x0, x1, groups: [], build: () => {} });
+  const distant = entry(0, 167), nearby = entry(6000, 6200);
+  const world = Object.assign(Object.create(World.prototype) as World, {
+    building: { entry: distant }, paused: [], lazy: [],
+  });
+  expect(world.hasPendingBuild(6259)).toBe(false);
+  expect(world.hasPendingBuild(50)).toBe(true);
+  Object.assign(world, { paused: [{ entry: nearby }] });
+  expect(world.hasPendingBuild(6259)).toBe(true);
+  expect(world.hasPendingBuild(9000)).toBe(false);
+  let readinessChecks = 0;
+  Object.assign(world, { building: null, paused: [], lazy: [{ ...nearby, ready: () => { readinessChecks++; return false; } }] });
+  expect(world.hasPendingBuild(6259)).toBe(true);
+  expect(world.hasPendingBuild(9000)).toBe(false);
+  expect(readinessChecks).toBe(0);
+});
+
 test('nearby geometry stays visible across movement and newly streamed groups are culled immediately', () => {
   // Exercise public visibility updates without constructing the entire procedural line.
   const world = Object.assign(Object.create(World.prototype) as World, {

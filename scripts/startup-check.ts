@@ -3,6 +3,7 @@
 // Local files only, with ?debug so no player reports are sent. Run after a build, or through `bun run check`.
 import { join } from 'node:path';
 import puppeteer, { type Browser } from 'puppeteer-core';
+import { CHROME, GPU_ARGS } from './chrome';
 
 const dist = join(import.meta.dir, '..', 'dist');
 const manifest = await Bun.file(join(dist, '.vite/manifest.json')).json();
@@ -33,8 +34,8 @@ const server = Bun.serve({
 let browser: Browser | null = null;
 try {
   browser = await puppeteer.launch({
-    executablePath: process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'],
+    executablePath: CHROME,
+    headless: true, args: [...GPU_ARGS],
   });
   for (const missing of [false, true]) {
     persistent = missing;

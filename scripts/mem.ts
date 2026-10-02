@@ -1,5 +1,5 @@
 // Memory leaks, caught by a machine: `bun scripts/mem.ts` (with `bun run dev` running).
-// Chrome runs headless on this computer's GPU and the game is driven through `__us` (`?debug`). Each scenario is run
+// Chrome runs headless on the GPU, or SwiftShader in CI, and the game is driven through `__us` (`?debug`). Each scenario is run
 // a couple of times to warm up (first builds fill caches that are meant to stay), then measured over more rounds:
 // - GPU objects: every geometry and texture uploaded after the warm-up must be freed again or still be in use (in
 //   the scene, or on a train out of service). One left over is a leak, however small.
@@ -13,16 +13,20 @@
 // unminified code, like `bun run fps`.
 
 import puppeteer, { type CDPSession, type Page } from 'puppeteer-core';
+import { CHROME, GPU_ARGS, SOFTWARE_GL } from './chrome';
 
 const arg = (name: string, fallback: string) => {
   const i = process.argv.indexOf(`--${name}`);
-  return i > 0 ? process.argv[i + 1] : fallback;
+  if (i < 0) return fallback;
+  const value = process.argv[i + 1];
+  if (!value || value.startsWith('--')) throw new Error(`--${name} needs a value`);
+  return value;
 };
 const BASE = arg('url', 'http://localhost:5180/');
 const ROUNDS = Number(arg('rounds', '6'));
 const SCENE = arg('scene', '');
 const JSON_OUT = arg('json', '');
-const CHROME = process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+if (!Number.isSafeInteger(ROUNDS) || ROUNDS < 1) throw new Error('--rounds must be a positive integer');
 
 /** How much may grow over all measured rounds before it counts as a leak. */
 const MARGIN = { heapMB: 10, blinkMB: 10, canvases: 6, nodes: 80, listeners: 30 };
@@ -33,26 +37,28 @@ interface Scenario {
   round: string;
 }
 
-// Helpers defined in the page before the rounds: `settle()` steps frames until nothing is left to build, `wait(ms)`.
+// Helpers defined in the page before the rounds: `step()` runs bounded batches, `settle()` waits for builds, `wait(ms)`.
 const SCENARIOS: Scenario[] = [
   // Out along the branches and back: stations are built on the way and taken down again far behind.
-  { name: 'Travelling the network', round: 'for (const i of [11, 23, 94, 0]) { __us.goto(i); settle(); }' },
+  { name: 'Travelling the network', round: 'for (const i of [11, 23, 94, 0]) { __us.goto(i); await settle(); }' },
   // A life on the blue line: the time machine changes the trains' stock, and the reflections in the windows with it.
   {
     name: 'A life on the blue line',
-    round: `__us.lifeScene(0); await wait(900); __us.step(4, 15);
-      for (let i = 1; i < 8; i++) { __us.lifeScene(i); __us.step(4, 15); }
+    round: `__us.lifeScene(0); await wait(900); await step(4, 15);
+      for (let i = 1; i < 8; i++) { __us.lifeScene(i); await step(4, 15); }
       window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyX', key: 'x' })); await wait(300);
-      __us.step(1, 15); __us.goto(0); settle();`,
+      await step(1, 15); __us.goto(0); await settle();`,
   },
   // Into the driver's cab and out again.
   {
     name: 'Driving and stopping',
-    round: `__us.drive(); await wait(1200); __us.step(20, 15);
+    round: `__us.drive(); await wait(1200); await step(20, 15);
       window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyK', key: 'k' })); await wait(1200);
-      __us.step(2, 15); __us.goto(0); settle();`,
+      await step(2, 15); __us.goto(0); await settle();`,
   },
 ];
+const scenarios = SCENARIOS.filter((scenario) => !SCENE || scenario.name.toLowerCase().includes(SCENE.toLowerCase()));
+if (!scenarios.length) throw new Error(`No leak scenario matches "${SCENE}"`);
 
 /** Hooks three.js and the canvases in the page, so what is uploaded, freed and still alive can be counted. */
 const TRACK = `(() => {
@@ -132,24 +138,55 @@ async function start(page: Page): Promise<void> {
     }
   }
   await new Promise((r) => setTimeout(r, 2000));
-  await page.evaluate(`window.settle = () => { const w = __us.world; let n = 0; do { __us.step(1, 20); n++; } while ((w.building || w.paused.length) && n < 120); };
-    window.wait = (ms) => new Promise((r) => setTimeout(r, ms));`);
+  await page.evaluate(`
+    window.wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    // Let Chrome present between small CPU-rendered batches rather than queue thousands of draws in one task.
+    if (${SOFTWARE_GL}) __us.renderer.setAnimationLoop(null);
+    window.step = async (seconds, rate) => {
+      if (!${SOFTWARE_GL}) {
+        __us.step(seconds, rate);
+        // Queued builds may be waiting for same-origin map data, which cannot arrive during a synchronous round.
+        await wait(0);
+        return;
+      }
+      for (let left = Math.ceil(seconds * rate); left > 0;) {
+        const count = Math.min(left, 5);
+        __us.step(count / rate, rate);
+        const gl = __us.renderer.getContext();
+        if (gl.isContextLost()) throw new Error('WebGL context lost during the leak scenario');
+        gl.flush();
+        left -= count;
+        await new Promise(requestAnimationFrame);
+      }
+    };
+    window.settle = async () => {
+      const w = __us.world; let n = 0;
+      // Check after each CPU-rendered frame, not after twenty expensive draws of an already finished build.
+      const seconds = ${SOFTWARE_GL} ? 1 / 20 : 1;
+      do { await step(seconds, 20); n++; } while (w.hasPendingBuild(__us.player.feet.x) && n < 120 / seconds);
+      if (w.hasPendingBuild(__us.player.feet.x)) throw new Error('World did not settle after 120 simulated seconds');
+    };
+  `);
   await page.evaluate(TRACK);
 }
 
 const browser = await puppeteer.launch({
   executablePath: CHROME,
   headless: true,
-  args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'],
+  args: [...GPU_ARGS, '--autoplay-policy=no-user-gesture-required'],
+  // CPU rendering is slower, but an unfinished round must still fail within a bounded time.
+  protocolTimeout: SOFTWARE_GL ? 10 * 60_000 : undefined,
 });
+const VIEWPORT = SOFTWARE_GL ? { width: 320, height: 180 } : { width: 1280, height: 720 };
 let failed = false;
 try {
   console.log('scenario'.padEnd(26), 'heap MB', '   blink MB', '  canvases', '   nodes', ' listeners', '  GPU left over');
-  for (const scenario of SCENARIOS) {
-    if (SCENE && !scenario.name.toLowerCase().includes(SCENE.toLowerCase())) continue;
+  for (const scenario of scenarios) {
     // A fresh page per scenario, so one's leftovers never count against the next.
     const page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 720 });
+    await page.setViewport(VIEWPORT);
+    page.on('error', (err) => console.error(`  ${scenario.name}: Chrome page crashed: ${err.message}`));
+    page.on('pageerror', (err) => console.error(`  ${scenario.name}: page error: ${String(err)}`));
     await page.evaluateOnNewDocument(() => {
       const refs: Array<WeakRef<HTMLCanvasElement>> = [];
       (window as unknown as { __canvases: typeof refs }).__canvases = refs;
@@ -161,12 +198,23 @@ try {
       }) as typeof document.createElement;
     });
     const cdp = await page.createCDPSession();
+    const started = performance.now();
     await start(page);
+    const size = await page.evaluate('`${__us.renderer.domElement.width}x${__us.renderer.domElement.height}`');
+    console.log(`  ${scenario.name}: started in ${((performance.now() - started) / 1000).toFixed(1)} s, ${SOFTWARE_GL ? 'CPU' : 'GPU'}, drawing ${size}`);
     const round = `(async () => { ${scenario.round} })()`;
-    for (let i = 0; i < 2; i++) await page.evaluate(round);
+    for (let i = 0; i < 2; i++) {
+      const at = performance.now();
+      await page.evaluate(round);
+      console.log(`  ${scenario.name}: warm-up ${i + 1}/2, ${((performance.now() - at) / 1000).toFixed(1)} s`);
+    }
     const before = await sample(page, cdp);
     await page.evaluate('__mem.on = true');
-    for (let i = 0; i < ROUNDS; i++) await page.evaluate(round);
+    for (let i = 0; i < ROUNDS; i++) {
+      const at = performance.now();
+      await page.evaluate(round);
+      console.log(`  ${scenario.name}: round ${i + 1}/${ROUNDS}, ${((performance.now() - at) / 1000).toFixed(1)} s`);
+    }
     await page.evaluate('__mem.on = false');
     const after = await sample(page, cdp);
     const orphans = (await page.evaluate(ORPHANS)) as { geometries: number; textures: number; sample: string[] };

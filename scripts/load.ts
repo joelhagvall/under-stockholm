@@ -9,6 +9,7 @@
 // --json <file> (the medians, for `scripts/check.ts`).
 
 import puppeteer from 'puppeteer-core';
+import { CHROME, GPU_ARGS } from './chrome';
 
 const arg = (name: string, fallback: string) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -18,7 +19,6 @@ const BASE = arg('url', 'http://localhost:4173/');
 const ONLY = arg('only', '');
 const RUNS = Number(arg('runs', '2'));
 const JSON_OUT = arg('json', '');
-const CHROME = process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const LOADING_MIN = 4.5;
 
 const PROFILES = {
@@ -33,7 +33,7 @@ export type LoadReport = Record<string, Run>;
 
 async function once(profile: keyof typeof PROFILES): Promise<Run> {
   const p = PROFILES[profile];
-  const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
+  const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: [...GPU_ARGS] });
   try {
     const page = await browser.newPage();
     await page.setViewport(p.viewport);

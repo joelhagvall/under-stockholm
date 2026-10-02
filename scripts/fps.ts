@@ -11,6 +11,7 @@
 // --device (the phone too).
 
 import puppeteer, { type Browser, type Page } from 'puppeteer-core';
+import { CHROME, GPU_ARGS } from './chrome';
 
 const arg = (name: string, fallback: string) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -23,7 +24,6 @@ const SCENES_WANTED = arg('scene', '').toLowerCase().split(',').map((s) => s.tri
 const NAMES_WANTED = arg('names', '').split('|').filter(Boolean);
 const JSON_OUT = arg('json', '');
 const DEVICE = process.argv.includes('--device') || ONLY === 'device';
-const CHROME = process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
 interface Scene {
   name: string;
@@ -156,7 +156,7 @@ async function run(name: string, p: Profile, report: FpsReport): Promise<void> {
   const browser = device?.browser ?? await puppeteer.launch({
     executablePath: CHROME,
     headless: true,
-    args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'],
+    args: [...GPU_ARGS, '--autoplay-policy=no-user-gesture-required'],
   });
   try {
     const page = await browser.newPage();

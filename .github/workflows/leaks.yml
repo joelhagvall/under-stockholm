@@ -1,0 +1,51 @@
+# Every leak scenario (`bun run mem`), which the push only samples. WebGL runs on the CPU here (scripts/chrome.ts):
+# slow, but it checks resource ownership alongside the local hardware-rendered tests.
+name: Leaks
+# Run by hand until the CPU-rendered scenarios have proved themselves on a Linux runner.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: leaks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  leaks:
+    name: Leaks | ${{ matrix.id }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    # Each scenario keeps all six measured rounds, on its own runner so their rendering time does not add up.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: travel
+            scene: Travelling the network
+          - id: life
+            scene: A life on the blue line
+          - id: drive
+            scene: Driving and stopping
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: ./.github/actions/setup
+      - name: Run the leak scenario
+        shell: bash
+        env:
+          SCENE: ${{ matrix.scene }}
+        run: |
+          bun scripts/dev.ts --port 5180 --strictPort &
+          dev_pid=$!
+          trap 'kill "$dev_pid" 2>/dev/null || true' EXIT
+          for i in $(seq 60); do curl -sf -o /dev/null http://localhost:5180/ && break; sleep 1; done
+          curl -fsS -o /dev/null http://localhost:5180/
+          bun run mem --url http://localhost:5180/ --scene "$SCENE" --json /tmp/mem.json 2>&1 | tee /tmp/mem.log
+      - name: Save the measurements and failure log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mem-${{ matrix.id }}
+          path: |
+            /tmp/mem.json
+            /tmp/mem.log
+          if-no-files-found: ignore
+          retention-days: 7
