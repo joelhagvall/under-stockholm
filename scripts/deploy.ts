@@ -2,7 +2,8 @@
 // exactly what is on GitHub's main, and only after the quality gate has passed on it:
 //   1. the working tree must be clean and HEAD pushed (on origin/main), so what is built is what was checked;
 //   2. the address (SITE_URL, by default the game's own domain): the canonical, hreflang and preview links need it;
-//   3. `bun scripts/check.ts`, all of it: types, tests, budgets, leaks, every scene as a desktop and a phone, the
+//   3. `bun scripts/check.ts`, all of it (skipped when the last run already passed it on exactly this tree, build and
+//      baseline, as after `bun run release`): types, tests, budgets, leaks, every scene as a desktop and a phone, the
 //      time to playing, Lighthouse and pa11y, against the floors and perf/baseline.json;
 //   4. the production build with SITE_URL, its size budgets again, and a look at what would be uploaded;
 //   5. the upload with `bunx wrangler deploy` (wrangler.jsonc).
@@ -22,6 +23,7 @@
 
 import { readdirSync, rmSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { baselineHash, buildShape, deployFlags, tested } from './tested';
 
 const root = join(import.meta.dir, '..');
 const dist = join(root, 'dist');
@@ -57,14 +59,19 @@ if ((await sh(['git', 'merge-base', '--is-ancestor', 'HEAD', 'origin/main'], {},
 // 2. The real address: the game's domain (wrangler.jsonc's routes), unless SITE_URL says otherwise.
 const SITE_URL = (process.env.SITE_URL ?? 'https://understockholm.com/').replace(/\/?$/, '/');
 if (!/^https:\/\/[^/]+\/$/.test(SITE_URL)) stop('SITE_URL must be the site\'s https address, for example SITE_URL=https://understockholm.com/ bun run deploy.');
-const shape: Record<string, string> = LANDING ? { LANDING_ONLY: '1' } : WITH_RECORDINGS ? {} : { RECORDINGS: '0' };
+// Both flags set either way, so a LANDING_ONLY or RECORDINGS left in the shell cannot change what is built.
+const shape = deployFlags(LANDING, WITH_RECORDINGS);
 const buildEnv: Record<string, string> = { SITE_URL, ...shape };
 const what = LANDING ? ', the landing page alone' : WITH_RECORDINGS ? ', the game with the recorded announcements' : ', the game without the recorded announcements';
 
 // 3. The gate.
 console.log(`\n==== Deploying ${commit} to ${SITE_URL}${what}${DRY ? ' (dry run)' : ''}: the gate first`);
+// A run that already passed at this level on exactly this commit, this build and this baseline (`bun run release`, or
+// a deploy whose upload failed) is trusted rather than run again: the same tree is the same bytes.
 const gate = LANDING ? ['bun', 'scripts/check.ts', '--web'] : ['bun', 'scripts/check.ts'];
-if ((await sh(gate, shape)).code !== 0) stop('the quality gate failed (see above). Fix it, or accept a change that is meant to cost with `bun run check --perf --accept` and commit the baseline.');
+if (await tested(LANDING ? 'web' : 'release', ['HEAD'], { shape: buildShape({ ...process.env, ...shape }), baseline: baselineHash() })) {
+  console.log('The gate already passed on exactly this tree and build (perf/last-run.json): not run again.');
+} else if ((await sh(gate, shape)).code !== 0) stop('the quality gate failed (see above). Fix it, or accept a change that is meant to cost with `bun run check --perf --accept` and commit the baseline.');
 
 // 4. The build that goes out, with the real address, from the same commit.
 await clean(commit);

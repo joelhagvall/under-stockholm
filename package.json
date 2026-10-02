@@ -16,7 +16,7 @@
     "mem": "bun scripts/mem.ts",
     "load": "bun scripts/load.ts",
     "check": "bun scripts/check.ts",
-    "release": "bun scripts/check.ts",
+    "release": "RECORDINGS=0 bun scripts/check.ts",
     "deploy": "bun scripts/deploy.ts",
     "nightly": "bun scripts/nightly.ts",
     "prepare": "git config core.hooksPath scripts/hooks || true"

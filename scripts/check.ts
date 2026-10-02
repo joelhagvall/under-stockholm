@@ -25,6 +25,7 @@ import { join } from 'node:path';
 import type { FpsReport, Result } from './fps';
 import type { LoadReport } from './load';
 import type { MemReport } from './mem';
+import { baselineHash, buildShape } from './tested';
 import { treeOf } from './tree';
 
 const root = join(import.meta.dir, '..');
@@ -69,7 +70,7 @@ const DRIFT = {
 };
 
 interface Baseline { at: string; commit: string; fps?: FpsReport; load?: LoadReport }
-interface LastRun { at: string; commit: string; tree: string | null; passed: boolean; scope: { perf: boolean; smoke: boolean; web: boolean }; failures: string[]; retried?: string[]; fps?: FpsReport; load?: LoadReport; mem?: MemReport; web?: Record<string, Record<string, number>> }
+interface LastRun { at: string; commit: string; tree: string | null; shape: string; baseline: string | null; passed: boolean; scope: { perf: boolean; smoke: boolean; web: boolean }; failures: string[]; retried?: string[]; fps?: FpsReport; load?: LoadReport; mem?: MemReport; web?: Record<string, Record<string, number>> }
 
 const failures: string[] = [];
 
@@ -145,7 +146,8 @@ const commit = (await new Response(Bun.spawn(['git', 'rev-parse', '--short', 'HE
 const baseline: Baseline | null = existsSync(BASELINE) ? await Bun.file(BASELINE).json() : null;
 // What this run checks: recorded only if nothing changed under it, so a push of exactly this can skip the gate.
 const treeBefore = treeOf();
-const last: LastRun = { at: new Date().toISOString(), commit, tree: null, passed: false, scope: { perf: PERF, smoke: SMOKE, web: WEB }, failures };
+// The build's shape and the baseline compared with, so a deploy of exactly this build can trust the run (scripts/tested.ts).
+const last: LastRun = { at: new Date().toISOString(), commit, tree: null, shape: buildShape(), baseline: baselineHash(), passed: false, scope: { perf: PERF, smoke: SMOKE, web: WEB }, failures };
 await Bun.write(join(SCRATCH, '.keep'), '');
 
 // 1. The quick gates: types, tests and the build with its size budgets.
