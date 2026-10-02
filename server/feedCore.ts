@@ -3,7 +3,7 @@
 // needs Bun or a browser.
 // Every player asks the relay, the relay asks the source at most once per feed's interval, and only while someone is
 // asking: with nobody playing it makes no requests at all. Concurrent requests share one upstream fetch, a failed
-// fetch is not retried for a while, and the last good copy is served until it is too old.
+// fetch is not retried for a while, and a usable last copy answers at once while the next is fetched.
 //
 // Every answer is { at, data }, `at` being when the relay fetched it (epoch ms):
 //   GET /feeds/sl          data: { [site]: { departures } }   SL departures at every metro station from GTFS Regional
@@ -27,7 +27,7 @@ const MAX_RETRY_MS = 10 * 60_000;
 interface Feed {
   /** Seconds a copy stays fresh. */
   ttl: number;
-  /** Seconds a copy may still be served while the source fails. */
+  /** Seconds a copy may still be served while refreshing or while the source fails. */
   keep: number;
   load: () => Promise<unknown>;
 }
@@ -91,6 +91,8 @@ export interface FeedOptions {
   /** Every metro station's departures from GTFS Regional, or null while there is none (the Bun relay, with keys). */
   gtfs?: () => Promise<Record<number, unknown> | null>;
   log?: (message: string) => void;
+  /** Keeps a refresh alive after the response, where the host needs it (the Durable Object). */
+  waitUntil?: (task: Promise<unknown>) => void;
 }
 
 /** The feeds there are: anything else under /feeds/ is not asked of anyone (worker/index.ts answers it at once). */
@@ -167,7 +169,7 @@ export function createFeeds(options: FeedOptions = {}): Feeds {
 
   interface Copy { data: unknown; at: number }
   const copies = new Map<string, Copy>();
-  const pending = new Map<string, Promise<Copy>>();
+  const pending = new Map<string, Promise<Copy | null>>();
   const pausedUntil = new Map<string, number>();
 
   async function get(name: string, feed: Feed): Promise<Copy | null> {
@@ -182,17 +184,18 @@ export function createFeeds(options: FeedOptions = {}): Feeds {
         const fresh = { data, at: Date.now() };
         copies.set(name, fresh);
         return fresh;
+      }).catch((err) => {
+        const wait = err instanceof SourceError ? Math.min(MAX_RETRY_MS, Math.max(RETRY_MS, err.retryMs)) : RETRY_MS;
+        pausedUntil.set(name, Date.now() + wait);
+        log(`feed ${name}: ${err instanceof Error ? err.message : err}`);
+        return null;
       }).finally(() => pending.delete(name));
       pending.set(name, load);
+      options.waitUntil?.(load);
     }
-    try {
-      return await load;
-    } catch (err) {
-      const wait = err instanceof SourceError ? Math.min(MAX_RETRY_MS, Math.max(RETRY_MS, err.retryMs)) : RETRY_MS;
-      pausedUntil.set(name, Date.now() + wait);
-      log(`feed ${name}: ${err instanceof Error ? err.message : err}`);
-      return usable;
-    }
+    // Preserve the original timestamp and freshness headers: serving a copy must not make it younger. With no
+    // usable copy, a cold request still waits for this shared fetch rather than exposing expired data.
+    return usable ?? await load;
   }
 
   return {

@@ -148,7 +148,7 @@ export class Hub extends DurableObject<Env> {
       },
     };
     const keys = env.TRAFIKLAB_RT_KEY && env.TRAFIKLAB_STATIC_KEY ? { realtime: env.TRAFIKLAB_RT_KEY, static: env.TRAFIKLAB_STATIC_KEY } : null;
-    this.feeds = createFeeds({ log, gtfs: keys ? gtfsDepartures(keys, store, log) : undefined });
+    this.feeds = createFeeds({ log, gtfs: keys ? gtfsDepartures(keys, store, log) : undefined, waitUntil: (task) => ctx.waitUntil(task) });
     void ctx.blockConcurrencyWhile(async () => {
       sql.exec('CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, at INTEGER NOT NULL)');
       sql.exec('CREATE TABLE IF NOT EXISTS perf (at INTEGER NOT NULL, report TEXT NOT NULL)');

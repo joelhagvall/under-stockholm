@@ -18,6 +18,7 @@ interface DurableObjectStorage {
   put(key: string, value: unknown): Promise<void>;
 }
 interface DurableObjectState {
+  waitUntil(promise: Promise<unknown>): void;
   storage: DurableObjectStorage;
   blockConcurrencyWhile<T>(fn: () => Promise<T>): Promise<T>;
 }

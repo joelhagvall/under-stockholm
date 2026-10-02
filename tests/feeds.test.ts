@@ -1,12 +1,11 @@
 import { afterAll, afterEach, expect, setSystemTime, test } from 'bun:test';
 import { createFeeds, SourceError } from '../server/feedCore';
-import { handleFeeds } from '../server/feeds';
 import { LINES } from '../src/landing/lines';
 
 const STATIONS = LINES[0].stations;
 
 const realFetch = globalThis.fetch;
-afterEach(() => { globalThis.fetch = realFetch; });
+afterEach(async () => { await settle(); globalThis.fetch = realFetch; });
 afterAll(() => { setSystemTime(); });
 
 // The relay keeps state between tests, so the clock only ever moves forward.
@@ -15,7 +14,16 @@ const advance = (seconds: number) => { clock += seconds * 1000; setSystemTime(ne
 advance(0);
 
 const cors = { 'access-control-allow-origin': '*' };
-const ask = (name: string) => handleFeeds(new URL(`http://relay/feeds/${name}`), cors);
+const background = new Set<Promise<unknown>>();
+const waitUntil = (task: Promise<unknown>) => { background.add(task); void task.finally(() => background.delete(task)); };
+const settle = () => Promise.all([...background]);
+const feeds = createFeeds({ waitUntil });
+// Simulated seconds must let their upstream work finish before advancing the clock again.
+const ask = async (name: string) => {
+  const response = await feeds.handle(new URL(`http://relay/feeds/${name}`), cors);
+  await settle();
+  return response;
+};
 const stations = async () => Object.keys(((await (await ask('sl'))!.json()) as { data: Record<string, unknown> }).data).length;
 
 function countingFetch(body: (url: string) => unknown) {
@@ -87,7 +95,7 @@ test('SMHI is asked once and only Stockholms län is passed on; unknown feeds ar
   const body = (await a!.json()) as { data: Array<{ warningAreas: Array<{ id: number }> }> };
   expect(body.data[0].warningAreas.map((x) => x.id)).toEqual([1]);
   expect((await ask('everything'))!.status).toBe(404);
-  expect(await handleFeeds(new URL('http://relay/notes'), cors)).toBeNull();
+  expect(await feeds.handle(new URL('http://relay/notes'), cors)).toBeNull();
 });
 
 test('a failing source is not hammered: one try, then a pause', async () => {
@@ -129,9 +137,14 @@ test('a short GTFS outage keeps every line from the last copy; a long one falls 
   const feeds = createFeeds({
     gtfs: async () => { if (!gtfsUp) throw new SourceError('opendata.samtrafiken.se 502', 502, 0); return every; },
     log: () => {},
+    waitUntil,
   });
   const calls = countingFetch(() => ({ departures: [] }));
-  const sl = async () => ((await (await feeds.handle(new URL('http://relay/feeds/sl')))!.json()) as { data: Record<string, unknown> }).data;
+  const sl = async () => {
+    const response = (await feeds.handle(new URL('http://relay/feeds/sl')))!;
+    await settle();
+    return ((await response.json()) as { data: Record<string, unknown> }).data;
+  };
   expect(Object.keys(await sl())).toEqual(['1', '2', '3']);
   gtfsUp = false;
   advance(20);
@@ -145,5 +158,65 @@ test('a short GTFS outage keeps every line from the last copy; a long one falls 
   // Back up: every line again.
   gtfsUp = true;
   advance(20);
+  expect(Object.keys(await sl()).length).toBe(12);
   expect(Object.keys(await sl())).toEqual(['1', '2', '3']);
+});
+
+test('usable SL data answers a crowd immediately while one refresh runs, without extending its age', async () => {
+  const before = { 1: { departures: [] } };
+  const after = { 2: { departures: [] } };
+  let release!: (data: typeof after) => void;
+  const updating = new Promise<typeof after>((resolve) => { release = resolve; });
+  let calls = 0;
+  const feeds = createFeeds({ gtfs: async () => ++calls === 1 ? before : updating, waitUntil });
+  const url = new URL('http://relay/feeds/sl');
+  try {
+    const first = await (await feeds.handle(url))!.json() as { at: number };
+    advance(16);
+    const responses = await Promise.all(Array.from({ length: 200 }, () => feeds.handle(url)));
+    expect(calls).toBe(2);
+    expect(background.size).toBe(1);
+    expect(responses[0]!.headers.get('cache-control')).toBe('public, max-age=0');
+    expect(responses[0]!.headers.get('age')).toBe('16');
+    expect(await responses[0]!.json()).toEqual({ at: first.at, data: before });
+    // After the maximum age, a request must wait for the refresh, even though the old copy still exists.
+    advance(5 * 60);
+    let answered = false;
+    const expired = feeds.handle(url).then((response) => { answered = true; return response; });
+    await Promise.resolve();
+    expect(answered).toBe(false);
+    expect(calls).toBe(2);
+    release(after);
+    const response = (await expired)!;
+    expect(await response.json()).toEqual({ at: clock, data: after });
+    expect(response.headers.get('cache-control')).toBe('public, max-age=15');
+  } finally {
+    // A failing assertion must not leave the test suite waiting on an unresolved refresh.
+    release(after);
+  }
+});
+
+test('a failed background refresh is logged once, respects Retry-After and never serves an expired copy', async () => {
+  const data = { 1: { departures: [] } };
+  let calls = 0;
+  const logs: string[] = [];
+  const feeds = createFeeds({
+    gtfs: async () => { if (++calls > 1) throw new SourceError('opendata.samtrafiken.se 429', 429, 600_000); return data; },
+    waitUntil, log: (message) => logs.push(message),
+  });
+  const url = new URL('http://relay/feeds/sl');
+  const first = await (await feeds.handle(url))!.json() as { at: number };
+  advance(16);
+  const responses = await Promise.all(Array.from({ length: 20 }, () => feeds.handle(url)));
+  await settle();
+  expect(calls).toBe(2);
+  expect(logs.length).toBe(1);
+  expect(await responses[0]!.json()).toEqual({ at: first.at, data });
+  advance(120);
+  expect((await feeds.handle(url))!.status).toBe(200);
+  expect(calls).toBe(2);
+  advance(5 * 60);
+  expect((await feeds.handle(url))!.status).toBe(502);
+  expect(calls).toBe(2);
+  expect(logs.length).toBe(1);
 });
