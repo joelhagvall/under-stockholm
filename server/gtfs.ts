@@ -295,13 +295,15 @@ export interface TripUpdate { tripId: string; canceled: boolean; stops: StopUpda
 
 class Reader {
   at = 0;
+  // Reading past the end throws, so a cut or broken feed fails whole (the relay keeps its last good copy) instead of
+  // parsing in part or spinning on a varint that never ends.
   constructor(readonly bytes: Uint8Array, readonly end = bytes.length) {}
   /** A varint as a signed 64-bit number: int32 and int64 fields send negative values as ten bytes of two's complement. */
   varint(): number {
     let result = 0;
     let scale = 1;
     for (let i = 0; i < 7; i++) {
-      const b = this.bytes[this.at++];
+      const b = this.byte();
       result += (b & 0x7f) * scale;
       if (b < 0x80) return result;
       scale *= 128;
@@ -309,12 +311,19 @@ class Reader {
     // Past 49 bits a double loses precision, so finish in BigInt.
     let big = BigInt(result);
     let shift = 49n;
-    for (;;) {
-      const b = this.bytes[this.at++];
+    for (let i = 7; i < 10; i++) {
+      const b = this.byte();
+      // A 64-bit varint has at most ten bytes, with only one payload bit in the last byte.
+      if (i === 9 && b > 1) throw new Error('Invalid protobuf varint');
       big |= BigInt(b & 0x7f) << shift;
       if (b < 0x80) return Number(BigInt.asIntN(64, big));
       shift += 7n;
     }
+    throw new Error('Invalid protobuf varint');
+  }
+  private byte(): number {
+    if (this.at >= this.end) throw new Error('Truncated protobuf');
+    return this.bytes[this.at++];
   }
   /** Calls `field` with each field number and wire type until the end; `field` reads or skips the value. */
   each(field: (n: number, wire: number) => void): void {
@@ -322,13 +331,21 @@ class Reader {
       const key = this.varint();
       field(Math.floor(key / 8), key & 7);
     }
+    if (this.at > this.end) throw new Error('Truncated protobuf');
   }
   sub(): Reader {
-    const length = this.varint();
+    const length = this.length();
     const r = new Reader(this.bytes, this.at + length);
     r.at = this.at;
     this.at += length;
     return r;
+  }
+  /** Length prefixes are nonnegative int32 sizes, bounded by the current message before the cursor moves. */
+  private length(): number {
+    const length = this.varint();
+    if (!Number.isSafeInteger(length) || length < 0 || length > 0x7fffffff) throw new Error('Invalid protobuf length');
+    if (length > this.end - this.at) throw new Error('Truncated protobuf');
+    return length;
   }
   string(): string {
     const r = this.sub();
@@ -339,7 +356,7 @@ class Reader {
     else if (wire === 1) this.at += 8;
     else if (wire === 2) {
       // Read the length first: `this.at += this.varint()` would add it to the position before the length.
-      const length = this.varint();
+      const length = this.length();
       this.at += length;
     }
     else if (wire === 5) this.at += 4;

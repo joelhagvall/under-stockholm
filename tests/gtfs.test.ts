@@ -196,6 +196,44 @@ test('TripUpdates decode, negative delays and all', () => {
   ]);
 });
 
+test('a cut or broken feed throws instead of hanging or parsing in part', () => {
+  const whole = [...message(2, [...text(1, 'e1'), ...message(3, message(1, text(1, 'X')))])];
+  expect(parseTripUpdates(new Uint8Array(whole))).toEqual([{ tripId: 'X', canceled: false, stops: [] }]);
+  for (let cut = 1; cut < whole.length; cut++) expect(() => parseTripUpdates(new Uint8Array(whole.slice(0, cut)))).toThrow('Truncated protobuf');
+  for (const bytes of [[0x80], Array(8).fill(0x80), [0x12, 0xff], [0x12, 0x05, 0x1a], [0x09, 1, 2]]) {
+    expect(() => parseTripUpdates(new Uint8Array(bytes))).toThrow('Truncated protobuf');
+  }
+});
+
+test('length prefixes cannot move backwards or exceed a message or the int32 limit', () => {
+  for (const length of [-1, -(1n << 63n), 0x80000000, 1n << 53n]) {
+    for (const tag of [0x0a, 0x12]) {
+      expect(() => parseTripUpdates(new Uint8Array([tag, ...varint(length)]))).toThrow('Invalid protobuf length');
+    }
+    // A trip id is a string, so its length must have the same checks as embedded and skipped messages.
+    const trip = message(2, message(3, message(1, [0x0a, ...varint(length)])));
+    expect(() => parseTripUpdates(new Uint8Array(trip))).toThrow('Invalid protobuf length');
+  }
+  for (const bytes of [[0x0a, 1], message(2, [0x0a, 1]), message(2, [0x1a, 1])]) {
+    expect(() => parseTripUpdates(new Uint8Array(bytes))).toThrow('Truncated protobuf');
+  }
+});
+
+test('varints reject more than ten bytes and a tenth byte that overflows 64 bits', () => {
+  for (const value of [...[2, 0x7f, 0x80].map((last) => [...Array(9).fill(0x80), last]), [...Array(10).fill(0x80), 0]]) {
+    expect(() => parseTripUpdates(new Uint8Array(value))).toThrow('Invalid protobuf varint');
+    expect(() => parseTripUpdates(new Uint8Array([0x08, ...value]))).toThrow('Invalid protobuf varint');
+  }
+});
+
+test('valid ten-byte negative delays and empty skipped messages still decode', () => {
+  for (const delay of [-2147483648, -45, -1, 0, 2147483647]) {
+    const update = [...message(1, text(1, 'X')), ...message(2, message(3, field(1, delay)))];
+    const feed = new Uint8Array([...message(1, []), ...field(99, -1), ...message(2, message(3, update))]);
+    expect(parseTripUpdates(feed)).toEqual([{ tripId: 'X', canceled: false, stops: [{ departure: { delay }, skipped: false }] }]);
+  }
+});
+
 test('journey ids are numbers that tell trips and days apart', () => {
   const a = journeyId('14010000733559520', DATE);
   expect(Number.isSafeInteger(a)).toBe(true);
