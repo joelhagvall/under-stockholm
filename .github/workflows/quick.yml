@@ -19,3 +19,11 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: ./.github/actions/setup
       - run: bun run check --quick
+      - name: Save the gate report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: quick
+          path: perf/last-run.json
+          if-no-files-found: ignore
+          retention-days: 7
