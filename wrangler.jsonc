@@ -36,8 +36,10 @@
   // Secrets, set once with `bunx wrangler secret put <name>`: TRAFIKLAB_RT_KEY and TRAFIKLAB_STATIC_KEY (GTFS Regional,
   // every line follows SL; without them the blue line alone, from the Transport API), NOTES_ADMIN_TOKEN (to take a
   // note down).
-  // The game's address, with www too; the pages name the bare domain as canonical. The domain's DNS is on Cloudflare
-  // (registered at Spaceship, name servers pointed here). workers.dev stays on as a second way in for testing.
+  // The game's address, with www too; the pages name the bare domain as canonical. www is sent on to the bare domain
+  // (301, path and query kept) by a Redirect Rule in the zone's dashboard, not here: static files never run the
+  // Worker. The domain's DNS is on Cloudflare (registered at Spaceship, name servers pointed here). workers.dev stays
+  // on as a second way in for testing.
   "routes": [
     { "pattern": "understockholm.com", "custom_domain": true },
     { "pattern": "www.understockholm.com", "custom_domain": true }
