@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { defineConfig, type Plugin, type ViteDevServer } from 'vite';
 import { ICONS } from './scripts/icon.ts';
+import { securityHeaders } from './server/headers.ts';
 
 // Set by scripts/dev.ts, which starts the relay on a free port.
 const relay = process.env.RELAY_PORT && `http://localhost:${process.env.RELAY_PORT}`;
@@ -61,6 +62,7 @@ const PAGES = [{ lang: 'sv', path: '' }, { lang: 'en', path: 'en/' }];
  */
 function site(): Plugin {
   let url = process.env.SITE_URL?.replace(/\/?$/, '/') ?? '';
+  let configuredRelay: string | undefined;
   let dev: ViteDevServer | null = null;
   const base = () => url || dev?.resolvedUrls?.local[0] || 'http://localhost:5180/';
   const alternates = (indent: string) => [
@@ -69,6 +71,11 @@ function site(): Plugin {
   ].join('\n');
   const files: Record<string, { type: string; body: () => string | Uint8Array }> = {
     'robots.txt': { type: 'text/plain', body: () => `User-agent: *\nAllow: /\n\nSitemap: ${base()}sitemap.xml\n` },
+    // Where to report a security hole (RFC 9116). It must expire within a year, so each build sets it a year on.
+    '.well-known/security.txt': {
+      type: 'text/plain',
+      body: () => `Contact: mailto:work@joelhagvall.com\nExpires: ${new Date(Date.now() + 365 * 86_400_000).toISOString().slice(0, 10)}T00:00:00.000Z\nPreferred-Languages: sv, en\nCanonical: ${base()}.well-known/security.txt\n`,
+    },
     'sitemap.xml': {
       type: 'application/xml',
       body: () => `<?xml version="1.0" encoding="UTF-8"?>
@@ -98,6 +105,7 @@ ${PAGES.map((p) => `  <url>\n    <loc>${base()}${p.path}</loc>\n${alternates('  
   return {
     name: 'under-stockholm-site',
     configResolved(config) {
+      configuredRelay = config.env.VITE_GHOSTS_URL;
       if (url || config.command !== 'build') return;
       url = 'http://localhost:4173/';
       config.logger.warn(`SITE_URL is not set: link previews, canonical and hreflang point at ${url}. Build with SITE_URL=https://… for production.`);
@@ -114,9 +122,11 @@ ${PAGES.map((p) => `  <url>\n    <loc>${base()}${p.path}</loc>\n${alternates('  
     transformIndexHtml: (html) => gameBlock(html.replaceAll('%SITE_URL%', base())),
     generateBundle() {
       for (const [fileName, file] of Object.entries(files)) this.emitFile({ type: 'asset', fileName, source: file.body() });
-      // Cache rules for the host (Cloudflare reads `_headers`): built files carry a hash in their names, so a returning
-      // player gets the whole game from the browser's cache. Only in the build: the dev server must never cache.
-      this.emitFile({ type: 'asset', fileName: '_headers', source: '/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n' });
+      // Rules for the host (Cloudflare reads `_headers`, and so does scripts/serve.ts): every page gets the security
+      // headers, and built files, which carry a hash in their names, are cached for good, so a returning player gets the
+      // whole game from the browser's cache. Only in the build: the dev server must never cache.
+      const headers = securityHeaders({ site: base(), relay: configuredRelay, wasm: !LANDING_ONLY });
+      this.emitFile({ type: 'asset', fileName: '_headers', source: `/*\n${Object.entries(headers).map(([name, value]) => `  ${name}: ${value}`).join('\n')}\n\n/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n` });
     },
   };
 }

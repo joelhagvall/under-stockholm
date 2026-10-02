@@ -5,6 +5,7 @@
 import { file, type ServerWebSocket } from 'bun';
 import { extname, join, normalize } from 'node:path';
 import { brotliCompressSync, constants } from 'node:zlib';
+import { withSecurityHeaders } from '../server/headers';
 
 const root = join(import.meta.dir, '..', 'dist');
 const port = Number(process.env.PORT ?? 4173);
@@ -20,6 +21,13 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) process.on(signal
 process.on('exit', () => relay.kill());
 const RELAY = /^\/(ghosts|perf|errors|notes(\/\d+)?|feeds\/[a-z]+)$/;
 
+/** The build's `_headers` (vite.config.ts), as Cloudflare applies them: each rule's headers on the paths it matches. */
+const rules = (await file(join(root, '_headers')).text().catch(() => '')).split(/\n(?=\S)/).map((block) => {
+  const [pattern, ...lines] = block.trim().split('\n');
+  const match = new RegExp(`^${pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replaceAll('*', '.*')}$`);
+  return { match, headers: Object.fromEntries(lines.map((l) => l.trim().split(/:\s*(.*)/s).slice(0, 2))) };
+}).filter((rule) => Object.keys(rule.headers).length);
+
 /** A player's socket, passed through to one of its own on the relay. */
 interface Pipe { upstream: WebSocket; queue: string[] }
 
@@ -32,19 +40,20 @@ Bun.serve<Pipe>({
         const upstream = new WebSocket(`ws://localhost:${relayPort}/ghosts`);
         if (server.upgrade(req, { data: { upstream, queue: [] } })) return undefined;
         upstream.close();
-        return new Response('Upgrade required', { status: 426 });
+        return withSecurityHeaders(new Response('Upgrade required', { status: 426 }));
       }
       const headers = new Headers(req.headers);
       headers.set('x-forwarded-for', server.requestIP(req)?.address ?? '127.0.0.1');
-      return fetch(`http://localhost:${relayPort}${url.pathname}${url.search}`, { method: req.method, headers, body: req.body }).catch(() => new Response('Relay down', { status: 502 }));
+      const answer = await fetch(`http://localhost:${relayPort}${url.pathname}${url.search}`, { method: req.method, headers, body: req.body }).catch(() => new Response('Relay down', { status: 502 }));
+      return withSecurityHeaders(answer);
     }
     let path = normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, '');
     if (path.endsWith('/')) path += 'index.html';
     const f = file(join(root, path));
-    if (!(await f.exists())) return new Response('Not found', { status: 404 });
+    if (!(await f.exists())) return withSecurityHeaders(new Response('Not found', { status: 404 }));
     const type = f.type;
     const headers: Record<string, string> = { 'content-type': type };
-    if (path.includes('/assets/')) headers['cache-control'] = 'public, max-age=31536000, immutable';
+    for (const rule of rules) if (rule.match.test(url.pathname)) Object.assign(headers, rule.headers);
     const accepts = req.headers.get('accept-encoding') ?? '';
     if (compressible.has(extname(path)) && accepts.includes('br')) {
       let body = brotli.get(path);

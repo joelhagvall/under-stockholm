@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { addressKey, blockKey, CachedBuild, Cooldown, DAY_MS, DayCap, MAX_BODY, readBody, untilMidnight } from '../server/limits';
+import { addressKey, blockKey, CachedBuild, Cooldown, DAY_MS, DayCap, foreignOrigin, MAX_BODY, readBody, untilMidnight } from '../server/limits';
 
 test('IPv4 is its own address, IPv6 counts by its /64', () => {
   expect(addressKey('203.0.113.7')).toBe('203.0.113.7');
@@ -81,4 +81,15 @@ test('a day cap stays small however many keys come: newcomers share one count on
   // The ones it knew keep their own count; the rest spent the shared one long ago.
   expect(cap.spent('k0', noon)).toBe(false);
   expect(cap.spent('k9999', noon)).toBe(true);
+});
+
+test('a page on another site is foreign, the game itself and clients without a page are not', () => {
+  const from = (origin: string | null, url = 'https://understockholm.com/ghosts') => new Request(url, { headers: origin === null ? {} : { origin } });
+  expect(foreignOrigin(from('https://understockholm.com'))).toBe(false);
+  expect(foreignOrigin(from('https://www.understockholm.com', 'https://www.understockholm.com/notes'))).toBe(false);
+  expect(foreignOrigin(from('http://localhost:5180', 'http://localhost:5180/ghosts'))).toBe(false);
+  expect(foreignOrigin(from(null))).toBe(false);
+  expect(foreignOrigin(from('https://evil.example'))).toBe(true);
+  expect(foreignOrigin(from('https://understockholm.com.evil.example'))).toBe(true);
+  expect(foreignOrigin(from('null'))).toBe(true);
 });

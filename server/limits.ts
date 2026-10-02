@@ -157,3 +157,19 @@ export class DayCap {
     return this.used.size;
   }
 }
+
+/**
+ * Whether a browser on another site sent this: its Origin names a host other than the one asked. Another site's page
+ * could otherwise open sockets or post notes and reports from its visitors' browsers, each on their own address and
+ * share. A request without an Origin is not from a page (browsers send one with every socket and POST) and is let be:
+ * the limits per address hold those.
+ */
+export function foreignOrigin(request: Request): boolean {
+  const origin = request.headers.get('origin');
+  if (origin === null) return false;
+  try {
+    return new URL(origin).host !== new URL(request.url).host;
+  } catch {
+    return true;
+  }
+}

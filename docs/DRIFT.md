@@ -117,7 +117,7 @@ Quiet hours cost next to nothing on either plan. The game's files are free in ev
 
 ## Alternatives
 
-If Durable Objects stop fitting, the Bun relay runs as is on the options below. Put it behind the same domain as the game (a reverse proxy for `/ghosts`, `/feeds`, `/notes`, `/perf` and `/errors`), or build with `VITE_GHOSTS_URL=wss://<relay-host>/ghosts`.
+If Durable Objects stop fitting, the Bun relay runs as is on the options below. Put it behind the same domain as the game (a reverse proxy for `/ghosts`, `/feeds`, `/notes`, `/perf` and `/errors`), or build with `VITE_GHOSTS_URL=wss://<relay-host>/ghosts`. The build adds only that relay's WebSocket and HTTP origins to its CSP, including when the setting comes from a Vite `.env` file. Browser security headers are shared in `server/headers.ts`: static pages get them through `_headers`, and Worker relay responses and the Bun production preview attach them directly. Game builds allow the older WASM compilation required by Safari 15; scripts still cannot run inline, and report pages keep evaluation blocked.
 
 - **Oracle Cloud Always Free** (ARM VM): truly free and generous, but you run the VM, TLS (Caddy) and systemd yourself, and outgoing traffic to tens of thousands of players adds up.
 - **A small VPS** (5 to 20 euro a month): a fixed price, the same upkeep.

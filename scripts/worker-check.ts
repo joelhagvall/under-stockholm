@@ -4,11 +4,12 @@
 // is refused by the hub, which says so, and then by the Worker alone; sockets and their messages count; an IPv6 /48
 // is one block; and the players' budget and the feeds', notes' and reports' cannot spend each other.
 // Every scenario uses addresses of its own, as the counts are kept per address for the whole run.
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const root = join(import.meta.dir, '..');
+const hasGame = readdirSync(join(root, 'dist', 'assets')).some((name) => name.endsWith('.wasm'));
 const probe = Bun.serve({ port: 0, fetch: () => new Response() });
 const port = probe.port!;
 probe.stop(true);
@@ -66,6 +67,17 @@ try {
   }
   if (!up) throw new Error('wrangler dev did not come up');
 
+  console.log('browser security headers');
+  for (const path of ['/', '/en/', '/perf', '/errors', '/feeds/not-a-feed']) {
+    const r = await fetch(`${base}${path}`, { headers: { accept: 'text/html', 'cf-connecting-ip': '192.0.2.251' } });
+    expect(`${path} refuses embedding`, r.headers.get('x-frame-options'), 'DENY');
+    expect(`${path} prevents MIME sniffing`, r.headers.get('x-content-type-options'), 'nosniff');
+    const csp = r.headers.get('content-security-policy') ?? '';
+    expect(`${path} blocks inline scripts`, /script-src[^;]*'unsafe-inline'/.test(csp), false);
+    expect(`${path} has the appropriate WASM exception`, csp.includes("'unsafe-eval'"), hasGame && (path === '/' || path === '/en/'));
+    await r.arrayBuffer();
+  }
+
   console.log('an address past its share');
   for (let i = 1; i <= 3; i++) expect(`request ${i} is let through`, (await get('/notes', '203.0.113.1')).status, 200);
   const fourth = await get('/notes', '203.0.113.1');
@@ -84,6 +96,19 @@ try {
   // One request for the socket, then one per twenty messages: past a share of three after 60.
   expect('messages count against the address', await socket('203.0.113.4', 80), '4000');
   expect('a socket that sends little stays', await socket('203.0.113.5', 30), 'hello');
+
+  console.log('other sites');
+  const foreign = { 'cf-connecting-ip': '203.0.113.6', origin: 'https://evil.example' };
+  const refused = await fetch(`${base}/notes`, { method: 'POST', headers: foreign, body: '{}' });
+  expect('a note posted from another site is refused', refused.status, 403);
+  expect('a refused request still has security headers', refused.headers.get('x-frame-options'), 'DENY');
+  const opens = (origin: string) => new Promise<boolean>((resolve) => {
+    const ws = new WebSocket(`ws://localhost:${port}/ghosts`, { headers: { 'cf-connecting-ip': '203.0.113.6', origin } } as unknown as string[]);
+    ws.onopen = () => { ws.close(); resolve(true); };
+    ws.onerror = () => resolve(false);
+  });
+  expect('a socket from another site is refused', await opens('https://evil.example'), false);
+  expect('...while one from the game\'s own page is let in', await opens(base), true);
 
   console.log('an IPv6 /48 is one block');
   for (const [i, ip] of ['2001:db8:9:1::1', '2001:db8:9:1::2', '2001:db8:9:2::1', '2001:db8:9:2::2'].entries()) expect(`request ${i + 1} from the block is let through`, (await get('/notes', ip)).status, 200);
