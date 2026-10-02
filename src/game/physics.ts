@@ -5,8 +5,15 @@ export type Rapier = typeof RAPIER;
 
 export async function loadRapier(): Promise<Rapier> {
   // Vite streams the separate WASM binary instead of parsing and decoding it as JavaScript.
-  const { default: rapier } = await import('@dimforge/rapier3d');
-  return rapier;
+  const mod = await import('@dimforge/rapier3d');
+  // LinkedIn's in-app browser on iOS once handed back the module without its default export. The default is only the
+  // namespace itself, so fall back to it; if even that lacks World, read the live bindings again a moment later.
+  for (let attempt = 0; ; attempt++) {
+    const rapier = (mod.default ?? mod) as Rapier | undefined;
+    if (rapier?.World) return rapier;
+    if (attempt) throw new Error(`Rapier loaded without World: ${Object.keys(mod).slice(0, 8).join(',') || 'empty'}`);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
 }
 
 /** What the game does with a static collider once made: switch it on and off, or move it. */
