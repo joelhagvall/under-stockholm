@@ -1,20 +1,35 @@
 import { expect, test } from 'bun:test';
-import { cleanNote, NOTE_MAX } from '../src/game/noteFilter';
+import { cleanNote, composeNote, GAP, PHRASES, STATIONS, THINGS, wordsFor } from '../src/game/notePhrases';
 
-test('friendly notes go up, cleaned', () => {
-  expect(cleanNote('  Hej  från   Kista!  ')).toBe('Hej från Kista!');
-  expect(cleanNote('Glad midsommar ❤')).toBe('Glad midsommar ❤');
-  expect(cleanNote('Tack till föraren på 10:an i morse')).toBe('Tack till föraren på 10:an i morse');
-  // Innocent words that start like bad ones.
-  expect(cleanNote('Killen med saxofonen spelar sexton låtar')).not.toBeNull();
+test('notes are put together from the parts and go up as they are', () => {
+  expect(cleanNote('Hej alla!')).toBe('Hej alla!');
+  expect(cleanNote('Hälsningar från Kista')).toBe('Hälsningar från Kista');
+  expect(cleanNote('Leta efter skyddsrummet')).toBe('Leta efter skyddsrummet');
+  // A gap that opens the note is capitalised.
+  expect(composeNote({ text: `${GAP} var här`, gap: 'thing' }, 'duvorna')).toBe('Duvorna var här');
+  expect(cleanNote('Duvorna var här')).toBe('Duvorna var här');
 });
 
-test('links, numbers, crude and hateful words stay out', () => {
-  expect(cleanNote('kolla www.example.se')).toBeNull();
-  expect(cleanNote('ring mig 070 123 45 67')).toBeNull();
-  expect(cleanNote('mejla mig på a@b')).toBeNull();
-  expect(cleanNote('jävla tåg')).toBeNull();
-  expect(cleanNote('x'.repeat(NOTE_MAX + 1))).toBeNull();
-  expect(cleanNote('<script>')).toBeNull();
-  expect(cleanNote(42)).toBeNull();
+test('every note the parts can make is one the relay takes, and fits on a paper', () => {
+  for (const phrase of PHRASES) {
+    expect(phrase.text.includes(GAP)).toBe(Boolean(phrase.gap));
+    for (const word of phrase.gap ? wordsFor(phrase) : ['']) {
+      const note = composeNote(phrase, word);
+      expect(cleanNote(note)).toBe(note);
+      expect(note.length).toBeLessThanOrEqual(48);
+    }
+  }
+  expect(STATIONS.length).toBe(100);
+  expect(new Set(THINGS).size).toBe(THINGS.length);
+});
+
+test('a station never goes where it could be warned against', () => {
+  expect(cleanNote('Akta dig för T-Centralen')).toBeNull();
+  expect(cleanNote('Akta dig för kontrollanterna')).not.toBeNull();
+});
+
+test('anything typed is refused, however it is spelled', () => {
+  for (const typed of ['Hej från mig', 'Tack till föraren', 'hej alla!', 'Hej alla! ', 'Hälsningar från Narnia', 'kolla www.example.se', '<script>', '', 42, null]) {
+    expect(cleanNote(typed)).toBeNull();
+  }
 });

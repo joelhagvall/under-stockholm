@@ -7,6 +7,7 @@ import { networkMapLayout } from './world/station';
 import { realTrainsAvailable } from './sl';
 import type { Explored } from './explore';
 import { keyName, settings, type Action } from './settings';
+import { composeNote, GAP, PHRASES, STATIONS, THINGS } from './notePhrases';
 
 /** Writes `message` into `el`, a leading key (`E · Sätt upp en lapp`) drawn as a key cap. */
 function keyCap(el: HTMLElement, message: string): void {
@@ -517,24 +518,49 @@ export class Hud {
     if (!paused && !this.settingsPanel.hidden) this.showSettings(false, false);
   }
 
-  /** Asks for a short text, e.g. a note for the board. Resolves to null if cancelled. */
-  askText(question: string, send: string, cancel: string, max: number): Promise<string | null> {
+  /** Asks for a note for the board, put together from the fixed parts in `notePhrases.ts`. Null if cancelled. */
+  askNote(): Promise<string | null> {
     return new Promise((resolve) => {
+      const t = text.notes;
       const box = document.createElement('form');
       box.className = 'hud-ask';
-      box.innerHTML = `<label><span></span><input type="text" name="note" autocomplete="off" spellcheck="true"></label><div><button type="submit"></button><button type="button"></button></div>`;
-      box.querySelector('span')!.textContent = question;
-      const input = box.querySelector('input')!;
-      input.maxLength = max;
+      box.innerHTML = `<p></p><label><span></span><select name="phrase"></select></label><label><span></span><select name="word"></select></label><p class="hud-ask-preview" aria-live="polite"></p><div><button type="submit"></button><button type="button"></button></div>`;
+      const [question, preview] = [...box.querySelectorAll('p')];
+      const [phraseLabel, wordLabel] = [...box.querySelectorAll('label')];
+      const [phraseSelect, wordSelect] = [...box.querySelectorAll('select')];
       const [ok, no] = [...box.querySelectorAll('button')];
-      ok.textContent = send;
-      no.textContent = cancel;
+      question.textContent = t.ask;
+      phraseLabel.querySelector('span')!.textContent = t.phrase;
+      wordLabel.querySelector('span')!.textContent = t.word;
+      ok.textContent = t.send;
+      no.textContent = t.cancel;
+      PHRASES.forEach((p, i) => phraseSelect.add(new Option(p.text.replace(GAP, '…'), String(i))));
+      const phrase = () => PHRASES[Number(phraseSelect.value)];
+      const group = (label: string, words: string[]) => {
+        const g = document.createElement('optgroup');
+        g.label = label;
+        for (const w of words) g.append(new Option(w));
+        wordSelect.append(g);
+      };
+      const show = () => { preview.textContent = composeNote(phrase(), wordSelect.value); };
+      const fill = () => {
+        const p = phrase();
+        wordSelect.replaceChildren();
+        if (p.gap === 'thing' || p.gap === 'any') group(t.things, THINGS);
+        if (p.gap === 'station' || p.gap === 'any') group(t.stations, STATIONS);
+        wordLabel.hidden = !p.gap;
+        show();
+      };
+      phraseSelect.addEventListener('change', fill);
+      wordSelect.addEventListener('change', show);
+      fill();
       const done = (value: string | null) => { box.remove(); resolve(value); };
-      box.addEventListener('submit', (e) => { e.preventDefault(); done(input.value.trim() || null); });
+      box.addEventListener('submit', (e) => { e.preventDefault(); done(composeNote(phrase(), wordSelect.value)); });
       no.addEventListener('click', () => done(null));
-      input.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); done(null); } e.stopPropagation(); });
+      // The game's keys stay out while the note is being picked.
+      box.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); done(null); } e.stopPropagation(); });
       this.root.appendChild(box);
-      input.focus();
+      phraseSelect.focus();
     });
   }
 

@@ -144,7 +144,7 @@ src/
     artWalk.ts         The art walk plaques
     mystery.ts         The Silverpilen clues
     notes.ts           Shared notes on the staff room boards
-    noteFilter.ts      Moderation for notes (shared with the relay)
+    notePhrases.ts     The fixed parts notes are put together from (shared with the relay)
     screensaver.ts     Screensaver mode and its music
     showcase.ts        The showcase tour: scenes at their own times
     discoveries.ts     The discovery book
@@ -270,4 +270,4 @@ Add `?debug` to the URL to skip pointer lock and expose `window.__us` (`player`,
 
 `server/ghosts.ts` is a small Bun WebSocket relay. It keeps no player data: clients send their position (or their place inside a train) twice a second and receive the nearest others. It also shares its clock (in the socket's hello) so all players see the same trains. In development `bun run dev` (`scripts/dev.ts`) starts the relay on a free port and Vite proxies `/ghosts`, `/feeds`, `/notes`, `/perf` and `/errors` to it, so the game talks to its own origin. In production the same paths on the same origin are answered by the hub, a Durable Object in the game's Worker (`worker/`, see [DRIFT.md](DRIFT.md)). `VITE_GHOSTS_URL=wss://your-host/ghosts` points a build at another relay, and `VITE_GHOSTS_URL=off` turns the feature off and hides its toggle.
 
-The same server keeps the shared notes for the staff room boards at `/notes`: short greetings, filtered by `src/game/noteFilter.ts` (no links, numbers or crude words), one per client every 90 seconds, saved to `NOTES_FILE`. Remove one with `DELETE /notes/:id` and `authorization: Bearer $NOTES_ADMIN_TOKEN`. Without a relay, notes stay in the player's browser. `bun run ghosts` starts it on its own, on a free port (`PORT`, `MAX_CLIENTS`, `NOTES_FILE`, `NOTES_ADMIN_TOKEN` configurable).
+The same server keeps the shared notes for the staff room boards at `/notes`: short greetings put together from fixed parts in `src/game/notePhrases.ts` (a greeting, or a phrase with a thing or a station in its gap; nothing is typed, and the relay takes only text the parts make and shows only such notes), one per client every 90 seconds, saved to `NOTES_FILE`. Remove one with `DELETE /notes/:id` and `authorization: Bearer $NOTES_ADMIN_TOKEN`. Without a relay, notes stay in the player's browser. `bun run ghosts` starts it on its own, on a free port (`PORT`, `MAX_CLIENTS`, `NOTES_FILE`, `NOTES_ADMIN_TOKEN` configurable).

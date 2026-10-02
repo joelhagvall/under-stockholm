@@ -1,12 +1,12 @@
 import { relayUrl } from './relay';
 import { createCanvasSign, FONT, redraw, type CanvasSign } from './gfx/signs';
 import text from './i18n/sv.json';
-import { cleanNote } from './noteFilter';
+import { cleanNote } from './notePhrases';
 
 /**
  * Shared notes on the staff room notice boards: short greetings that every
- * player sees, kept by the relay (`server/ghosts.ts`), which filters them the
- * same way as `noteFilter.ts`. Without a relay, your notes stay in your own
+ * player sees, kept by the relay (`server/ghosts.ts`), put together from the
+ * fixed parts in `notePhrases.ts`, which the relay checks as well. Without a relay, your notes stay in your own
  * browser. Every staff room shows the same board.
  */
 
@@ -31,7 +31,7 @@ class SharedNotes {
   board(): CanvasSign {
     if (!this.sign || this.sign.canvas.width === 1) {
       this.sign = createCanvasSign(768, 512);
-      try { this.notes = JSON.parse(localStorage.getItem(LOCAL_KEY) ?? '[]'); } catch { this.notes = []; }
+      try { this.notes = (JSON.parse(localStorage.getItem(LOCAL_KEY) ?? '[]') as SharedNote[]).filter((n) => cleanNote(n.text)); } catch { this.notes = []; }
       this.draw();
     }
     return this.sign;
@@ -43,7 +43,7 @@ class SharedNotes {
     this.fetched = Date.now();
     fetch(this.url).then((r) => (r.ok ? r.json() : null)).then((body: { notes?: SharedNote[] } | null) => {
       if (!body?.notes) return;
-      this.notes = body.notes;
+      this.notes = body.notes.filter((n) => cleanNote(n.text));
       this.draw();
     }).catch(() => { /* Keep what is up. */ });
   }

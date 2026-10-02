@@ -35,7 +35,6 @@ import { Exploration } from './explore';
 import { staffKey } from './staffKey';
 import { artWalk } from './artWalk';
 import { noteWriter, sharedNotes } from './notes';
-import { NOTE_MAX } from './noteFilter';
 import { Music, Screensaver } from './screensaver';
 import { dateAt, daytime, type ShowPose, type ShowScene, Showcase, silverStop, weekdayAt } from './showcase';
 import { luciaPose } from './festivities';
@@ -840,7 +839,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     if (document.pointerLockElement) document.exitPointerLock();
     player.resetInput();
     player.enabled = false;
-    void hud.askText(text.notes.ask, text.notes.send, text.notes.cancel, NOTE_MAX).then(async (note) => {
+    void hud.askNote().then(async (note) => {
       typing = false;
       player.enabled = !paused;
       if (note) hud.say(await sharedNotes.post(note), 5);

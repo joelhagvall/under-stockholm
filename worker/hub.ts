@@ -18,7 +18,7 @@
 // Worker (worker/index.ts) then turns it away itself until midnight, so what it sends after costs the hub nothing.
 
 import { DurableObject } from 'cloudflare:workers';
-import { cleanNote } from '../src/game/noteFilter';
+import { cleanNote } from '../src/game/notePhrases';
 import { ERROR_EVERY_MS, ERROR_KEPT, errorsPage, groupErrors, readError, type ErrorAggregate, type ErrorReport } from '../server/errorCore';
 import { createFeeds, type Feeds } from '../server/feedCore';
 import type { Timetable } from '../server/gtfs';
@@ -252,7 +252,8 @@ export class Hub extends DurableObject<Env> {
   private async notes(request: Request, url: URL, ip: string): Promise<Response> {
     const sql = this.ctx.storage.sql;
     if (request.method === 'GET') {
-      const notes = sql.exec<{ id: number; text: string; at: number }>('SELECT id, text, at FROM notes ORDER BY id DESC LIMIT ?', SHOWN_NOTES).toArray();
+      // Notes from before the boards took only phrases (src/game/notePhrases.ts) stay stored but are never shown.
+      const notes = sql.exec<{ id: number; text: string; at: number }>('SELECT id, text, at FROM notes ORDER BY id DESC LIMIT ?', MAX_NOTES).toArray().filter((n) => cleanNote(n.text)).slice(0, SHOWN_NOTES);
       return Response.json({ notes });
     }
     if (request.method === 'POST') {

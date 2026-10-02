@@ -11,8 +11,8 @@
 //   POST   /notes          { text }  ->  { note } or 400/413/429     one per address every 90 s, 30 an hour in all
 //   DELETE /notes/:id      with `authorization: Bearer $NOTES_ADMIN_TOKEN`
 //   DELETE /notes?since=t  the same, every note put up since t (epoch ms)
-// Notes pass the same filter as in the game (`src/game/noteFilter.ts`) and are
-// kept in NOTES_FILE (default server/notes.json), at most MAX_NOTES of them.
+// Notes must be one the game's fixed parts make (`src/game/notePhrases.ts`) and
+// are kept in NOTES_FILE (default server/notes.json), at most MAX_NOTES of them.
 //
 // Performance reports (HTTP, server/perf.ts):
 //   POST   /perf           one anonymous report per visit, from the game
@@ -23,7 +23,7 @@
 //   GET    /errors         grouped by error: JSON, or a page in a browser
 
 import type { ServerWebSocket } from 'bun';
-import { cleanNote } from '../src/game/noteFilter';
+import { cleanNote } from '../src/game/notePhrases';
 import { handleErrors } from './errors';
 import { handleFeeds } from './feeds';
 import { handlePerf } from './perf';
@@ -52,7 +52,8 @@ const cors: Record<string, string> = { 'access-control-allow-origin': '*', 'acce
 
 async function handleNotes(req: Request, url: URL, ip: string): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
-  if (req.method === 'GET') return Response.json({ notes: notes.slice(0, SHOWN_NOTES) }, { headers: cors });
+  // Notes from before the boards took only phrases (src/game/notePhrases.ts) stay stored but are never shown.
+  if (req.method === 'GET') return Response.json({ notes: notes.filter((n) => cleanNote(n.text)).slice(0, SHOWN_NOTES) }, { headers: cors });
   if (req.method === 'POST') {
     const now = Date.now();
     if (!lastNote.ready(ip, now)) return Response.json({ error: 'slow down' }, { status: 429, headers: cors });

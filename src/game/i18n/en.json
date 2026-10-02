@@ -222,7 +222,11 @@
     "platform": "You are at {station}."
   },
   "notes": {
-    "ask": "Write a short greeting to everyone passing by (80 characters at most). No links, numbers or meanness.",
+    "ask": "Pick a greeting for everyone passing by. The board is in Swedish, like every sign down here.",
+    "phrase": "Greeting",
+    "word": "Word",
+    "things": "In the metro",
+    "stations": "Stations",
     "send": "Put it up",
     "cancel": "Cancel"
   },
