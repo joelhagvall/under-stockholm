@@ -109,11 +109,22 @@ export function groupErrors(reports: ErrorReport[], now = Date.now()): ErrorAggr
   };
 }
 
-// Alerts: a fatal error the hub has not told of for a week goes to ALERT_URL as plain text (ntfy.sh takes it as is),
+// Alerts: a fatal error of the game's own (not ENVIRONMENT) the hub has not told of for a week goes to ALERT_URL as plain text (ntfy.sh takes it as is),
 // at most one message an hour, so a storm of crashes after a deploy sends one, not hundreds (docs/DRIFT.md, section 1).
 
 export const ALERT_EVERY_MS = 60 * 60_000;
 export const ALERT_AGAIN_MS = 7 * 86_400_000;
+
+/**
+ * Fatal errors that say what a player's device or connection could not do, not what the game got wrong: no WebGL or 2D
+ * canvas, a browser too old for the game, and a module or WebAssembly file that did not arrive (an old tab after a
+ * deploy, a captive portal; the loader already reloads for those). They stay on /errors but alert nobody.
+ */
+const ENVIRONMENT = [
+  /Error creating WebGL context|2D canvas unavailable|getShaderPrecisionFormat/,
+  /roundRect is not a function/,
+  /dynamically imported module|Importing a module script failed|Unable to preload CSS|expected magic word 00 61 73 6d/,
+];
 
 /** When each group was last told of, '' for the last alert of any group: in memory or in the hub's storage. */
 export interface AlertLog {
@@ -123,7 +134,7 @@ export interface AlertLog {
 
 /** The message to send for a report, marked as sent in `log`, or null when it is not worth one. */
 export function alertFor(r: ErrorReport, log: AlertLog): string | null {
-  if (!r.fatal) return null;
+  if (!r.fatal || ENVIRONMENT.some((re) => re.test(r.message))) return null;
   const key = keyOf(r);
   if (r.at - log.last(key) < ALERT_AGAIN_MS || r.at - log.last('') < ALERT_EVERY_MS) return null;
   log.mark(key, r.at);

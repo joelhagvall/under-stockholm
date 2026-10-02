@@ -97,3 +97,14 @@ test('a fatal error alerts once a week per group, and once an hour in all', () =
   expect(alertFor(at(t + 3 * ALERT_EVERY_MS, { ...other, stack: other.stack.replace('abcdefgh', 'zyxwvuts') }), log)).toBeNull();
   expect(alertFor(at(t + ALERT_AGAIN_MS), log)).toContain('TypeError');
 });
+
+test('a device that cannot run the game alerts nobody', () => {
+  const log: AlertLog = { last: () => 0, mark: () => {} };
+  for (const message of [
+    'Error: THREE.WebGLRenderer: Error creating WebGL context.',
+    "TypeError: n.roundRect is not a function. (In 'n.roundRect(42,34,172,228,24)')",
+    'TypeError: Failed to fetch dynamically imported module: https://understockholm.com/assets/boot-abc.js',
+    'CompileError: WebAssembly.instantiate(): expected magic word 00 61 73 6d, found 3c 21 44 4f',
+  ]) expect(alertFor(parseError({ ...sample, message, stack: message }, Date.now())!, log)).toBeNull();
+  expect(alertFor(parseError({ ...sample, message: "TypeError: undefined is not an object (evaluating 'new e.World')" }, Date.now())!, log)).not.toBeNull();
+});
