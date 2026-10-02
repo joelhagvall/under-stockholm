@@ -19,7 +19,7 @@
 
 import { DurableObject } from 'cloudflare:workers';
 import { cleanNote } from '../src/game/notePhrases';
-import { ERROR_EVERY_MS, ERROR_KEPT, errorsPage, groupErrors, readError, type ErrorAggregate, type ErrorReport } from '../server/errorCore';
+import { alertFor, ERROR_EVERY_MS, ERROR_KEPT, errorsPage, groupErrors, readError, sendAlert, type AlertLog, type ErrorAggregate, type ErrorReport } from '../server/errorCore';
 import { createFeeds, type Feeds } from '../server/feedCore';
 import type { Timetable } from '../server/gtfs';
 import { gtfsDepartures, type TimetableStore } from '../server/gtfsFeed';
@@ -44,6 +44,8 @@ export interface Env {
   /** Trafiklab's GTFS Regional keys, as secrets: without them the blue line alone follows SL's Transport API. */
   TRAFIKLAB_RT_KEY?: string;
   TRAFIKLAB_STATIC_KEY?: string;
+  /** Where a fatal error not seen for a week is posted as plain text (an ntfy.sh topic), as a secret: unset, none is. */
+  ALERT_URL?: string;
 }
 
 const MAX_NOTES = 200;
@@ -127,6 +129,8 @@ export class Hub extends DurableObject<Env> {
   // Each address's and each IPv6 block's share of the day, kept in memory: a restart forgets it, which only forgives.
   private readonly perAddress: DayCap;
   private readonly perBlock: DayCap;
+  /** When each group of errors was last alerted, in storage so a restart does not send them again. */
+  private readonly alerts: AlertLog;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -147,12 +151,17 @@ export class Hub extends DurableObject<Env> {
         for (let i = 0; i * CHUNK < text.length; i++) sql.exec('INSERT INTO blobs (name, part, data) VALUES (?, ?, ?)', 'gtfs', i, text.slice(i * CHUNK, (i + 1) * CHUNK));
       },
     };
+    this.alerts = {
+      last: (key) => sql.exec<{ at: number }>('SELECT at FROM alerts WHERE key = ?', key).toArray()[0]?.at ?? 0,
+      mark: (key, at) => void sql.exec('INSERT OR REPLACE INTO alerts (key, at) VALUES (?, ?)', key, at),
+    };
     const keys = env.TRAFIKLAB_RT_KEY && env.TRAFIKLAB_STATIC_KEY ? { realtime: env.TRAFIKLAB_RT_KEY, static: env.TRAFIKLAB_STATIC_KEY } : null;
     this.feeds = createFeeds({ log, gtfs: keys ? gtfsDepartures(keys, store, log) : undefined, waitUntil: (task) => ctx.waitUntil(task) });
     void ctx.blockConcurrencyWhile(async () => {
       sql.exec('CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, at INTEGER NOT NULL)');
       sql.exec('CREATE TABLE IF NOT EXISTS perf (at INTEGER NOT NULL, report TEXT NOT NULL)');
       sql.exec('CREATE TABLE IF NOT EXISTS errors (at INTEGER NOT NULL, report TEXT NOT NULL)');
+      sql.exec('CREATE TABLE IF NOT EXISTS alerts (key TEXT PRIMARY KEY, at INTEGER NOT NULL)');
       sql.exec('CREATE TABLE IF NOT EXISTS blobs (name TEXT NOT NULL, part INTEGER NOT NULL, data TEXT NOT NULL, PRIMARY KEY (name, part))');
       await this.players.load();
       await this.data.load();
@@ -333,6 +342,8 @@ export class Hub extends DurableObject<Env> {
     if (!report) return new Response(null, { status: 400 });
     this.lastError.mark(ip, now);
     sql.exec('INSERT INTO errors (at, report) VALUES (?, ?)', now, JSON.stringify(report));
+    const alert = this.env.ALERT_URL ? alertFor(report, this.alerts) : null;
+    if (alert) this.ctx.waitUntil(sendAlert(this.env.ALERT_URL!, alert, new URL('/errors', request.url).href, log));
     // Kept to the last ERROR_KEPT, trimmed now and then rather than on every report.
     if (Math.random() < 0.05) sql.exec('DELETE FROM errors WHERE rowid NOT IN (SELECT rowid FROM errors ORDER BY at DESC LIMIT ?)', ERROR_KEPT);
     return new Response(null, { status: 204 });

@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { errorsPage, groupErrors, parseError, readError, type ErrorReport } from '../server/errorCore';
+import { ALERT_AGAIN_MS, ALERT_EVERY_MS, alertFor, errorsPage, groupErrors, parseError, readError, type AlertLog, type ErrorReport } from '../server/errorCore';
 
 const sample = {
   v: 1, kind: 'desktop', fatal: true, message: "TypeError: Cannot read properties of undefined (reading 'x')",
@@ -80,4 +80,20 @@ test('old reports and invalid build identifiers are accepted without inventing a
   expect(parseError({ ...sample, build: 'a'.repeat(65) })!.build).toBe('');
   const { build: _build, ...old } = parseError(sample)!;
   expect(groupErrors([old as ErrorReport]).groups[0].builds).toEqual({ '': 1 });
+});
+
+test('a fatal error alerts once a week per group, and once an hour in all', () => {
+  const sent = new Map<string, number>();
+  const log: AlertLog = { last: (key) => sent.get(key) ?? 0, mark: (key, at) => void sent.set(key, at) };
+  const at = (ms: number, extra = {}) => parseError({ ...sample, ...extra }, ms)!;
+  const other = { message: 'RangeError: too deep', stack: 'RangeError: too deep\n    at walk (/assets/world-abcdefgh.js:1:1)' };
+  const t = 1_000_000_000_000;
+  expect(alertFor(at(t, { fatal: false }), log)).toBeNull();
+  expect(alertFor(at(t), log)).toContain('T-Centralen');
+  expect(alertFor(at(t + 1000), log)).toBeNull();
+  // Another group waits out the hour, then is told of; a new build's hash does not make a group new.
+  expect(alertFor(at(t + 1000, other), log)).toBeNull();
+  expect(alertFor(at(t + ALERT_EVERY_MS, other), log)).toContain('too deep');
+  expect(alertFor(at(t + 3 * ALERT_EVERY_MS, { ...other, stack: other.stack.replace('abcdefgh', 'zyxwvuts') }), log)).toBeNull();
+  expect(alertFor(at(t + ALERT_AGAIN_MS), log)).toContain('TypeError');
 });

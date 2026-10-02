@@ -5,9 +5,10 @@
 //   POST /errors   a report as JSON (sent as text/plain, the way a beacon can)  ->  204, 400 if malformed, 429 too soon
 //   GET  /errors   the groups as JSON, or as a plain page for a browser (`Accept: text/html`)
 // Reports are appended to ERRORS_FILE (default server/errors.jsonl, not committed) and the last ERROR_KEPT stay in memory.
+// With ALERT_URL set, a fatal error not seen for a week is posted there, as the hub does (server/errorCore.ts).
 
 import { AGGREGATE_MS, CachedBuild, Cooldown, readBody } from './limits';
-import { ERROR_EVERY_MS, ERROR_KEPT, errorsPage, groupErrors, readError, type ErrorAggregate, type ErrorReport } from './errorCore';
+import { alertFor, ERROR_EVERY_MS, ERROR_KEPT, errorsPage, groupErrors, readError, sendAlert, type AlertLog, type ErrorAggregate, type ErrorReport } from './errorCore';
 
 const ERRORS_FILE = process.env.ERRORS_FILE ?? new URL('./errors.jsonl', import.meta.url).pathname;
 let reports: ErrorReport[] = [];
@@ -17,6 +18,9 @@ try {
 const lastReport = new Cooldown(ERROR_EVERY_MS);
 /** The groups, rebuilt at most once a minute: each build reads every kept report. */
 const answers = new CachedBuild<ErrorAggregate>(AGGREGATE_MS);
+/** When each group was last alerted, in memory: a restart may send one again. */
+const alerted = new Map<string, number>();
+const alerts: AlertLog = { last: (key) => alerted.get(key) ?? 0, mark: (key, at) => void alerted.set(key, at) };
 
 /** Answers /errors: takes a report, or shows the groups. */
 export async function handleErrors(req: Request, ip: string, cors: Record<string, string>): Promise<Response> {
@@ -39,5 +43,7 @@ export async function handleErrors(req: Request, ip: string, cors: Record<string
   // Appended, never rewritten: the file is the record, memory the working copy.
   const file = Bun.file(ERRORS_FILE);
   await Bun.write(ERRORS_FILE, (await file.exists() ? await file.text() : '') + JSON.stringify(report) + '\n');
+  const alert = process.env.ALERT_URL ? alertFor(report, alerts) : null;
+  if (alert) void sendAlert(process.env.ALERT_URL!, alert, new URL('/errors', req.url).href, console.warn);
   return new Response(null, { status: 204, headers: cors });
 }

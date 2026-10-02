@@ -80,12 +80,17 @@ const chunkOf = (frame: string) => /\/assets\/([\w-]+?)-[\w-]{8}\.(?:js|wasm)\b/
 /** Import and preload failures name the missing asset in the message as well as in the stack. */
 const messageOf = (message: string) => message.replace(/\/assets\/([\w-]+?)-[\w-]{8}\.(js|css|wasm)\b/g, '/assets/$1.$2');
 
+/** The stack's first line below the message. */
+const frameOf = (r: ErrorReport) => r.stack.split('\n').map((l) => l.trim()).find((l) => l && !l.startsWith(r.message.slice(0, 20))) ?? '';
+/** The group a report belongs to, the same from one build to the next. */
+const keyOf = (r: ErrorReport) => `${messageOf(r.message)}\n${chunkOf(frameOf(r))}`;
+
 /** The reports grouped by message and where in the code, the most frequent first. */
 export function groupErrors(reports: ErrorReport[], now = Date.now()): ErrorAggregate {
   const groups = new Map<string, ErrorGroup>();
   for (const r of reports) {
-    const frame = r.stack.split('\n').map((l) => l.trim()).find((l) => l && !l.startsWith(r.message.slice(0, 20))) ?? '';
-    const key = `${messageOf(r.message)}\n${chunkOf(frame)}`;
+    const frame = frameOf(r);
+    const key = keyOf(r);
     const g = groups.get(key) ?? { message: r.message, frame, n: 0, fatal: 0, touch: 0, first: r.at, last: r.at, sample: r, builds: Object.create(null) as Record<string, number> };
     g.n++;
     const build = r.build ?? '';
@@ -102,6 +107,38 @@ export function groupErrors(reports: ErrorReport[], now = Date.now()): ErrorAggr
     day: reports.filter((r) => now - r.at < 86_400_000).length,
     groups: [...groups.values()].sort((a, b) => b.n - a.n).slice(0, 100),
   };
+}
+
+// Alerts: a fatal error the hub has not told of for a week goes to ALERT_URL as plain text (ntfy.sh takes it as is),
+// at most one message an hour, so a storm of crashes after a deploy sends one, not hundreds (docs/DRIFT.md, section 1).
+
+export const ALERT_EVERY_MS = 60 * 60_000;
+export const ALERT_AGAIN_MS = 7 * 86_400_000;
+
+/** When each group was last told of, '' for the last alert of any group: in memory or in the hub's storage. */
+export interface AlertLog {
+  last(key: string): number;
+  mark(key: string, at: number): void;
+}
+
+/** The message to send for a report, marked as sent in `log`, or null when it is not worth one. */
+export function alertFor(r: ErrorReport, log: AlertLog): string | null {
+  if (!r.fatal) return null;
+  const key = keyOf(r);
+  if (r.at - log.last(key) < ALERT_AGAIN_MS || r.at - log.last('') < ALERT_EVERY_MS) return null;
+  log.mark(key, r.at);
+  log.mark('', r.at);
+  return `${r.message}\n${frameOf(r)}\n${r.where || '(no station)'}, ${r.kind}, build ${r.build || '(unknown)'}`;
+}
+
+/** Posts an alert, linking to the errors page. Never throws: a failed alert is only logged. */
+export async function sendAlert(url: string, text: string, page: string, log: (message: string) => void): Promise<void> {
+  try {
+    const response = await fetch(url, { method: 'POST', body: text, headers: { title: 'Under Stockholm: the game stopped for a player', click: page }, signal: AbortSignal.timeout(8000) });
+    if (!response.ok) log(`alert: ${response.status}`);
+  } catch (err) {
+    log(`alert: ${err instanceof Error ? err.message : err}`);
+  }
 }
 
 const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
