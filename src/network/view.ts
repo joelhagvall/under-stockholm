@@ -158,7 +158,9 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
     </header>
     <button type="button" class="net-close">${text.back}</button>
     <div class="net-bar">
-      <label class="net-time"><span>${text.time}</span><input type="range" min="0" max="1439" step="1"><output></output></label>
+      <label class="net-time"><span>${text.time}</span><input type="range" min="0" max="1439" step="1" aria-label="${text.time}"><output></output></label>
+      <button type="button" class="net-more" aria-expanded="false" aria-controls="net-extra">${text.more}</button>
+      <div class="net-extra" id="net-extra">
       <div class="net-buttons">
         <button type="button" class="net-day">${text.day}</button>
         <button type="button" class="net-toggle net-sound" aria-pressed="false">${text.sound}</button>
@@ -170,6 +172,7 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
       <label class="net-morph"><span>${text.geo}</span><input type="range" min="0" max="1" step="0.01" value="0" aria-label="${text.morph}"><span>${text.schematic}</span></label>
       <label class="net-pick"><span>${text.pick}</span><select name="station"><option value="">${text.pickNone}</option></select></label>
       <p class="net-hint" role="status">${text.hint}</p>
+      </div>
       <p class="net-credit">${text.heights} · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">${text.buildings}</a></p>
     </div>
     <div class="net-fade"></div>
@@ -203,6 +206,13 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
   const realButton = q<HTMLButtonElement>('.net-real');
   const morphInput = q<HTMLInputElement>('.net-morph input');
   const fade = q<HTMLDivElement>('.net-fade');
+  // On a phone everything but the clock folds away, so the bar leaves the network in view (network.css).
+  const moreButton = q<HTMLButtonElement>('.net-more');
+  moreButton.addEventListener('click', () => {
+    const open = moreButton.getAttribute('aria-expanded') !== 'true';
+    moreButton.setAttribute('aria-expanded', String(open));
+    moreButton.closest('.net-bar')!.classList.toggle('is-open', open);
+  });
   // Players who ask for less motion get no camera flight, no breathing stations and no flickering fireflies.
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const numbers = new Intl.NumberFormat(document.documentElement.lang || 'sv');

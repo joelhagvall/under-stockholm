@@ -53,8 +53,8 @@
 }
 .net button:hover:not(:disabled) { background: #1a3144; }
 .net button:focus-visible, .net input:focus-visible { outline: 3px solid #ffb444; outline-offset: 2px; }
-.net button[aria-pressed='true'] { background: #ffb444; color: #10202d; border-color: #ffb444; }
-.net button[aria-pressed='true']:hover:not(:disabled) { background: #ffc766; }
+.net button[aria-pressed='true'], .net button[aria-expanded='true'] { background: #ffb444; color: #10202d; border-color: #ffb444; }
+.net button[aria-pressed='true']:hover:not(:disabled), .net button[aria-expanded='true']:hover:not(:disabled) { background: #ffc766; }
 .net button:disabled { opacity: 0.45; cursor: default; }
 .net-close { position: absolute; right: max(16px, env(safe-area-inset-right)); top: max(14px, env(safe-area-inset-top)); }
 
@@ -79,6 +79,8 @@
 .net-morph input { width: 120px; }
 .net-pick select { min-height: 36px; max-width: 200px; padding: 4px 8px; border: 1px solid #d8e3ec55; border-radius: 3px; background-color: #10202d; color: #e8ecf2; color-scheme: dark; }
 .net-pick select:focus-visible { outline: 3px solid #ffb444; outline-offset: 2px; }
+.net-extra { display: contents; }
+.net-more { display: none; }
 .net-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
 .net-hint { flex: 1 1 100%; margin: 0; font-size: 13px; color: #9aa6b6; }
 .net-credit { flex: 1 1 100%; margin: 0; font-size: 11px; color: #9aa6b6; }
@@ -115,7 +117,13 @@
 @media (max-width: 640px) {
   .net-head h1 { font-size: 18px; }
   .net-lead { display: none; }
-  .net-bar { gap: 8px 12px; padding: 8px 10px; }
-  .net-time input { width: calc(100vw - 150px); }
+  .net-bar { gap: 8px; padding: 8px 10px; }
+  .net-time { flex: 1 1 0; min-width: 0; gap: 8px; }
+  .net-time span { display: none; }
+  .net-time input { flex: 1 1 auto; width: auto; min-width: 0; }
+  .net-more { display: block; }
+  .net-bar button { min-height: 36px; padding: 6px 10px; font-size: 13px; }
+  .net-bar:not(.is-open) .net-extra { display: none; }
+  .net-bar.is-open .net-extra { display: flex; flex-wrap: wrap; gap: 8px 12px; width: 100%; }
   .net-hint { display: none; }
 }

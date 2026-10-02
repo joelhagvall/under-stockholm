@@ -31,6 +31,7 @@
     "onlyNow": "SL:s tåg finns bara för just nu, så det här är spelets tidtabell.",
     "timetableNote": "Spelets tidtabell: samma tåg för alla som spelar.",
     "exposure": "Dagens exponering",
+    "more": "Fler val",
     "hint": "Dra för att vrida, scrolla för att zooma. Klicka på en station för att åka dit. Höjderna är utdragna, mer ju längre bort du är, utom i sann skala.",
     "back": "Tillbaka",
     "dive": "Åker till {station} …",

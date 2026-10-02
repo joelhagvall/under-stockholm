@@ -31,6 +31,7 @@
     "onlyNow": "SL’s trains exist only for right now, so this is the game’s timetable.",
     "timetableNote": "The game’s timetable: the same trains for everyone playing.",
     "exposure": "Today’s exposure",
+    "more": "More",
     "hint": "Drag to turn, scroll to zoom. Click a station to go there. Heights are stretched, more the further out you are, except at true scale.",
     "back": "Back",
     "dive": "Going to {station}…",
