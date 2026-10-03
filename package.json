@@ -19,6 +19,7 @@
     "release": "RECORDINGS=0 bun scripts/check.ts",
     "deploy": "bun scripts/deploy.ts",
     "nightly": "bun scripts/nightly.ts",
+    "logs": "bun scripts/logs.ts",
     "prepare": "git config core.hooksPath scripts/hooks || true"
   },
   "dependencies": {
