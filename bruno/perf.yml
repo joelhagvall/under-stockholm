@@ -1,0 +1,18 @@
+info:
+  name: perf
+  type: http
+  seq: 8
+
+http:
+  method: GET
+  url: https://understockholm.com/perf
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: Aggregerade prestandarapporter + dagens budgetförbrukning (JSON; med Accept: text/html blir det en sida).

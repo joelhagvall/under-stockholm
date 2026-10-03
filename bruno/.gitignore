@@ -1,0 +1,2 @@
+# Secrets (NOTES_ADMIN_TOKEN for DELETE /notes)
+.env*

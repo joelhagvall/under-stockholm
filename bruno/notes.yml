@@ -1,0 +1,18 @@
+info:
+  name: notes
+  type: http
+  seq: 7
+
+http:
+  method: GET
+  url: https://understockholm.com/notes
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: Lapparna på personalrummets anslagstavlor.
