@@ -3,7 +3,7 @@ import { expect, test } from 'bun:test';
 import { CONNECTORS, NETWORK } from '../src/game/line';
 import { LINES } from '../src/landing/lines';
 import { GEO, project, SHARED_DEPTH, WATER } from '../src/network/geo';
-import { allRoutes, depthOf, LINE_POINTS, linePoints, STATIONS, trainPoint } from '../src/network/data';
+import { allRoutes, alongTrack, depthOf, LINE_POINTS, linePoints, STATIONS, trainPoint } from '../src/network/data';
 import { decodeTerrain, extent, groundOf, type TerrainFile } from '../src/network/terrain';
 
 test('every station of every line has a place, and nothing else does', () => {
@@ -122,4 +122,21 @@ test('each end of the connecting track lies in a tunnel of its line, leaving tow
     expect(NETWORK.layout.links.some((l) => l.a === a && l.b === b && !l.portal), `${c.from} to ${c.to}`).toBe(true);
     expect(NETWORK.stations[b].open ?? false).toBe(false);
   }
+});
+
+test('the cars of a train are spaced in meters along the track, whatever each stretch between stations measures', () => {
+  // Two stretches, 100 m and then 1000 m, with a bend at the station between them.
+  const points = [{ east: 0, north: 0 }, { east: 100, north: 0 }, { east: 100, north: 1000 }].map((p) => ({ ...p, depth: 20, y: -20 }));
+  expect(alongTrack(points, 0.5, 0)).toBe(0.5);
+  expect(alongTrack(points, 0.5, 30)).toBeCloseTo(0.8);
+  // Over the station: 50 m to it, then 100 m into the long stretch.
+  expect(alongTrack(points, 0.5, 150)).toBeCloseTo(1.1);
+  expect(alongTrack(points, 1.1, -150)).toBeCloseTo(0.5);
+  // Both ends of a car across the bend lie on the track, the right distance from the station.
+  const ahead = trainPoint(points, alongTrack(points, 1, 20), 0.5);
+  const behind = trainPoint(points, alongTrack(points, 1, -20), 0.5);
+  expect(ahead.east).toBeCloseTo(100);
+  expect(ahead.north).toBeCloseTo(20);
+  expect(behind.east).toBeCloseTo(80);
+  expect(behind.north).toBeCloseTo(0);
 });

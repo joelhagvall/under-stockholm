@@ -141,6 +141,25 @@ export function trainPoint(points: NetPoint[], s: number, row: number, relief?: 
   return { east: p.east - dy * side, north: p.north + dx * side, depth: p.depth, y: p.y };
 }
 
+/**
+ * The place `meters` further along the route than `s` (behind it when negative), in the same units as `s`: each stretch
+ * between two stations is walked at its own length, and past the ends at `REACH_STEP` a unit, as `trainPoint` draws them.
+ */
+export function alongTrack(points: NetPoint[], s: number, meters: number): number {
+  const n = points.length - 1;
+  const length = (k: number) => (k < 0 || k >= n ? REACH_STEP : Math.hypot(points[k + 1].east - points[k].east, points[k + 1].north - points[k].north) || 1);
+  let t = s;
+  let left = meters;
+  for (let guard = 0; Math.abs(left) > 1e-9 && guard < 64; guard++) {
+    const k = left > 0 ? Math.floor(t) : Math.ceil(t) - 1;
+    const room = (left > 0 ? k + 1 - t : t - k) * length(k);
+    if (Math.abs(left) <= room) return t + left / length(k);
+    t = left > 0 ? k + 1 : k;
+    left -= Math.sign(left) * room;
+  }
+  return t;
+}
+
 /** A train's point, given every route's points for the current morph (`routes[line][route]`). */
 export function placeTrain(routes: NetPoint[][][], line: number, train: MapTrain, relief?: Relief): NetPoint {
   return trainPoint(routes[line][train.route], train.s, train.row, relief);

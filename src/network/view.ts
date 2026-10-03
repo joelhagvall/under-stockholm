@@ -14,7 +14,7 @@ import { realTrainsAvailable } from '../game/sl';
 import { LINES } from '../landing/lines';
 import { fetchSightings, RealTrains } from '../landing/realTrains';
 import { gameTrains, layout, ROUTE_STATIONS, type MapTrain } from '../landing/trains';
-import { allRoutes, blend, depthOf, FLAT, lerp, linePoints, placeTrain, silverTrain, stationsOf, trainPoint, type Ground, type LinePoints, type NetPoint, type Relief } from './data';
+import { allRoutes, alongTrack, blend, depthOf, FLAT, lerp, linePoints, placeTrain, silverTrain, stationsOf, trainPoint, type Ground, type LinePoints, type NetPoint, type Relief } from './data';
 import { dayOf, posterFile, renderPoster, type ExposureDay, type ExposureView } from './exposure';
 import { cityGeometry, groundGeometry, groundTexture, section, sectionGeometry, type CityTile } from './surface';
 import { decodeTerrain, groundOf, type Terrain, type TerrainFile } from './terrain';
@@ -449,7 +449,10 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
   const carAt = new Vector3();
   const carAhead = new Vector3();
   const carBehind = new Vector3();
-  const alongX = new Vector3(1, 0, 0);
+  const worldUp = new Vector3(0, 1, 0);
+  const carUp = new Vector3();
+  const carAcross = new Vector3();
+  const carBasis = new Matrix4();
   const carColour = new Color();
   const white = new Color('#ffffff');
   const ghostGeo = new BufferGeometry();
@@ -867,25 +870,30 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
       col.setXYZ(n, c.r * opacity, c.g * opacity, c.b * opacity);
       n++;
       if (showCars) {
-        // Each unit at its own place along the track, so the train bends through the curves as it runs.
+        // Each unit at its own place along the track, so the train bends through the curves as it runs: measured in
+        // meters along it, as the stretches between stations differ in length, and drawn from one end to the other, so
+        // a unit across a station's bend keeps both ends on the track.
         const route = routes[li][train.route];
         const at = (s: number, out: Vector3) => toScene(trainPoint(route, s, train.row, relief), out);
-        const a = trainPoint(route, train.s - 0.01, train.row, relief);
-        const b = trainPoint(route, train.s + 0.01, train.row, relief);
-        const perStep = Math.max(1, Math.hypot(b.east - a.east, b.north - a.north) / 0.02);
         // A little thicker than the tube, so the car shows through its glow.
         const thick = 0.32 * size * 2.4;
         const carLength = CAR.length * stretchCars;
         carColour.copy(c).lerp(white, 0.25).multiplyScalar(opacity);
         for (let u = 0; u < CAR.units; u++) {
-          const s = train.s + ((u - (CAR.units - 1) / 2) * (carLength + CAR.gap * stretchCars)) / perStep;
-          at(s, carAt);
-          at(s + carLength / 2 / perStep, carAhead);
-          at(s - carLength / 2 / perStep, carBehind);
+          const middle = (u - (CAR.units - 1) / 2) * (carLength + CAR.gap * stretchCars);
+          at(alongTrack(route, train.s, middle + carLength / 2), carAhead);
+          at(alongTrack(route, train.s, middle - carLength / 2), carBehind);
+          carAt.addVectors(carAhead, carBehind).multiplyScalar(0.5);
           carAhead.sub(carBehind);
           const len = carAhead.length();
           if (len < 1e-6) continue;
-          carQuat.setFromUnitVectors(alongX, carAhead.divideScalar(len));
+          // Turned to the track with the roof up: the shortest turn from +x would roll each car its own way.
+          carAhead.divideScalar(len);
+          carAcross.crossVectors(carAhead, worldUp);
+          if (carAcross.lengthSq() < 1e-8) carAcross.set(0, 0, 1);
+          carAcross.normalize();
+          carUp.crossVectors(carAcross, carAhead);
+          carQuat.setFromRotationMatrix(carBasis.makeBasis(carAhead, carUp, carAcross));
           carScale.set(len, thick, thick);
           matrix.compose(carAt, carQuat, carScale);
           cars.setMatrixAt(carCount, matrix);
