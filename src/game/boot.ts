@@ -2,7 +2,7 @@ import './gfx/roundRect';
 import { usesTouchControls } from '../device';
 import { chosenLang, saveLang } from '../lang';
 import { TouchControls } from './touchControls';
-import { AdditiveBlending, Color, Fog, HemisphereLight, MeshBasicMaterial, PerspectiveCamera, Scene, Vector3, WebGLRenderer, WebGLRenderTarget, type Object3D } from 'three';
+import { AdditiveBlending, Color, Fog, HemisphereLight, MeshBasicMaterial, PerspectiveCamera, Scene, Vector3, WebGLRenderer, WebGLRenderTarget, type BufferGeometry, type Object3D } from 'three';
 import { Audio } from './audio';
 import { announcementAt, AnnouncementTracker } from './announcements';
 import { RECORDED_ANNOUNCEMENTS, STATION_RECORDINGS } from './announcementSignal';
@@ -106,6 +106,8 @@ const FPS_BATTERY = 30;
 const FRAME_SLACK_MS = 2.5;
 /** How long a lost WebGL context is waited for before the page comes back without it, in ms. */
 const CONTEXT_WAIT = 4000;
+/** A context lost this soon after the tab is shown again was lost while it was hidden (ms). */
+const CONTEXT_AWAY = 10_000;
 /** How far off a train's inside is still drawn (see `Train.setInteriorShown`): about as far as its passengers show. */
 const INTERIOR_REACH = 230;
 /** Trains each track's rows on the platform boards list, as SL's do. */
@@ -672,7 +674,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   // Handing in comes ahead of topping up the card at the same booth: the nearest wins, and the first on a tie.
   world.interactables.unshift(...lost.booths);
   // What the player carries, pictured from the things' own models.
-  const bag = new Bag(hud.root, hud.pause.querySelector<HTMLElement>('#pause-book')!, renderIcons(renderer, propMaterial(), LOST_KINDS.map((kind) => [kind, lost.geometry(kind)])), BAG_SIZE,
+  const bag = new Bag(hud.root, hud.pause.querySelector<HTMLElement>('#pause-book')!, renderIcons(renderer, propMaterial(), LOST_KINDS.map((kind): [string, BufferGeometry] => [kind, lost.geometry(kind)])), BAG_SIZE,
     (kind) => lost.nameOf(kind));
   bag.set(lost.carried);
   const platformLife = new PlatformLife(scene, {
@@ -729,10 +731,14 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   const canvas = renderer.domElement;
   // The baked world lives only on the GPU (`dropArray` in `section.ts`), so a lost context cannot be filled again:
   // the page comes back instead, where the player stood, also when the browser never restores the context. The loss
-  // is reported, since to the player it only looks like the game jumping back.
+  // is reported, since to the player it only looks like the game jumping back: apart, a loss in a tab that was just
+  // hidden (a phone freeing a page in the background, which the reload handles) from one in the middle of play.
+  let shownAt = -Infinity;
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) shownAt = performance.now(); });
   canvas.addEventListener('webglcontextlost', (event) => {
     event.preventDefault();
-    reportError(new Error('WebGL context lost'), false);
+    const away = document.hidden || performance.now() - shownAt < CONTEXT_AWAY;
+    reportError(new Error(away ? 'WebGL context lost in the background' : 'WebGL context lost while playing'), false);
     try { rememberPlace(); } catch { /* The page comes back to the last place kept. */ }
     window.setTimeout(() => { comeBack(); location.reload(); }, CONTEXT_WAIT);
   });
