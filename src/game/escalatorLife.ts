@@ -2,7 +2,8 @@ import { type Scene, type Vector3 } from 'three';
 import { drawFigure, figureMesh, hideFigure, paintFigure } from './figures';
 import { passengerLook } from './crowd';
 import { escalatorHeight, escalatorRun, onEscalatorTread } from './escalatorMotion';
-import text from './i18n/sv.json';
+import sv from './i18n/sv.json';
+import { text } from './i18n/text';
 import { ESC_ANGLE, ESC_DESIGN, ESC_RISE, ESC_SPEED } from './layout';
 import { playRecording } from './recordings';
 import { Spatial, type AudioOut } from './sfx';
@@ -160,7 +161,7 @@ export class EscalatorLife {
   /** Ursäkta, a sigh, then the rule spelled out. Stepping right earns a quiet thank you. */
   private complain(dt: number, blocker: Rider | null, esc: EscalatorZone, out: AudioOut | null): void {
     if (!blocker) {
-      if (this.asked && this.blocked > 0) this.events.say(text.escalator.thanks, 2);
+      if (this.asked && this.blocked > 0) this.events.say(sv.escalator.thanks, 2);
       this.blocked = 0;
       this.complaints = 0;
       this.asked = false;
@@ -178,13 +179,13 @@ export class EscalatorLife {
     }
     if (step === 0) {
       this.events.say(text.escalator.excuse, 3);
-      this.events.speak(text.escalator.excuseSpoken, 1, 1.05);
+      this.events.speak(sv.escalator.excuseSpoken, 1, 1.05);
     } else if (step === 1) {
       this.events.say(text.escalator.sigh, 3);
       if (out && this.voice) playRecording(out, this.voice.input, 'sigh', SIGH);
     } else {
-      this.events.say(text.escalator.rule, 4);
-      this.events.speak(text.escalator.ruleSpoken, 0.9, 1.1);
+      this.events.say(sv.escalator.rule, 4);
+      this.events.speak(sv.escalator.ruleSpoken, 0.9, 1.1);
     }
   }
 }

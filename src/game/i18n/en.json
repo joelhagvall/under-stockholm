@@ -20,6 +20,14 @@
   "standHint": "F · Stand up",
   "seated": "You are sitting down. Press F to stand up.",
   "trackWarning": "Track area! Press E to climb up.",
+  "area": {
+    "track": "Track area",
+    "escalator": "Escalator",
+    "hall": "Ticket hall",
+    "street": "Street level",
+    "tunnel": "Tunnel",
+    "forbidden": "Track area! No unauthorised access."
+  },
   "motion": "Carriage sway",
   "motionOn": "Carriage sway on",
   "motionOff": "Carriage sway off",
@@ -48,9 +56,104 @@
     "use": "Use",
     "driverHelp": "Drive: + and − move the controller."
   },
+  "service": {
+    "corridor": "Service corridor",
+    "staffRoom": "Staff room",
+    "emergencyExit": "Emergency exit",
+    "pushPrompt": "E · Push the door",
+    "lockedExit": "The door is locked and alarmed. The emergency exit leads up to Vasagatan, but only when there is a fire.",
+    "coffeePrompt": "E · Have a cup of coffee",
+    "coffee": "The machine coughs up a cup. It is lukewarm and more bitter than you thought.",
+    "shelter": "Shelter",
+    "shelterStairs": "Stairs to the shelter",
+    "crankPrompt": "E · Crank the ventilation",
+    "crank": "You crank. The fan coughs into life and you feel a faint draught on your cheek.",
+    "reserveExit": "The reserve exit was welded shut long ago.",
+    "shelterLock": "Airlock",
+    "shelterCommand": "Shelter command",
+    "shelterFilters": "Filter room",
+    "shelterToilets": "Dry toilets",
+    "showerPrompt": "E · Turn on the decontamination shower",
+    "shower": "The tap squeaks. A few rusty drops, then nothing.",
+    "masksPrompt": "E · Look at the gas masks",
+    "masks": "Skyddsmask 90, sizes 2 and 3. The filters expired in 1998.",
+    "radioPrompt": "E · Turn on the radio",
+    "radioOffPrompt": "E · Turn off the radio",
+    "radio": [
+      "Static, and far away someone reading the shipping forecast.",
+      "”… viktigt meddelande till allmänheten …” An exercise from sometime in the eighties, on tape.",
+      "The radio is tuned to local radio, but all you can hear is the rock."
+    ],
+    "radioOff": "The radio goes quiet with a click.",
+    "phonePrompt": "E · Pick up the receiver",
+    "phone": "No dial tone. A note under the receiver: ”Ledningscentralen · lokal 2210”.",
+    "mapPrompt": "E · Study the map",
+    "map": "The shelters of Kungsholmen, circled in red. Someone has written ”vatten?” in pencil by Rådhuset.",
+    "toiletPrompt": "E · Look in",
+    "toilet": "A dry toilet: a bucket, a seat and a roll of plastic bags. Someone has drawn a heart on the wall."
+  },
   "loading": {
     "title": "Building the metro…",
     "note": "Blasting the rock, casting the platforms and fitting the escalators."
+  },
+  "clock": {
+    "closedCaption": "Service has ended for the night. The first train leaves at {time}.",
+    "depot": "The train went to the depot. You had to get off at the turnback."
+  },
+  "escalator": {
+    "excuse": "”Ursäkta.” Someone behind you wants to pass on the left.",
+    "sigh": "Someone behind you sighs loudly."
+  },
+  "ambience": {
+    "draft": "A cold draught blows out of the tunnel mouth.",
+    "prosit": "Someone sneezes. ”Prosit!” says someone else.",
+    "phoneMusic": "Someone is playing music from their phone speaker. People look up and sigh.",
+    "passing": "An oncoming train thunders past in the tunnel.",
+    "vendorPrompt": "E · Buy the street paper",
+    "vendorBought": "You buy a copy for 80 kr. ”Tack, ha en fin dag!”",
+    "vendorBroke": "You don't have enough on your card. ”Ingen fara, ha en fin dag ändå!”",
+    "attendantNod": "The staff in the gate booth look up from the screen and nod.",
+    "tourist": [
+      "Two tourists with an unfolded map ask whether the train goes to Gamla stan. It doesn't.",
+      "A tourist asks where to buy tickets to Skansen.",
+      "Someone asks if this really is the world's longest art exhibition."
+    ]
+  },
+  "night": {
+    "cleaner": "The cleaning machine hums past."
+  },
+  "kymlinge": {
+    "neverOpened": "The station that never opened",
+    "signPrompt": "E · Wipe the sign",
+    "sign": "Under the dust it says KYMLINGE. Someone has written a date in the margin: autumn 1977.",
+    "clockPrompt": "E · Look at the clock",
+    "clock": "The clock has stopped at 03:47. The second hand trembles but gets nowhere.",
+    "phonePrompt": "E · Pick up the receiver",
+    "phone": "The line hisses. Far away someone says: ”Nästa station.”"
+  },
+  "silverpilen": {
+    "status": "Next: Kymlinge",
+    "sighted": "A silver train glides past without a sound.",
+    "through": "A cold draught went straight through you. Silverpilen.",
+    "standing": "A silver train stands at the platform with its doors open. Nobody gets off."
+  },
+  "fares": {
+    "tapPrompt": "E · Tap your card",
+    "valid": "Single ticket valid until {time}",
+    "charged": "Single ticket 42 kr. Balance {balance} kr. Valid until {time}.",
+    "chargedBank": "Paid by bank card. Single ticket 42 kr, valid until {time}.",
+    "dodged": "You dodged the fare. Keep an eye out for inspectors.",
+    "ticketless": "No valid ticket",
+    "checkTitle": "Ticket inspection",
+    "showPrompt": "E · Show your travel card",
+    "checkRemind": "The inspector is waiting to see your ticket.",
+    "fined": "You have no valid ticket. Penalty fare 1,850 kr. They will walk you off at the next station.",
+    "escorted": "The inspectors walked you off the train.",
+    "boarded": "Two inspectors got on at the other end of the train.",
+    "debt": "Unpaid penalty fares: {amount} kr",
+    "touchTap": "Tap",
+    "topUpPrompt": "E · Top up your card with 200 kr",
+    "toppedUp": "You topped up {amount} kr. Balance {balance} kr."
   },
   "driver": {
     "title": "Driver mode",
@@ -85,6 +188,29 @@
     "count": "{count} others underground right now",
     "one": "One other underground right now"
   },
+  "weather": {
+    "snow": "It is snowing outside.",
+    "rain": "It is raining outside.",
+    "clear": "It is dry outside."
+  },
+  "busker": {
+    "prompt": "E · Drop a coin in the case",
+    "thanks": "The musician nods and changes key."
+  },
+  "rush": {
+    "gatePrompt": "E · Tap your card",
+    "gateRed": "The gate flashes red: ”Pendeltåget är inte byggt än.” Now you just have to squeeze your way back.",
+    "liftPrompt": "E · Press the lift button",
+    "liftComing": "The button lights up yellow. The lift is on its way. It has been on its way since 2017.",
+    "shovePrompt": "E · Elbow your way through",
+    "punchPrompt": "E · Elbow · Q · Punch",
+    "knocked": "You were shoved back.",
+    "guards": "The security guards take you by the arms and walk you out to the ticket hall. ”Nu lugnar vi ner oss.”",
+    "finish": "You made it through in {time}: {shoves} shoves, {punches} punches and {fights} rows.",
+    "record": "New record!",
+    "best": "Record: {time}."
+  },
+  "use": "use / climb up",
   "voices": {
     "toggle": "Voices around you",
     "hint": "People around you speak their lines aloud in the browser’s Swedish voice. The captions show either way."
@@ -98,19 +224,16 @@
     "failed": "SL is not answering right now. The game’s own timetable is used meanwhile.",
     "moved": "The service changes over. You are on the platform."
   },
-  "use": "use / climb up",
-  "saver": {
-    "start": "Screensaver"
+  "festive": {
+    "lucia": "A Lucia procession glides along the platform. The candles flicker and the singing echoes in the rock.",
+    "students": "School leavers in white caps jump and sing in the carriage. Someone's balloon gets stuck on the ceiling.",
+    "party": "A gang on their way home from the bar sing a little too loudly.",
+    "shoePrompt": "E · Look at the shoe",
+    "shoe": "A lone red high-heeled shoe. Someone has had a long night."
   },
-  "loop": {
-    "badge": "Time loop",
-    "wakeButton": "Wake up in the present"
-  },
-  "era": {
-    "toggle": "Time machine",
-    "now": "Now",
-    "to1975": "It is 1975. The green trains roll, the signs click and nobody looks at a phone.",
-    "toNow": "Back in the present."
+  "critters": {
+    "pigeons": "The pigeons take off with a clatter and fly up toward the street.",
+    "rat": "A rat darts along the track bed by the platform edge."
   },
   "lost": {
     "items": {
@@ -124,7 +247,23 @@
       "hat": ["a green beanie", "the beanie"],
       "lunchbox": ["a lunch box", "the lunch box"]
     },
+    "take": "Pick up",
+    "phonePrompt": "E · Answer the phone",
     "phoneName": "a mobile phone",
+    "phoneDefinite": "the phone",
+    "taken": "You put {item} in your bag.",
+    "bagHint": "Hand in lost property at the ticket booth in any ticket hall and you get a finder's reward.",
+    "full": "Your bag is full. Hand in what you have found at the ticket booth first.",
+    "fullPrompt": "Bag full · hand it in at the ticket booth",
+    "handInPrompt": "E · Hand in lost property ({count})",
+    "handedTitle": "Lost property handed in",
+    "handedIn": "The attendant takes {things} and writes them down. Finder's reward: {reward} kr on your card.",
+    "one": "one thing",
+    "many": "{count} things",
+    "completeTitle": "The whole collection",
+    "complete": "You have found one of everything people drop down here. The attendant gives you {bonus} kr extra.",
+    "newKind": "New!",
+    "bagStatus": "Bag: {count} of {capacity}",
     "collection": "Lost property",
     "about": {
       "mitten": "A blue mitten with a white cuff. The other one is surely still at some nursery school.",
@@ -141,17 +280,284 @@
     "pick": "Choose a thing to read about it.",
     "hint": "Not found yet. People leave things on the benches, by the pillars and in the ticket halls, a few a day at every station.",
     "phoneHint": "Not found yet. Once a day a phone rings on a bench somewhere in the metro.",
+    "ringing": "A mobile phone is ringing on the bench. Nobody seems to miss it.",
     "tally": "Lost property: {count}"
+  },
+  "sax": {
+    "prompt": "E · Drop a coin in the sax case",
+    "thanks": "The saxophonist winks and slides into a new tune."
+  },
+  "platform": {
+    "collector": "A man with a big blue bag goes from bin to bin looking for cans to return.",
+    "farewell": "A couple say goodbye at the doors. One gets on, the other stays and waves as the train leaves.",
+    "running": "Someone runs for their life toward the doors …",
+    "madeIt": "… and squeezes in at the last second.",
+    "missed": "… but the doors close in their face. Next train in a few minutes."
+  },
+  "kiosk": {
+    "prompt": "E · Buy coffee and a cinnamon bun, 45 kr",
+    "bought": "”Kaffe och bulle, det blir 45.” The bun is gone in three bites. The coffee is hot and steaming.",
+    "broke": "Card declined. ”Du kan fylla på i spärrkiosken.”",
+    "already": "You already have a cup.",
+    "empty": "The coffee is finished. You drop the cup in the bin.",
+    "prompt1975": "E · Buy coffee and a Danish pastry, 3 kr",
+    "bought1975": "”Det blir tre kronor.” The Danish is sticky and the coffee burnt, just as it should be."
+  },
+  "carriage": {
+    "school": "A whole school class in hi-vis vests has taken over the carriage. The teacher counts heads.",
+    "seatRuleEmpty": "New passengers get on. Everyone would rather take an empty seat than the one next to you.",
+    "seatRuleFull": "The carriage is full. Someone reluctantly sits down next to you and stares out of the window."
+  },
+  "escape": {
+    "passage": "Cross passage",
+    "stair": "Emergency exit",
+    "prompt": "E · Push the emergency exit door",
+    "locked": "The door leads up to the street, but it is alarmed. It is meant for when there is a fire."
+  },
+  "express": {
+    "caption": "An empty train with the sign ”Ej i trafik” thunders past without stopping. The air hits you."
+  },
+  "trackWork": {
+    "seen": "Further into the tunnel orange lights flash. A yellow work vehicle stands on the track and track workers in hi-vis are grinding a joint."
+  },
+  "brake": {
+    "prompt": "E · Pull the emergency brake",
+    "pulled": "You pull the emergency brake. The train slams to a halt in the tunnel, people lose their balance and someone snaps: ”Vad gör du?!”"
+  },
+  "transfer": {
+    "arrived": "Through Blå gången to the red and green lines."
+  },
+  "explore": {
+    "found": "New place",
+    "tally": "Explored: {count} of {total} places"
+  },
+  "key": {
+    "takePrompt": "E · Take the key off the hook",
+    "taken": "You take the key with the red tag. It says ”Personal · Larmade dörrar” on it.",
+    "unlockPrompt": "E · Unlock with the staff key",
+    "alarm": "The alarm wails as the door flies open. You take the stairs up to the street, walk round the block and come back in through the station entrance.",
+    "held": "Staff key"
+  },
+  "art": {
+    "prompt": "E · Read about the art here",
+    "progress": "Art walk: {count} of {total} stations",
+    "done": "You have done the whole art walk along the blue line. The world’s longest art exhibition, they say.",
+    "stations": {
+      "Kungsträdgården": [
+        "A palace underground",
+        "The artist Ulrik Samuelson made the station in 1977 as an excavated garden, with finds from the Makalös palace that once stood above it. In the game: the green vault, the red and white check and the fluted columns."
+      ],
+      "T-Centralen": [
+        "Blue vines",
+        "In 1975 Per Olof Ultvedt painted the rock white with blue vines and leaves. Among the plants you glimpse silhouettes of the workers who blasted out the station. In the game the vines are drawn anew, in the same spirit."
+      ],
+      "Rådhuset": [
+        "The cave",
+        "Here the rock looks like an excavation in terracotta, with fragments sticking out of the walls, as if the city beneath the city had been dug up. The game’s version is a warm cave with blocks of stone around the tunnel mouths."
+      ],
+      "Fridhemsplan": [
+        "The sea",
+        "The game’s take: muted shores, stones in display cases and a wooden bird hanging over the platform. The blue line’s stations are blasted caves, and here the rock gets to be a beach."
+      ],
+      "Stadshagen": [
+        "The sports ground",
+        "Stadshagen lies near the sports grounds on Kungsholmen. The game gives the station a red running track that follows the wall all the way round."
+      ],
+      "Västra skogen": [
+        "The birches",
+        "The western forest: the game draws white birch trunks on dark green rock. Here the line splits, toward Akalla one way and Hjulsta the other."
+      ],
+      "Solna centrum": [
+        "Red sky, green forest",
+        "Karl-Olov Björk and Anders Åberg painted a burning red evening sky over a dark spruce forest, with pictures of how the forest and the countryside are changing. It is one of the metro’s best-known stations."
+      ],
+      "Näckrosen": [
+        "Water lilies",
+        "The game’s take on the name, which means water lily: pale water with floating lily pads. In reality the station has motifs from the film studios in Råsunda next door."
+      ],
+      "Hallonbergen": [
+        "Children’s drawings",
+        "The art here is built on children’s drawings: cheerful figures and scribbles in crayon colours on white. The game makes its own squiggles."
+      ],
+      "Kista": ["Circuit board", "Kista is the town of computers and phones. The game’s take: dark blue rock with bright traces, like a circuit board."],
+      "Husby": ["The meadow", "The game’s take: ochre rock and blue flowers low on the walls, like a meadow on Järvafältet."],
+      "Akalla": [
+        "Everyday life in tiles",
+        "Akalla is known for its large painted tiles with scenes from everyday life. The game puts tile panels in yellow, blue and red at eye level."
+      ],
+      "Huvudsta": ["The gold band", "The game’s take: grey-blue rock with a narrow band of gold high up on the wall."],
+      "Solna strand": ["Sky", "The game’s take: a pale sky with drifting clouds, so the rock feels lighter."],
+      "Sundbybergs centrum": ["Sun yellow", "The game’s take: warm yellow rock and brick-red stripes at the bottom. Here you change to the commuter trains and Tvärbanan."],
+      "Duvbo": ["Under water", "The game’s take: deep blue-green water with bubbles rising toward the vault."],
+      "Rissne": [
+        "History on the wall",
+        "Rissne has a timeline through history along its walls. The game draws a dark band with year markings that runs the whole length of the platform."
+      ],
+      "Rinkeby": ["Treasures", "The game’s take: glints of gold in dark rock, like finds from the earth."],
+      "Tensta": ["People and places", "The game’s take: a colourful mural where many colours and people meet."],
+      "Hjulsta": ["The wheels", "The end of the line. The game draws orange wheels on dark rock, since hjul means wheel."]
+    }
+  },
+  "notes": {
+    "prompt": "E · Put up a note on the board",
+    "ask": "Pick a greeting for everyone passing by. The board is in Swedish, like every sign down here.",
+    "phrase": "Greeting",
+    "word": "Word",
+    "things": "In the metro",
+    "stations": "Stations",
+    "send": "Put it up",
+    "cancel": "Cancel",
+    "posted": "You pin up the note. Everyone who comes here can read it.",
+    "local": "You pin up the note. Without a relay only you can see it.",
+    "refused": "That note cannot go up.",
+    "slow": "Wait a while before you put up the next note.",
+    "offline": "The board cannot be reached right now. Try again later."
+  },
+  "saver": {
+    "start": "Screensaver"
+  },
+  "mystery": {
+    "tally": "Clues: {count} of {total}",
+    "found": "Clue",
+    "clues": {
+      "clipping": [
+        "The newspaper clipping",
+        "Yellowed, from 1981: ”Spöktåget: föraren som vägrar köra efter midnatt. ’Hon kommer utan ljud. Står det Kymlinge på skylten ska man inte kliva på’, säger en förare som vill vara anonym.”"
+      ],
+      "logbook": [
+        "The logbook",
+        "A driver’s handwritten logbook. The last spread: ”03.47. Silverfärgat tåg på spår 1, ej i tidtabellen. Inga ljus i hytten. Följde efter till vändspåret. Där fanns inget spår.” Someone has torn out the next page."
+      ],
+      "scratches": [
+        "Scratched into the wall",
+        "Someone has scratched into the concrete with a key: ”HON STANNAR FÖR DEM SOM VÄNTAR. STANNA INTE KVAR EFTER KYMLINGE.”"
+      ],
+      "clock": ["The stopped clock", "The clock at Kymlinge stands at 03.47, the same minute as in the logbook."],
+      "lastPage": [
+        "The last page",
+        "The page torn out of the logbook: ”Jag stannade kvar ombord förbi Kymlinge. Jag vaknade på en bänk på Kungsträdgården klockan fem, när första tåget gick. Det var samma morgon igen.”"
+      ]
+    },
+    "cabinetPrompt": "E · Open the metal cabinet",
+    "cabinetLocked": "The metal cabinet is locked. It says ”Personal” on the door, and the lock looks old.",
+    "clippingPrompt": "E · Read the yellowed clipping",
+    "logbookPrompt": "E · Leaf through the logbook",
+    "scratchesPrompt": "E · Read what is scratched into the wall",
+    "phoneAfter": "Static on the line. A tired voice: ”Stanna kvar ombord, du också. Vi ses i morse.”"
+  },
+  "loop": {
+    "badge": "Time loop",
+    "wake": "You wake up on a bench at Kungsträdgården. It is just before five in the morning and the first train is about to leave. It is the same morning again.",
+    "wakeButton": "Wake up in the present",
+    "back": "You blink. The clock is right again."
+  },
+  "era": {
+    "toggle": "Time machine",
+    "now": "Now",
+    "to1975": "It is 1975. The green trains roll, the signs click and nobody looks at a phone.",
+    "toNow": "Back in the present."
+  },
+  "preacher": {
+    "prompt": "E · Take a leaflet",
+    "leaflet": "You take a leaflet. She lights up: ”Gud välsigne dig, lilla vän!” and goes back to her spot.",
+    "spotted": "The preacher spots you, lowers her sign and comes running.",
+    "passer": "The preacher spots a teenager in a hoodie and runs after him.",
+    "gaveUp": "She stops, catches her breath and goes back to her spot.",
+    "missed": "The doors close in front of her. She is left on the platform, out of breath.",
+    "caught": "She catches up, takes your arm and stands close beside you. Now you get the whole sermon.",
+    "amen": "”Amen!” She lets go of your arm, at last."
   },
   "discover": {
     "title": "Discoveries",
     "button": "Discoveries",
     "progress": "{count} of {total}",
-    "intro": "Everything that can happen down here. What you have not seen yet shows as a clue. Much depends on the time, the day and the weather, so come back another time. The clues are in Swedish.",
+    "intro": "Everything that can happen down here. What you have not seen yet shows as a clue. Much depends on the time, the day and the weather, so come back another time.",
     "found": "Discovered",
     "toast": "{title} · {count} of {total}",
     "unknown": "Not discovered yet",
-    "back": "Back"
+    "back": "Back",
+    "groups": {
+      "platform": "On the platform",
+      "hall": "In the ticket hall",
+      "aboard": "Aboard",
+      "depths": "Behind the doors",
+      "modes": "More to do",
+      "regulars": "The regulars"
+    },
+    "items": {
+      "rat": ["The rat", "Something darts along the track bed when the rails start to sing."],
+      "farewell": ["The farewell", "Two people who will not let go of each other at the doors."],
+      "runner": ["The last second", "The doors close. Someone runs."],
+      "call": ["The call", "Someone talks a little too loudly on the phone on the platform."],
+      "collector": ["The can collector", "Bin after bin."],
+      "lost": ["Lost property", "People drop things. Pick them up and hand them in."],
+      "phone": ["The phone on the bench", "Every day it rings somewhere along the line."],
+      "express": ["Not in service", "A train that has no intention of stopping."],
+      "lucia": ["The Lucia train", "On 13 December, when it is at its darkest."],
+      "shoe": ["The red shoe", "After a long weekend night."],
+      "pigeons": ["The pigeons", "They have walked down the stairs. Walk straight at them."],
+      "preacher": ["The preacher", "Someone stands with a sign at T-Centralen. Get too close."],
+      "sax": ["The saxophonist", "Jazz in Kungsträdgården’s ticket hall. Drop a coin."],
+      "busker": ["The busker", "In the passage toward the commuter trains. Drop a coin."],
+      "kiosk": ["Coffee and a bun", "The kiosk next to the stairs up."],
+      "vendor": ["The street paper", "Someone by the gates says hello. Buy a copy."],
+      "attendant": ["The gate attendant", "The one in the glass booth looks up now and then."],
+      "tourists": ["The tourists", "In summer they cannot find Gamla stan."],
+      "escalator": ["Stand on the right", "Stand still on the left of the escalator. Wait."],
+      "dodged": ["The fare dodger", "Walk past the gates without tapping in."],
+      "inspectors": ["Ticket inspection", "Two in vests board at the other end of the train."],
+      "fined": ["The penalty fare", "Ride without a ticket and get caught."],
+      "school": ["The school class", "A whole carriage in hi-vis vests."],
+      "seat": ["The seat next to you", "Sit down and wait until the carriage fills up."],
+      "brake": ["The emergency brake", "The handle by the door. Emergencies only."],
+      "students": ["The graduates", "Early June, white caps."],
+      "party": ["The pub singalong", "Late on a weekend night, in the carriage."],
+      "prosit": ["Prosit", "Someone sneezes."],
+      "music": ["The phone speaker", "Someone has forgotten their headphones."],
+      "depot": ["To the depot", "Stay on when the train goes in for the night."],
+      "trackWork": ["The track work", "In the middle of the night, somewhere in a tunnel."],
+      "escape": ["The cross passage", "Halfway through the tunnel there is a way up."],
+      "staffCoffee": ["The staff coffee", "The machine in the staff room."],
+      "shelter": ["The shelter", "Deep under Rådhuset. Turn the crank."],
+      "key": ["The staff key", "It hangs on a hook somewhere underground."],
+      "alarm": ["The alarm", "Unlock an alarmed door."],
+      "note": ["The note", "The notice board in the staff room."],
+      "transfer": ["Red and green lines", "At the far end of the passage, beyond the music."],
+      "lift": ["The lift", "Press the button by the commuter trains."],
+      "rush": ["Through the rush", "Make it through the passage when it is at its fullest."],
+      "guards": ["The security guards", "Make too much trouble in the crowd."],
+      "silverpilen": ["Silverpilen", "A train that is not in the timetable. Keep an eye on the board."],
+      "through": ["Straight through", "Stand in the way of what is not there."],
+      "clipping": ["The clipping", "The staff room at T-Centralen."],
+      "kymlinge": ["Kymlinge", "The station that never opened."],
+      "lastPage": ["The last page", "A locked metal cabinet."],
+      "loop": ["The time loop", "Ride Silverpilen all the way."],
+      "art": ["The art", "Read the sign about the art on a platform."],
+      "artDone": ["The whole art walk", "Every station along the blue line."],
+      "perfect": ["Perfect stop", "In driver mode, a few centimetres from the sign."],
+      "era": ["1975", "The time machine in the pause menu."],
+      "real": ["Real trains", "Let SL’s real trains drive the game’s trains."],
+      "powerCut": ["The power cut", "A couple of times a year the power goes, for everyone at once."],
+      "regular-walker": ["The woman with the walker", "Västra skogen, weekdays just before a quarter to eight."],
+      "regular-guitar": ["The guy with the guitar case", "Solna centrum, weekday mornings."],
+      "regular-book": ["The man with the paperback", "Rådhuset, weekday mornings."],
+      "regular-briefcase": ["The woman with the briefcase", "Kungsträdgården, weekday afternoons."],
+      "regular-nurse": ["The nurse", "Skarpnäck, early on weekday mornings."],
+      "regular-builder": ["The builder", "Hässelby strand, early on weekday mornings."],
+      "regular-flowers": ["The man with the flowers", "Gamla stan, late weekday mornings."],
+      "regular-expecting": ["The woman in the green jacket", "Fruängen, weekday mornings."],
+      "regular-laptop": ["The man with the laptop backpack", "Kista, weekday evenings."],
+      "regular-student": ["The student", "Universitetet, weekday afternoons."],
+      "regular-coffee": ["The man with the coffee", "Odenplan, weekday mornings."],
+      "regular-phone": ["The woman with the phone", "Liljeholmen, weekday mornings."],
+      "recognized": ["Recognised", "Come back to the same platform a few weekdays in a row."]
+    }
+  },
+  "intro": {
+    "aboard": "You are on the blue line, pulling into {station}. Press F to stand up and E to use things.",
+    "aboardTouch": "You are on the blue line, pulling into {station}. Tap Stand up to get up.",
+    "platform": "You are at {station}.",
+    "platformLook": "You are at {station}. Click to look around."
   },
   "life": "A life on the blue line",
   "network": "See the whole network",
@@ -181,54 +587,15 @@
     "hint": "Press a key or click to take over",
     "hintTouch": "Tap the screen to take over",
     "scenes": {
-      "now": [
-        "The blue line",
-        "Right now · the same trains for everyone playing"
-      ],
-      "rush": [
-        "Rush hour",
-        "The City passage on a weekday morning"
-      ],
-      "snow": [
-        "Snow and a Christmas tree",
-        "A December evening in the ticket hall"
-      ],
-      "lucia": [
-        "Lucia morning",
-        "13 December, on the platform"
-      ],
-      "era": [
-        "1975",
-        "The time machine · the green trains"
-      ],
-      "silver": [
-        "Silverpilen",
-        "Once an hour, at a minute nobody can predict"
-      ],
-      "trackWork": [
-        "Night in the tunnel",
-        "Track work while the trains rest"
-      ],
-      "kymlinge": [
-        "Kymlinge",
-        "The station that never opened"
-      ]
+      "now": ["The blue line", "Right now · the same trains for everyone playing"],
+      "rush": ["Rush hour", "The City passage on a weekday morning"],
+      "snow": ["Snow and a Christmas tree", "A December evening in the ticket hall"],
+      "lucia": ["Lucia morning", "13 December, on the platform"],
+      "era": ["1975", "The time machine · the green trains"],
+      "silver": ["Silverpilen", "Once an hour, at a minute nobody can predict"],
+      "trackWork": ["Night in the tunnel", "Track work while the trains rest"],
+      "kymlinge": ["Kymlinge", "The station that never opened"]
     }
-  },
-  "intro": {
-    "aboard": "You are on the blue line, pulling into {station}. Press F to stand up and E to use things.",
-    "aboardTouch": "You are on the blue line, pulling into {station}. Tap Stand up to get up.",
-    "dive": "You are on {line}, pulling into {station}.",
-    "platform": "You are at {station}."
-  },
-  "notes": {
-    "ask": "Pick a greeting for everyone passing by. The board is in Swedish, like every sign down here.",
-    "phrase": "Greeting",
-    "word": "Word",
-    "things": "In the metro",
-    "stations": "Stations",
-    "send": "Put it up",
-    "cancel": "Cancel"
   },
   "settings": {
     "button": "Settings",
@@ -251,7 +618,13 @@
     "gamepadOn": "Gamepad connected",
     "gamepadOff": "Gamepad disconnected",
     "sources": "Sources",
-    "credits": { "trains": "Trains and disruptions", "weather": "Weather", "warnings": "Weather warnings", "news": "Newspaper headlines", "map": "Buildings and streets" },
+    "credits": {
+      "trains": "Trains and disruptions",
+      "weather": "Weather",
+      "warnings": "Weather warnings",
+      "news": "Newspaper headlines",
+      "map": "Buildings and streets"
+    },
     "actions": {
       "forward": "Forward",
       "back": "Back",
@@ -280,5 +653,43 @@
     "padPause": "Start · menu, settings and the discovery book.",
     "touchPause": "Pause · menu, settings and the discovery book."
   },
-  "continued": "Back where you were: {station}."
+  "continued": "Back where you were: {station}.",
+  "power": {
+    "out": "The power went. Everything went dark.",
+    "torch": "You turned on your phone’s torch.",
+    "torchTouch": "You turned on your phone’s torch.",
+    "back": "The power is back."
+  },
+  "regulars": {
+    "names": {
+      "walker": "The woman with the walker",
+      "guitar": "The guy with the guitar case",
+      "book": "The man with the paperback",
+      "briefcase": "The woman with the briefcase",
+      "nurse": "The nurse",
+      "builder": "The builder",
+      "flowers": "The man with the flowers",
+      "expecting": "The woman in the green jacket",
+      "laptop": "The man with the laptop backpack",
+      "student": "The student",
+      "coffee": "The man with the coffee",
+      "phone": "The woman on the phone"
+    },
+    "people": {
+      "walker": "The woman with the walker. She stands here every weekday, just before a quarter to eight.",
+      "guitar": "The guy with the guitar case. He gets on here every morning, on his way into town.",
+      "book": "The man with the paperback. He reads on the platform and keeps reading on board.",
+      "briefcase": "The woman with the briefcase. She goes home from here every afternoon.",
+      "nurse": "The nurse, on her way to the morning shift. Same time every weekday.",
+      "builder": "The builder in the hi-vis vest. He takes the first train in, almost.",
+      "flowers": "The man with the flowers. Nobody knows who they are for.",
+      "expecting": "The woman in the green jacket. She always waits by the same pillar.",
+      "laptop": "The man with the laptop backpack, on his way home from the office in Kista.",
+      "student": "The student, on the way home from lectures.",
+      "coffee": "The man with the coffee. The cup is always full when he arrives.",
+      "phone": "The woman on the phone. She talks all the way to the train."
+    },
+    "someone": "Someone you have seen here before",
+    "nod": "{name} nods at you in recognition."
+  }
 }

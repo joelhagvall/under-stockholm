@@ -1,7 +1,7 @@
 import { CanvasTexture, DoubleSide, InstancedMesh, MeshBasicMaterial, Object3D, PlaneGeometry, SRGBColorSpace, Vector3, type Scene } from 'three';
 import { formatClock, hash01 } from './clock';
 import { drawFigure, figureMesh, hideFigure, paintFigure } from './figures';
-import text from './i18n/sv.json';
+import { text } from './i18n/text';
 import { PLATFORM_Y, TRACK_Z, TRAIN_HALF_L } from './layout';
 import { unitAisle } from './trainModel';
 import type { Physics, StaticCollider } from './physics';
@@ -124,7 +124,7 @@ export class Fares {
       line.passages.forEach((z, i) => {
         const dir = Math.sign(line.paidX - line.unpaidX);
         this.interactables.push({
-          pos: new Vector3(line.unpaidX - dir * 0.35, line.y + 1, z), radius: 0.95, prompt: text.fares.tapPrompt,
+          pos: new Vector3(line.unpaidX - dir * 0.35, line.y + 1, z), radius: 0.95, prompt: () => text.fares.tapPrompt,
           enabled: () => state.open[i] <= 0,
           act: () => this.tap(state, i),
         });
@@ -132,7 +132,7 @@ export class Fares {
       this.drawFlaps(state);
       // The staffed booth tops up the card.
       const booth = new Vector3(line.unpaidX - Math.sign(line.paidX - line.unpaidX) * 1.5, line.y + 1, 8.3);
-      this.interactables.push({ pos: booth, radius: 1.3, prompt: text.fares.topUpPrompt, act: () => this.topUp() });
+      this.interactables.push({ pos: booth, radius: 1.3, prompt: () => text.fares.topUpPrompt, act: () => this.topUp() });
     }
     for (const train of trains) {
       const mesh = figureMesh(2);
@@ -143,7 +143,7 @@ export class Fares {
       this.inspectors.set(train, mesh);
     }
     // Holding out the card when asked: E, or the touch Use button.
-    this.interactables.push({ pos: this.askPos, radius: 3.2, prompt: text.fares.showPrompt, urgent: true, enabled: () => this.asking !== null, act: () => this.show() });
+    this.interactables.push({ pos: this.askPos, radius: 3.2, prompt: () => text.fares.showPrompt, urgent: true, enabled: () => this.asking !== null, act: () => this.show() });
   }
 
   get valid(): boolean {

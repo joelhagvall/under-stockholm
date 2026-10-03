@@ -2,7 +2,8 @@ import { BufferAttribute, BufferGeometry, DynamicDrawUsage, Points, PointsMateri
 import { stockholm } from './clock';
 import { drawFigure, figureMesh, paintFigure } from './figures';
 import { glowTexture } from './gfx/textures';
-import text from './i18n/sv.json';
+import sv from './i18n/sv.json';
+import { text } from './i18n/text';
 import { kioskShift } from './world/kiosk';
 import type { StationInfo } from './world/station';
 import type { Interactable } from './world/zones';
@@ -70,7 +71,7 @@ export class HallLife {
     for (const s of stations) {
       if (!hasVendor(s.index)) continue;
       this.interactables.push({
-        pos: new Vector3(hallX(s, VENDOR.a), s.hall.y + 1, VENDOR.z), radius: 1.6, prompt: text.ambience.vendorPrompt,
+        pos: new Vector3(hallX(s, VENDOR.a), s.hall.y + 1, VENDOR.z), radius: 1.6, prompt: () => text.ambience.vendorPrompt,
         enabled: () => vendorHours(this.hours),
         act: () => (this.events.spend(80) ? text.ambience.vendorBought : text.ambience.vendorBroke),
       });
@@ -106,8 +107,8 @@ export class HallLife {
         drawFigure(this.figures, 1, { x: vx, y: s.hall.y, z: VENDOR.z, yaw: s.exitDir * Math.PI / 2, walking: false, arm: greeting ? 'wave' : 'phone', carry: greeting ? undefined : 'paper', look: greeting ? wrap(Math.atan2(feet.x - vx, feet.z - VENDOR.z) - s.exitDir * Math.PI / 2) * 0.8 : Math.sin(this.clock * 0.3) * 0.25 }, this.clock);
         if (greeting && this.greeted !== s.index) {
           this.greeted = s.index;
-          this.events.say(text.ambience.vendorHello, 4);
-          this.events.speak(text.ambience.vendorSpoken, 1.15, 1.1);
+          this.events.say(sv.ambience.vendorHello, 4);
+          this.events.speak(sv.ambience.vendorSpoken, 1.15, 1.1);
         }
       } else drawFigure(this.figures, 1, { x: 0, y: -1000, z: 0, yaw: 0, walking: false }, 0);
       if (distance > 12 && this.greeted === s.index) this.greeted = -1;

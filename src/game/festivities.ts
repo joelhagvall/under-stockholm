@@ -26,7 +26,7 @@ import { hash01, stockholm } from './clock';
 import { LUCIA_STYLE, LUCIA_TUNE, PARTY_STYLE, PARTY_TUNE, sing, STUDENT_STYLE, STUDENT_TUNE } from './choir';
 import { drawFigure, figureMesh, paintFigure } from './figures';
 import { glowTexture } from './gfx/textures';
-import text from './i18n/sv.json';
+import { text } from './i18n/text';
 import { PLATFORM_HALF_L, PLATFORM_Y } from './layout';
 import { MeshBuilder } from './gfx/builder';
 import { rgb } from './gfx/color';
@@ -233,7 +233,7 @@ export class Festivities {
     this.shoe.visible = false;
     scene.add(this.shoe);
     this.interactables.push({
-      pos: this.shoe.position, radius: 1.3, prompt: text.festive.shoePrompt,
+      pos: this.shoe.position, radius: 1.3, prompt: () => text.festive.shoePrompt,
       enabled: () => this.shoe.visible,
       act: () => text.festive.shoe,
     });

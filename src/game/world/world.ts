@@ -115,10 +115,9 @@ const WARM_ALONE = 20_000;
 /**
  * The whole network, as one straight corridor along x (see `routes.ts`): the
  * blue line's trunk from Kungsträdgården to Västra skogen, its branches, and
- * every other line beside it. The blue trunk is built first, in slices
- * (`World.load`). Everything else is laid out at once too (colliders, zones
- * and sign positions), but its geometry is only built when the player comes
- * near, which keeps loading and memory in check.
+ * every other line beside it. The layout is built first, in slices
+ * (`World.load`): colliders, zones and sign positions. Geometry is built
+ * when the player comes near, which keeps loading and memory in check.
  */
 export class World {
   readonly group = new Group();
@@ -194,12 +193,12 @@ export class World {
   }
 
   /**
-   * Builds the blue trunk a slice at a time, handing control back to the
+   * Lays out the network a slice at a time, handing control back to the
    * browser between slices so a loading screen can show `progress` (0 to 1).
    */
   static async load(physics: Physics, net: Network, progress: (fraction: number) => void, sliceMs = LOADING_SLICE_MS): Promise<World> {
     const world = new World(net);
-    const steps = world.build(physics);
+    const steps = world.build(physics, false);
     let sliceStart = performance.now();
     for (;;) {
       const r = steps.next();
@@ -233,14 +232,14 @@ export class World {
     return null;
   }
 
-  /** Lays out the whole network and builds the blue trunk, yielding the fraction done after each part. */
-  private *build(physics: Physics): Generator<number | void, void> {
+  /** Lays out the network; the synchronous helper also builds the blue trunk. */
+  private *build(physics: Physics, trunk = true): Generator<number | void, void> {
     this.streets = new StreetLayers(physics);
     const net = this.net;
     const xs = this.stationX;
-    // The blue trunk is built behind the loading screen; everything else when the player comes near.
-    const eager = (i: number) => net.stations[i].line === 0 && !net.stations[i].branch;
-    // Progress is weighed by roughly how long each part of the trunk takes to build.
+    const blueTrunk = (i: number) => net.stations[i].line === 0 && !net.stations[i].branch;
+    const eager = (i: number) => trunk && blueTrunk(i);
+    // The eager helper weighs its geometry; streaming startup reports layout milestones instead.
     const WEIGHT = { station: 8, wing: 1, tunnel: 3, turnback: 1 };
     const eagerStations = net.stations.map((_, i) => i).filter(eager);
     const eagerLinks = net.layout.links.filter((l) => eager(l.a) && eager(l.b));
@@ -317,7 +316,16 @@ export class World {
         continue;
       }
       const { info } = withoutSigns(() => buildStation(physics, net, i, xs[i], ends, service, true));
-      const wing = shared ? noWing : withoutSigns(() => buildServiceWing(physics, i, xs[i], -wingDir as 1 | -1, kind, true, clue, side));
+      // Keep the blue trunk's small service rooms and their stateful interactions alive, as before. Stations and
+      // tunnels stream, but a shelter's crank and mystery notes must keep referring to the same room.
+      const keepWing = blueTrunk(i);
+      const wing = shared ? noWing : keepWing
+        ? buildServiceWing(physics, i, xs[i], -wingDir as 1 | -1, kind, false, clue, side)
+        : withoutSigns(() => buildServiceWing(physics, i, xs[i], -wingDir as 1 | -1, kind, true, clue, side));
+      if (keepWing) {
+        this.group.add(wing.group);
+        if (wing.update) this.updaters.push(wing.update);
+      }
       add(info, wing);
       this.streetCities(info);
       // What the dry pass handed the station, to go back to when the built one is taken down, so its meshes can go.
@@ -329,10 +337,10 @@ export class World {
         adopt(info, built.info);
         yield* this.add(built.group);
         for (const g of built.extra) yield* this.add(g);
-        if (shared) return;
+        if (shared || keepWing) return;
         yield* this.add(buildServiceWing(NO_PHYSICS, i, xs[i], -wingDir as 1 | -1, kind, false, clue, side).group);
       }.bind(this), () => adopt(info, dry), open ? this.osmReady(xs[i], xs[i]) : undefined);
-      yield;
+      yield trunk ? undefined : 0.7 * (i + 1) / net.stations.length;
     }
 
     // Each walkway joins its two stations' ends.
@@ -347,8 +355,9 @@ export class World {
     const tunnelAmbient = rgb(0x121214);
     const kymlingeX = ghostX(net);
     this.kymlingeX = kymlingeX;
-    for (const link of net.layout.links) {
+    for (const [linkIndex, link] of net.layout.links.entries()) {
       const { a, b } = link;
+      if (!trunk) yield 0.7 + 0.2 * linkIndex / net.layout.links.length;
       const junction = this.junctionOf(link);
       // Tunnels at a junction share a seed per junction (the blue line's being the first).
       const rank = junction === null ? -1 : [...new Set(this.portals.map((p) => p.portal!.anchor))].indexOf(junction);
@@ -945,6 +954,18 @@ export class World {
   /** Builds everything near `x` right away, e.g. after a teleport. */
   ensureBuilt(x: number): void {
     while (this.buildNear(x, NEAR_REACH));
+    this.show(x);
+  }
+
+  /** Builds the starting view in slices, so the loading screen keeps painting until its geometry is ready. */
+  async prepare(x: number, sliceMs = LOADING_SLICE_MS): Promise<void> {
+    let start = performance.now();
+    while (this.buildNear(x, NEAR_REACH)) {
+      if (performance.now() - start >= sliceMs) {
+        await nextFrame();
+        start = performance.now();
+      }
+    }
     this.show(x);
   }
 

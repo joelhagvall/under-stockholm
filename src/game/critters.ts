@@ -1,7 +1,7 @@
 import { BoxGeometry, InstancedMesh, Matrix4, Mesh, Object3D, SphereGeometry, type BufferGeometry, type Scene, type Vector3 } from 'three';
 import { MeshBuilder } from './gfx/builder';
 import { rgb } from './gfx/color';
-import text from './i18n/sv.json';
+import { text } from './i18n/text';
 import { CAVE_HALF_L, PLATFORM_HALF_L, PLATFORM_HALF_W, TRAIN_HALF_L } from './layout';
 import { propMaterial } from './props';
 import { noiseBurst, Spatial, tone, type AudioOut } from './sfx';

@@ -1,7 +1,7 @@
 import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshLambertMaterial, type Scene, Vector3 } from 'three';
 import { hash01, serviceOpen, stockholm } from './clock';
 import { drawFigure, figureMesh, paintFigure } from './figures';
-import text from './i18n/sv.json';
+import { text } from './i18n/text';
 import { Spatial, thump, type AudioOut } from './sfx';
 import type { Passage } from './world/station';
 import type { Interactable } from './world/zones';
@@ -148,7 +148,7 @@ export class Busker {
     scene.add(this.group);
 
     this.interactable = {
-      pos: case_.position.clone(), radius: 1.6, prompt: text.busker.prompt,
+      pos: case_.position.clone(), radius: 1.6, prompt: () => text.busker.prompt,
       enabled: () => Busker.playing(this.now),
       act: () => {
         this.coins++;

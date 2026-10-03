@@ -2,7 +2,8 @@ import { type InstancedMesh, type Vector3 } from 'three';
 import { hash01, stockholm, summerTimetable } from './clock';
 import { occupiedSeatPoses, passengerLook } from './crowd';
 import { drawFigure, figureMesh, hideFigure, paintFigure } from './figures';
-import text from './i18n/sv.json';
+import sv from './i18n/sv.json';
+import { text } from './i18n/text';
 import { cabinSeats, seatBeside, sitterYaw, type Seat } from './journey';
 import { PLATFORM_Y } from './layout';
 import { Spatial, tone, type AudioOut } from './sfx';
@@ -127,7 +128,7 @@ export class CarriageLife {
     }
     if (this.clock > this.nextCount) {
       this.nextCount = this.clock + 7 + Math.random() * 5;
-      const line = text.carriage.counting[this.count++ % text.carriage.counting.length];
+      const line = sv.carriage.counting[this.count++ % sv.carriage.counting.length];
       this.events.say(line, 3.5);
       this.events.speak(line.replace(/[”"]/g, ''), 1.05, 1.05);
     }

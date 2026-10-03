@@ -3,7 +3,8 @@ import { dayNumber } from './calendar';
 import { hash01, serviceOpen, stockholm } from './clock';
 import { drawFigure, figureMesh, paintFigure } from './figures';
 import { createCanvasSign, fitText } from './gfx/signs';
-import text from './i18n/sv.json';
+import sv from './i18n/sv.json';
+import { text } from './i18n/text';
 import { TRAIN_HALF_W } from './layout';
 import { noiseBurst, Spatial, type AudioOut } from './sfx';
 import type { Train } from './train';
@@ -70,11 +71,11 @@ function signBoard() {
     ctx.fillStyle = '#b3161c';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    fitText(ctx, text.preacher.sign[0], w - 50, 900, 76, 'Georgia, "Times New Roman", serif');
-    ctx.fillText(text.preacher.sign[0], w / 2, h * 0.33);
+    fitText(ctx, sv.preacher.sign[0], w - 50, 900, 76, 'Georgia, "Times New Roman", serif');
+    ctx.fillText(sv.preacher.sign[0], w / 2, h * 0.33);
     ctx.fillStyle = '#1b1b1b';
-    fitText(ctx, text.preacher.sign[1], w - 60, 800, 44, 'Georgia, "Times New Roman", serif');
-    ctx.fillText(text.preacher.sign[1], w / 2, h * 0.72);
+    fitText(ctx, sv.preacher.sign[1], w - 60, 800, 44, 'Georgia, "Times New Roman", serif');
+    ctx.fillText(sv.preacher.sign[1], w / 2, h * 0.72);
   });
 }
 
@@ -290,7 +291,7 @@ export class Preacher {
     const running = this.mood === 'chasing' || this.mood === 'hunting';
     const heard = this.mood === 'hunting' ? distance < HEARD : this.mood !== 'preaching' || distance < 18;
     if (this.figure.visible && this.clock > this.nextLine && heard && !this.back.length) {
-      const lines = running ? text.preacher.chase : this.mood === 'sermon' ? text.preacher.sermon : text.preacher.preach;
+      const lines = running ? sv.preacher.chase : this.mood === 'sermon' ? sv.preacher.sermon : sv.preacher.preach;
       const line = lines[this.line++ % lines.length];
       this.nextLine = this.clock + (this.mood === 'preaching' ? 9 + Math.random() * 6 : 3.2 + Math.random() * 1.5);
       if (this.mood !== 'calm') {

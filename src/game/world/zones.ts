@@ -16,7 +16,8 @@ export interface Zone {
 export interface Interactable {
   pos: Vector3;
   radius: number;
-  prompt: string;
+  /** What it says next to the key, or a function of the player's language read when it shows (`i18n/text.ts`). */
+  prompt: string | (() => string);
   /** Returns a caption to show, if any. */
   act(): string | void;
   enabled?(): boolean;

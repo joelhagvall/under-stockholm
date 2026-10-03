@@ -40,6 +40,14 @@
   "standHint": "F · Res dig",
   "seated": "Du sitter ner. Tryck F för att resa dig.",
   "trackWarning": "Spårområde! Tryck E för att klättra upp.",
+  "area": {
+    "track": "Spårområde",
+    "escalator": "Rulltrappa",
+    "hall": "Biljetthall",
+    "street": "Gatuplan",
+    "tunnel": "Tunnel",
+    "forbidden": "Spårområde! Obehöriga äga ej tillträde."
+  },
   "motion": "Vagnsgungning",
   "motionOn": "Vagnsgungning på",
   "motionOff": "Vagnsgungning av",
@@ -212,6 +220,7 @@
   "silverpilen": {
     "destination": "Kymlinge",
     "info": "Nästa: Kymlinge",
+    "status": "Nästa: Kymlinge",
     "sighted": "Ett silverglänsande tåg glider förbi utan ett ljud.",
     "whisper": "Nästa: Kymlinge.",
     "through": "Ett kallt drag for rakt igenom dig. Silverpilen.",
@@ -803,8 +812,8 @@
   "intro": {
     "aboard": "Du sitter på blå linjen, på väg in mot {station}. Tryck F för att resa dig och E för att använda saker.",
     "aboardTouch": "Du sitter på blå linjen, på väg in mot {station}. Tryck på Res dig för att stå upp.",
-    "dive": "Du sitter på {line}, på väg in mot {station}.",
-    "platform": "Du står på {station}."
+    "platform": "Du står på {station}.",
+    "platformLook": "Du står på {station}. Klicka för att se dig omkring."
   },
   "life": "Ett liv på blå linjen",
   "network": "Se hela nätet",

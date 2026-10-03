@@ -1,7 +1,7 @@
 import { BoxGeometry, ConeGeometry, CylinderGeometry, Group, Mesh, MeshLambertMaterial, TorusGeometry, Vector3, type Scene } from 'three';
 import { BEAT, hallReverb, improvise, reed, saxPlaying } from './saxSolo';
 import { drawFigure, figureMesh, paintFigure } from './figures';
-import text from './i18n/sv.json';
+import { text } from './i18n/text';
 import { Spatial, thump, type AudioOut } from './sfx';
 import type { StationInfo } from './world/station';
 import type { Interactable } from './world/zones';
@@ -59,7 +59,7 @@ export class Saxophonist {
     this.group.add(caseMesh, lining);
     scene.add(this.group);
     this.interactable = {
-      pos: caseMesh.position.clone(), radius: 1.6, prompt: text.sax.prompt,
+      pos: caseMesh.position.clone(), radius: 1.6, prompt: () => text.sax.prompt,
       enabled: () => Saxophonist.playing(this.now),
       act: () => {
         this.seed++;

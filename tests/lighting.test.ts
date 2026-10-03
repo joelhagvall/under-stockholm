@@ -54,3 +54,26 @@ test('unlit regions receive only ambient light when no lamps exist', () => {
   expect(c.getY(0)).toBeCloseTo(0.15, 6);
   expect(c.getZ(0)).toBeCloseTo(0.1, 6);
 });
+
+test('shared positions preserve each normal and paint, and later bakes use their own lights and daylight', () => {
+  const geo = new BufferGeometry();
+  const normals = [[1, 0, 0], [1, 0, 0], [0, 1, 0], [0, 1, 0], [1, 0, 0], [1, 0, 0]];
+  const colors = [[0.2, 0.4, 0.6], [0.3, 0.5, 0.7], [0.5, 0.2, 0.4], [0.7, 0.3, 0.5], [0.6, 0.4, 0.2], [0.8, 0.6, 0.3]];
+  geo.setAttribute('position', new BufferAttribute(new Float32Array(normals.flatMap(() => [0, 0, 0])), 3));
+  geo.setAttribute('normal', new BufferAttribute(new Float32Array(normals.flat()), 3));
+  geo.setAttribute('color', new BufferAttribute(new Float32Array(colors.flat()), 3));
+  const lights: BakeLight[] = [{ x: 3, y: 4, z: 0, color: [1, 0.5, 0.25], intensity: 1, range: 10 }];
+  for (const lit of [true, false]) {
+    const actual = geo.clone();
+    const sky: [number, number, number] = lit ? [0.2, 0.4, 0.6] : [0.6, 0.3, 0.1];
+    bakeLighting(actual, lit ? lights : [], [0.1, 0.2, 0.3], 0, Infinity, sky);
+    for (let i = 0; i < normals.length; i++) {
+      const alone = new BufferGeometry();
+      alone.setAttribute('position', new BufferAttribute(new Float32Array([0, 0, 0]), 3));
+      alone.setAttribute('normal', new BufferAttribute(new Float32Array(normals[i]), 3));
+      alone.setAttribute('color', new BufferAttribute(new Float32Array(colors[i]), 3));
+      bakeLighting(alone, lit ? lights : [], [0.1, 0.2, 0.3], 0, Infinity, sky);
+      expect(actual.getAttribute('color').array.slice(i * 3, i * 3 + 3)).toEqual(alone.getAttribute('color').array);
+    }
+  }
+});

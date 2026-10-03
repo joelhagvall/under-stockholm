@@ -52,6 +52,47 @@ function gameBlock(html: string): string {
   return html.replace(GAME_BLOCK, `<p class="menu-soon">${soon}</p>\n`);
 }
 
+/**
+ * The files the game needs to start (the game's chunk, the physics and its binary, and what they import), named in each
+ * landing page (`<meta name="game-files">`, relative to `assets/`) so the page can fetch them into the cache while
+ * the visitor reads (`src/main.ts`). In the page, not the landing script: a script names them in its own hash, and a
+ * script cached for good would go on naming files of an older build.
+ */
+function gameFiles(): Plugin {
+  return {
+    name: 'under-stockholm-game-files',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(_html, { bundle }) {
+        if (LANDING_ONLY || !bundle) return;
+        const files = new Set<string>();
+        const visit = (fileName: string, dynamic: boolean) => {
+          const chunk = bundle[fileName];
+          if (!chunk || files.has(fileName)) return;
+          files.add(fileName);
+          if (chunk.type !== 'chunk') return;
+          for (const next of chunk.imports) visit(next, dynamic);
+          // The physics loads Rapier with an import of its own.
+          if (dynamic) for (const next of chunk.dynamicImports) visit(next, dynamic);
+          for (const asset of chunk.viteMetadata?.importedAssets ?? []) if (asset.endsWith('.wasm')) files.add(asset);
+        };
+        const entry = (path: string) => Object.values(bundle).find((c) => c.type === 'chunk' && c.facadeModuleId === resolve(import.meta.dirname, path))?.fileName;
+        const boot = entry('src/game/boot.ts');
+        const physics = entry('src/game/physics.ts');
+        if (!boot || !physics) throw new Error('The game files to fetch ahead: no chunk for src/game/boot.ts or src/game/physics.ts.');
+        // The physics first: its shared chunk, which the game's chunk imports too, is where Rapier is imported.
+        visit(physics, true);
+        visit(boot, false);
+        // Rapier's binary, should it not be listed as an asset of its chunk.
+        for (const name of Object.keys(bundle)) if (name.endsWith('.wasm')) files.add(name);
+        const content = [...files].map((f) => f.replace(/^assets\//, '')).join(' ');
+        return [{ tag: 'meta', attrs: { name: 'game-files', content }, injectTo: 'head' }];
+      },
+    },
+  };
+}
+
 /** The landing page in each language, relative to the site root. The first is the default. */
 const PAGES = [{ lang: 'sv', path: '' }, { lang: 'en', path: 'en/' }];
 
@@ -133,7 +174,7 @@ ${PAGES.map((p) => `  <url>\n    <loc>${base()}${p.path}</loc>\n${alternates('  
 
 export default defineConfig({
   base: './',
-  plugins: [site(), recordings()],
+  plugins: [site(), recordings(), gameFiles()],
   // Constants, so the landing page alone leaves the game's code out of the build instead of only never running it,
   // and a build without the recordings never asks for them.
   define: { __GAME__: JSON.stringify(!LANDING_ONLY), __RECORDINGS__: JSON.stringify(RECORDINGS), __BUILD__: JSON.stringify(BUILD) },

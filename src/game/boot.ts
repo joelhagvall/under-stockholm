@@ -55,7 +55,7 @@ import { RushHour } from './rush';
 import { Hud } from './hud';
 import { cabinSeats, nearestSeat } from './journey';
 import { Crowd, occupiedSeatPoses, trainPassengerPoses } from './crowd';
-import { lang, setLang, text } from './i18n/text';
+import { inLanguage, lang, setLang, text } from './i18n/text';
 import { DOOR_HALF_W, HALL_HALF_W, PLATFORM_HALF_L, PLATFORM_HALF_W, PLATFORM_Y, TRAIN_HALF_L, TRAIN_HALF_W, trackSide, UNDERPASS_DEPTH } from './layout';
 import { isLineTerminal, NETWORK, networkServices, networkSlots, ridership, serviceDestination, stationIndex as indexOf } from './line';
 import { Night, stationLight } from './night';
@@ -93,8 +93,6 @@ const FOG = 0x050608;
 const SILVER_INDEX = 255;
 /** Trains each line can run for SL's real journeys: the timetable's own, then spares. At SL's busiest the lines run about 18, 40 and 57 trains at once. */
 const REAL_SLOTS = [14, 44, 60];
-/** Seconds the build screen stays up at least, so its text can be read. */
-const LOADING_MIN = 4.5;
 /** Larger clock differences jump instead of slewing. */
 const CLOCK_JUMP = 20;
 /** Below this the player has fallen out of the world: a few meters under the lowest floor, a hall under the tracks. */
@@ -197,9 +195,11 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   root.classList.toggle('is-touch', touchMode);
   const params = new URLSearchParams(location.search);
   const debug = params.has('debug');
+  const loadMark = (part: string) => { if (debug) performance.mark(`us-load:${part}`); };
+  loadMark('boot');
   watchErrors();
   const freezeTimetable = debug && params.has('freeze');
-  // The trunk is built a slice at a time behind a progress bar, so the page answers while the rock is blasted.
+  // The layout and starting view are built in slices, so the page answers while the rock is blasted.
   const loading = document.createElement('div');
   loading.className = 'loading';
   loading.setAttribute('role', 'progressbar');
@@ -210,33 +210,29 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   root.appendChild(loading);
   const loadingFill = loading.querySelector<HTMLElement>('.loading-fill')!;
   // Reserve progress for physics, the world, trains, scene setup and the first render.
-  // The screen stays up for a few seconds even on a fast machine, so there is time to read about the rock being
-  // blasted: the bar shows the real progress, but never runs ahead of the clock.
   const loadStart = performance.now();
-  const loadMin = debug ? 0 : LOADING_MIN * 1000;
-  let built = 0;
-  const showProgress = () => {
-    const shown = loadMin ? Math.min(built, (performance.now() - loadStart) / loadMin) : built;
-    const pct = Math.round(Math.min(1, Math.max(0, shown)) * 100);
+  const setProgress = (fraction: number) => {
+    const pct = Math.round(Math.min(1, Math.max(0, fraction)) * 100);
     loadingFill.style.transform = `scaleX(${pct / 100})`;
     loading.setAttribute('aria-valuenow', String(pct));
-  };
-  const setProgress = (fraction: number) => {
-    built = fraction;
-    showProgress();
   };
   setProgress(0);
   await nextFrame();
   // The physics binary is most of the download: the shared models and then the world are built while it still comes
   // in (on a phone the game's scripts are there in half the time), their static boxes queued until it is up.
   const physics = new Physics();
-  const physicsUp = (options.physicsReady ?? loadRapier()).then((R) => physics.attach(R));
+  const physicsUp = (options.physicsReady ?? loadRapier()).then((R) => {
+    loadMark('physics-start');
+    physics.attach(R);
+    loadMark('physics-done');
+  });
   // Handled at once, so a failure is not reported as unhandled before it is awaited below.
   void physicsUp.catch(() => {});
   await loadTrainModel('c20');
   await loadTrainModel('c30');
   await loadTrainModel('silver');
   if (era.past) { await loadTrainModel('retro'); await loadTrainModel('retro30'); }
+  loadMark('models-done');
   const net = NETWORK;
   const line = net.lines[0];
   setProgress(0.05);
@@ -253,7 +249,47 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   scene.fog = new Fog(FOG, 30, 175);
   scene.add(new HemisphereLight(0xe9efff, 0x3b342c, 2.4));
 
-  const world = await World.load(physics, net, (fraction) => setProgress(0.05 + fraction * 0.65));
+  loadMark('world-start');
+  const world = await World.load(physics, net, (fraction) => setProgress(0.05 + fraction * 0.45));
+  loadMark('world-done');
+  // Choose and build the starting view while the physics binary is still downloading. The layout already has
+  // every station's spawn and colliders; geometry needs neither Rapier nor a player instance.
+  const lineServices = networkServices(net);
+  const timetables = lineServices.flatMap((s) => s.timetables);
+  const timetable = timetables[0];
+  const slots = networkSlots(net, lineServices, lineServices.map((l, li) => Math.max(0, REAL_SLOTS[li] - l.services.length)));
+  const operations = new Operations({ slots, timetables });
+  const POOL = slots.length;
+  let time = startTime(timetable, params, debug);
+  const followClock = !debug;
+  const fixedClock = debug && (params.has('t') || params.has('clock') || freezeTimetable);
+  const spawnAt = (station: number, track: 1 | 2) => {
+    const s = world.stations[station];
+    const travel = track === 1 ? 1 : -1;
+    const z = trackSide(travel) * 2.2;
+    const fx = -travel * 0.55;
+    const fz = Math.sign(z) * 0.84;
+    return { feet: new Vector3(s.cx - s.exitDir * 20, PLATFORM_Y, z), yaw: Math.atan2(-fx, -fz) };
+  };
+  let spawn = { feet: world.stations[0].spawn.clone(), yaw: -Math.PI / 2 };
+  if (!debug && serviceOpen(time)) {
+    let best = Infinity;
+    world.stations.forEach((s) => ([1, 2] as const).forEach((track) => {
+      if (net.stations[s.index].line !== 0 || net.stations[s.index].branch || isLineTerminal(net, s.index, track)) return;
+      const arrival = operations.nextArrival(time, s.index, track, 600);
+      if (arrival && arrival.eta >= 12 && arrival.eta < best) {
+        best = arrival.eta;
+        spawn = spawnAt(s.index, track);
+      }
+    }));
+  }
+  const place = options.resume ? savedPlace() : null;
+  const diveTo = options.station ? net.stations.findIndex((s) => s.name === options.station) : -1;
+  const startX = diveTo >= 0 ? world.stations[diveTo].cx : place?.x ?? (debug && params.has('x') ? Number(params.get('x')) : spawn.feet.x);
+  loadMark('near-start');
+  await world.prepare(startX);
+  loadMark('near-done');
+  setProgress(0.7);
   // Trains, the player and everything after them need Rapier itself.
   await physicsUp;
   scene.add(world.group);
@@ -302,20 +338,9 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     }
   };
 
-  // The clock is real: game time is Unix time, so every visitor shares the same trains.
-  const lineServices = networkServices(net);
-  // Every route's timetable, by global route index; the blue line's come first.
-  const timetables = lineServices.flatMap((s) => s.timetables);
-  const timetable = timetables[0];
-  const slots = networkSlots(net, lineServices, lineServices.map((l, li) => Math.max(0, REAL_SLOTS[li] - l.services.length)));
-  const operations = new Operations({ slots, timetables });
-  const POOL = slots.length;
-  let time = startTime(timetable, params, debug);
-  const followClock = !debug;
-  // Real trains run on SL's clock, so they follow the wall clock in debug too unless a time was asked for.
-  const fixedClock = debug && (params.has('t') || params.has('clock') || freezeTimetable);
   const services: Service[] = [];
   let trainSlice = performance.now();
+  loadMark('trains-start');
   for (let index = 0; index < POOL; index++) {
     const offset = operations.offsets[index] ?? 0;
     // The red line runs the C30, the others the C20.
@@ -334,6 +359,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
       trainSlice = performance.now();
     }
   }
+  loadMark('trains-done');
   /** A service's state `ahead` game seconds from now, with speed in game time. */
   const stateOf = (svc: Service, ahead = 0): TrainState => {
     if (svc.brake) return svc.brake.stateAt(time + ahead);
@@ -402,28 +428,6 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   const announcements = new AnnouncementTracker();
   let listening = debug;
 
-  // Spawn on a platform where a train is due soon.
-  const spawnAt = (station: number, track: 1 | 2) => {
-    const s = world.stations[station];
-    const travel = track === 1 ? 1 : -1;
-    const z = trackSide(travel) * 2.2;
-    const fx = -travel * 0.55;
-    const fz = Math.sign(z) * 0.84;
-    return { feet: new Vector3(s.cx - s.exitDir * 20, PLATFORM_Y, z), yaw: Math.atan2(-fx, -fz) };
-  };
-  let spawn = { feet: world.stations[0].spawn.clone(), yaw: -Math.PI / 2 };
-  if (!debug && serviceOpen(time)) {
-    let best = Infinity;
-    world.stations.forEach((s) => ([1, 2] as const).forEach((track) => {
-      // Start on the blue trunk, where every train calls.
-      if (net.stations[s.index].line !== 0 || net.stations[s.index].branch || isLineTerminal(net, s.index, track)) return;
-      const arrival = operations.nextArrival(time, s.index, track, 600);
-      if (arrival && arrival.eta >= 12 && arrival.eta < best) {
-        best = arrival.eta;
-        spawn = spawnAt(s.index, track);
-      }
-    }));
-  }
   const player = new Player(physics, spawn.feet, spawn.yaw);
   // Field of view, volumes and keys follow the settings as they change.
   let boundKeys = '';
@@ -630,10 +634,11 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   };
   tallies.push(() => (staffKey.has ? text.key.held : ''));
   artWalk.total = net.stations.filter((s) => artWalk.plaque(s.name)).length;
-  artWalk.onRead = (title, body, progress) => {
+  artWalk.onRead = (title, body, progress, spoken) => {
     hud.notice(title, progress, 6);
     hud.say(body, Math.max(8, body.length / 14));
-    audio.read(`${title}. ${body}`);
+    // Read in Swedish whatever the menus' language: the voice is Swedish.
+    audio.read(spoken);
   };
   mystery.onFind = (title, body, first) => {
     hud.notice(first ? `${text.mystery.found}: ${title}` : title, body, Math.max(7, body.length / 16));
@@ -800,6 +805,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     settingsPanel.render(touchMode);
     renderBook();
     bag.showCollection(lost.kinds, LOST_KINDS);
+    hud.setTicket(pauseStatus());
   });
   hud.soundButton.addEventListener('click', toggleSound);
   hud.pixelButton.addEventListener('click', togglePixels);
@@ -1282,7 +1288,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     return riding.stock.doors.some((d) => Math.abs(lx - d) < 1.7) ? svc : null;
   };
   const brakeHandle = {
-    pos: new Vector3(), radius: 2, prompt: text.brake.prompt,
+    pos: new Vector3(), radius: 2, prompt: () => text.brake.prompt,
     enabled: () => brakeService() !== null,
     act: () => {
       const svc = brakeService();
@@ -1319,11 +1325,10 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   /**
    * The first minute: the first time the game starts moving, the player is
    * seated in a carriage rolling into a station (T-Centralen if a train is
-   * on its way there), rather than standing on a platform.
+   * on its way there), rather than standing on a platform. A dive from the
+   * network view starts on the platform picked instead.
    */
-  /** The station picked in the network view, or -1. */
-  const diveTo = options.station ? net.stations.findIndex((s) => s.name === options.station) : -1;
-  let staged = debug && !params.has('stage') && diveTo < 0;
+  let staged = diveTo >= 0 || (debug && !params.has('stage'));
   /** While the first minute waits for SL's trains: until when (performance.now()). */
   let stageWaiting = 0;
   /** After continuing where the player was, said on the first resume. */
@@ -1343,26 +1348,8 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     if (waited || driving || saver.active || show.active) return;
     if (followClock) jumpTime(Date.now() / 1000 + (ghosts.clockOffset ?? 0) + loopOffset);
     if (!serviceOpen(time)) return;
-    // A train on its way to a station, or standing at one and about to leave for the next.
-    let best: { svc: Service; station: number; track: 1 | 2; score: number } | null = null;
-    for (const svc of services) {
-      const st = svc.state;
-      if (!svc.active || !st) continue;
-      const stops = svc.timetable.stops;
-      const moving = st.phase === 'moving';
-      if (!moving && stops[st.stop].kind !== 'station') continue;
-      const k = moving ? st.next : (st.stop + 1) % stops.length;
-      const stop = stops[k];
-      if (stop.kind !== 'station' || (diveTo < 0 && (stop.terminal || svc.line !== 0)) || (diveTo >= 0 && stop.station !== diveTo)) continue;
-      const eta = svc.timetable.secondsUntil(svc.clock, k);
-      if (eta < 12 || eta > (diveTo < 0 ? 90 : 150)) continue;
-      const score = (stop.station === tCentralen ? 100 : net.stations[stop.station].branch ? 0 : 30) - Math.abs(eta - 30) - (moving ? 0 : 20);
-      if (!best || score > best.score) best = { svc, station: stop.station, track: stop.track, score };
-    }
-    if (!best) {
-      if (diveTo >= 0) hud.say(format(text.intro.platform, { station: stationName(diveTo) }), 6);
-      return;
-    }
+    const best = arrivalTrain();
+    if (!best) return;
     const { train } = best.svc;
     const forward = best.track === 1 ? -Math.PI / 2 : Math.PI / 2;
     // A free seat facing the way the train runs, near the middle of the train.
@@ -1374,8 +1361,27 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     if (!seat) return;
     player.sit(seat, train.position.x, train.position.z, PLATFORM_Y);
     playerSeat = seat;
-    if (diveTo >= 0) hud.say(format(text.intro.dive, { station: stationName(best.station), line: net.lines[best.svc.line].name.toLowerCase() }), 8);
-    else hud.say(format(touchMode ? text.intro.aboardTouch : text.intro.aboard, { station: stationName(best.station) }), 10);
+    hud.say(format(touchMode ? text.intro.aboardTouch : text.intro.aboard, { station: stationName(best.station) }), 10);
+  }
+
+  /** The same arrival is used to prepare its surroundings during loading and to seat the player on resume. */
+  function arrivalTrain(): { svc: Service; station: number; track: 1 | 2; score: number } | null {
+    let best: { svc: Service; station: number; track: 1 | 2; score: number } | null = null;
+    for (const svc of services) {
+      const st = svc.state;
+      if (!svc.active || !st) continue;
+      const stops = svc.timetable.stops;
+      const moving = st.phase === 'moving';
+      if (!moving && stops[st.stop].kind !== 'station') continue;
+      const k = moving ? st.next : (st.stop + 1) % stops.length;
+      const stop = stops[k];
+      if (stop.kind !== 'station' || stop.terminal || svc.line !== 0) continue;
+      const eta = svc.timetable.secondsUntil(svc.clock, k);
+      if (eta < 12 || eta > 90) continue;
+      const score = (stop.station === tCentralen ? 100 : net.stations[stop.station].branch ? 0 : 30) - Math.abs(eta - 30) - (moving ? 0 : 20);
+      if (!best || score > best.score) best = { svc, station: stop.station, track: stop.track, score };
+    }
+    return best;
   }
 
   function climb(): void {
@@ -1869,7 +1875,8 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     const usable = driving ? null : world.interactableNear(player.feet);
     const climbable = !driving && !!world.canClimb(player.feet);
     touch?.setContext(player.seated, !!availableSeat, climbable, !!usable);
-    const usablePrompt = usable ? (touchMode ? usable.prompt.replace(/^E · /, '') : rebindPrompt(usable.prompt)) : null;
+    const prompt = usable ? (typeof usable.prompt === 'function' ? usable.prompt() : usable.prompt) : '';
+    const usablePrompt = usable ? (touchMode ? prompt.replace(/^E · /, '') : rebindPrompt(prompt)) : null;
     hud.setInteraction(driving ? null : usable?.urgent ? usablePrompt : player.seated ? (touchMode ? text.touch.standHint : rebindPrompt(text.standHint)) : availableSeat ? (touchMode ? text.touch.seatHint : rebindPrompt(text.seatHint)) : usable && !climbable ? usablePrompt : null);
     if (!driving && !saver.active && !show.active && !respawning) {
       if (availableSeat && !player.seated) tips.offer('sit', format(text.hints.sit, { key: controlName('sit') }));
@@ -1931,28 +1938,28 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     }
     const onTrack = !riding && !driving && player.feet.y < PLATFORM_Y - 0.3 && (here.area === 'track' || here.area === 'tunnel');
     if (onTrack) {
-      hud.setWarning(world.canClimb(player.feet) ? (touchMode ? text.touch.trackWarning : rebindText(text.trackWarning)) : 'Spårområde! Obehöriga äga ej tillträde.');
+      hud.setWarning(world.canClimb(player.feet) ? (touchMode ? text.touch.trackWarning : rebindText(text.trackWarning)) : text.area.forbidden);
     } else {
       hud.setWarning(null);
     }
 
     // Status bar.
-    const areaLabel = { platform: '', track: 'Spårområde', escalator: 'Rulltrappa', hall: 'Biljetthall', street: 'Gatuplan', tunnel: 'Tunnel', service: text.service.corridor, transfer: text.transfer.area };
+    const areaLabel = { platform: '', track: text.area.track, escalator: text.area.escalator, hall: text.area.hall, street: text.area.street, tunnel: text.area.tunnel, service: text.service.corridor, transfer: text.transfer.area };
     if (driving) {
       const r = driver.readout();
       hud.setStatus(text.driver.title, r.next ? `${text.driver.next}: ${r.next}` : line.name);
       hud.setDriver(r);
     } else if (riding === silverTrain) {
-      hud.setStatus(text.silverpilen.name, text.silverpilen.info);
+      hud.setStatus(text.silverpilen.name, text.silverpilen.status);
     } else if (riding) {
       const svc = services.find((s) => s.train === riding);
       if (svc?.state) hud.setStatus(infoText(svc.state, svc), destinationText(svc.state, svc));
     } else if (here.station !== null) {
-      hud.setStatus(stationName(here.station), here.label ?? areaLabel[here.area]);
+      hud.setStatus(stationName(here.station), here.label ? inLanguage(here.label) : areaLabel[here.area]);
     } else if (here.label) {
-      hud.setStatus(here.label, here.area === 'platform' ? text.kymlinge.neverOpened : areaLabel[here.area]);
+      hud.setStatus(inLanguage(here.label), here.area === 'platform' ? text.kymlinge.neverOpened : areaLabel[here.area]);
     } else {
-      hud.setStatus(world.outdoorAt(player.feet) > 0.5 ? 'Spårområde' : 'Tunnel', net.lines[lineHere()].name);
+      hud.setStatus(world.outdoorAt(player.feet) > 0.5 ? text.area.track : text.area.tunnel, net.lines[lineHere()].name);
     }
 
     lap('hazards');
@@ -2049,7 +2056,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
       regular.map((s) => ({ id: s.train.id, state: s.state!, timetable: s.timetable })), out, player.feet);
     trackWork.update(dt, time, player.feet, out);
     const found = riding ? null : exploration.visit(here, player.feet.x);
-    if (found) hud.notice(text.explore.found, found, 3);
+    if (found) hud.notice(text.explore.found, inLanguage(found), 3);
     if (!player.seated) playerSeat = null;
     carriageLife.update(dt, time, services, riding, busyness(time), playerSeat, player.feet, people, out);
     rideLight.update(dt, riding, here.area === 'tunnel' || (!!here.label && here.area === 'track'), rideSpeed, { feet: player.feet, yaw: player.yaw, seated: player.seated, seatYaw: player.seatYaw, seatSide: player.seatSide });
@@ -2449,7 +2456,6 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   }
 
   // Continue where the player last stood, instead of the staged first minute.
-  const place = options.resume ? savedPlace() : null;
   if (place) {
     staged = true;
     welcomeBack = format(text.continued, { station: place.station });
@@ -2461,22 +2467,27 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   }
   updateTrains(false);
   player.update(0);
+  loadMark('setup-done');
+  // The first resume can put the player aboard a train at another station. Prepare that view too, before the
+  // loading screen goes away, rather than force its whole build into the first playable frame.
+  if (!staged) {
+    const arrival = arrivalTrain();
+    if (arrival) await world.prepare(arrival.svc.train.position.x);
+  }
   world.ensureBuilt(player.feet.x);
   await settle(0.99);
   // The streets stay hidden until someone climbs up to one, so nothing compiles their shaders: warm one now (they share
   // their materials), or the first street you come out on would stutter while it does.
   const street = world.stations.find((s) => s.exit.street?.group)?.exit.street?.group;
   if (street) world.warm?.(street);
+  loadMark('gpu-start');
   await renderer.compileAsync(scene, player.camera);
   renderer.render(scene, player.camera);
   renderNeeded = false;
+  loadMark('gpu-done');
   await settle(1);
   const loadS = (performance.now() - (options.since ?? loadStart)) / 1000;
-  while (performance.now() - loadStart < loadMin) {
-    showProgress();
-    await nextFrame();
-  }
-  showProgress();
+  // Physics, the starting view and its first GPU render are ready. Let the player in without a minimum timer.
   loading.classList.add('is-done');
   window.setTimeout(() => loading.remove(), debug ? 0 : 400);
   last = performance.now();
@@ -2534,4 +2545,14 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   document.addEventListener('visibilitychange', () => { if (document.hidden) rememberPlace(); });
   if (options.showcase || params.has('showcase')) startShow();
   if (options.life || params.has('liv')) startLife();
+  // A dive goes straight onto the platform, not to the pause menu. The click that picked the station is long gone by
+  // now, so the browser may refuse the mouse: then the game runs anyway and the next click on it takes the mouse.
+  if (diveTo >= 0 && !debug) {
+    audio.start();
+    setPaused(false);
+    hud.say(format(touchMode ? text.intro.platform : text.intro.platformLook, { station: stationName(diveTo) }), 6);
+    if (!touchMode && typeof canvas.requestPointerLock === 'function') {
+      try { void (canvas.requestPointerLock() as Promise<void> | undefined)?.catch(() => {}); } catch { /* Next click. */ }
+    }
+  }
 }

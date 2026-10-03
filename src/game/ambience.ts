@@ -1,6 +1,7 @@
 import { hash01, stockholm, sunElevation } from './clock';
 import { squeakyEscalator, type Occasion } from './calendar';
-import text from './i18n/sv.json';
+import sv from './i18n/sv.json';
+import { text } from './i18n/text';
 import { CAVE_HALF_L, ESC_ANGLE, ESC_DESIGN, ESC_SPEED, PLATFORM_Y, TRACK_Z, TRAIN_HALF_L, TRAIN_NOSE } from './layout';
 import { playRecording } from './recordings';
 import { loopNoise, noiseBurst, Spatial, tone, type AudioOut } from './sfx';
@@ -319,14 +320,14 @@ export class Ambience {
       somewhere();
       playRecording(out, near.input, 'sneeze', SNEEZE);
       setTimeout(() => {
-        this.events.speak(text.ambience.prositSpoken, 0.9 + Math.random() * 0.3, 1.05);
+        this.events.speak(sv.ambience.prositSpoken, 0.9 + Math.random() * 0.3, 1.05);
         this.events.say(text.ambience.prosit, 4);
       }, 1300);
     }
     if (input.tourists && station && this.clock > this.nextTourist) {
       this.nextTourist = this.clock + 90 + Math.random() * 120;
-      const k = Math.floor(Math.random() * text.ambience.touristSpoken.length);
-      this.events.speak(text.ambience.touristSpoken[k], 1.1, 1.05, 'en-GB');
+      const k = Math.floor(Math.random() * sv.ambience.touristSpoken.length);
+      this.events.speak(sv.ambience.touristSpoken[k], 1.1, 1.05, 'en-GB');
       this.events.say(text.ambience.tourist[k], 5);
     }
     if (input.occasion === 'friday' && station && this.clock > this.nextClink) {

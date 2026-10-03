@@ -390,11 +390,28 @@ export function bakeLighting(geo: BufferGeometry, lights: BakeLight[] | Prepared
   // Neighbouring vertices mostly share a light cell, so the lookup is only redone when the cell changes.
   let lastCell = -2;
   let candidates: number[] | undefined;
+  // The unindexed triangles repeat their shared corners. Cache light factors, not painted colors: the same
+  // position and normal can have different paint. Float64 keeps the exact sum, and the cache lives for this slice
+  // only, so neither later bakes with other lights nor evicted sections can reuse stale results.
+  const cacheSize = 128;
+  const cached = new Float64Array(cacheSize * 9);
+  const valid = new Uint8Array(cacheSize);
+  const bits = new Uint32Array(pos.buffer, pos.byteOffset, pos.length);
 
   for (let i = from; i < count; i++) {
     const o = i * 3;
     const px = pos[o], py = pos[o + 1], pz = pos[o + 2];
     const nx = nor[o], ny = nor[o + 1], nz = nor[o + 2];
+    const hash = Math.imul(bits[o], 73856093) ^ Math.imul(bits[o + 1], 19349663) ^ Math.imul(bits[o + 2], 83492791);
+    const slot = (hash ^ (hash >>> 16)) & (cacheSize - 1);
+    const at = slot * 9;
+    if (valid[slot] && cached[at] === px && cached[at + 1] === py && cached[at + 2] === pz
+      && cached[at + 3] === nx && cached[at + 4] === ny && cached[at + 5] === nz) {
+      col[o] *= cached[at + 6];
+      col[o + 1] *= cached[at + 7];
+      col[o + 2] *= cached[at + 8];
+      continue;
+    }
     let r = ar, g = ag, b = ab;
     if (sky) {
       const k = 0.5 + 0.5 * ny;
@@ -426,6 +443,10 @@ export function bakeLighting(geo: BufferGeometry, lights: BakeLight[] | Prepared
       g += lc[k * 3 + 1] * k2;
       b += lc[k * 3 + 2] * k2;
     }
+    valid[slot] = 1;
+    cached[at] = px; cached[at + 1] = py; cached[at + 2] = pz;
+    cached[at + 3] = nx; cached[at + 4] = ny; cached[at + 5] = nz;
+    cached[at + 6] = r; cached[at + 7] = g; cached[at + 8] = b;
     col[o] *= r;
     col[o + 1] *= g;
     col[o + 2] *= b;

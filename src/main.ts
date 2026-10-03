@@ -44,9 +44,10 @@ function game(): void {
   const failed = (err: unknown) => (/WebGL/.test(String(err)) ? webgl : error) ?? '';
   const menu = document.getElementById('menu') as HTMLElement;
   const game = document.getElementById('game') as HTMLDivElement;
+  const invalidPrefetches = new Set<string>();
 
-  // The game (three.js + Rapier) is only downloaded once the player asks for it,
-  // which keeps the landing page tiny.
+  // The game (three.js + Rapier) is imported only once the player asks for it;
+  // fetching its files ahead never executes them on the landing page.
   // The tour opens the same game in showcase mode, which plays on its own until you take over.
   const launch = async (showcase: boolean, again = false, station?: string, life = false) => {
     const since = performance.now();
@@ -56,6 +57,10 @@ function game(): void {
     // No loading line here: the game's own loading screen takes over the whole page at once.
     statusEl.textContent = '';
     try {
+      // An HTML error page with status 200 can be cached even for a hashed asset. Replace a known bad prefetch
+      // before importing it: the normal recovery reload cannot evict an immutable response from the HTTP cache.
+      for (const file of invalidPrefetches) await fetch(file, { cache: 'reload' }).then((r) => r.arrayBuffer());
+      invalidPrefetches.clear();
       // Start physics alongside the game download instead of waiting for the large game chunk.
       const physicsReady = import('./game/physics').then(({ loadRapier }) => loadRapier());
       // Attach the rejection handler immediately; startGame still receives the original promise.
@@ -79,6 +84,26 @@ function game(): void {
       focused?.focus();
     }
   };
+  // Reading the page takes a while: the game comes down meanwhile, at low priority a moment after the page has loaded
+  // and painted (sooner, it would share the line with what the page shows first), so a click finds it in the cache (the build names the files, `gameFiles` in vite.config.ts). Not for a visitor saving
+  // data or on a very slow line, nor once something has opened: that fetches what it needs itself.
+  const fetchAhead = () => {
+    const files = document.querySelector<HTMLMetaElement>('meta[name="game-files"]')?.content.split(' ').filter(Boolean);
+    const line = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    if (!files?.length || line?.saveData || /2g/.test(line?.effectiveType ?? '') || buttons.some((b) => b.disabled)) return;
+    for (const file of files) {
+      const url = new URL(file, import.meta.url);
+      void fetch(url, { priority: 'low' } as RequestInit).then(async (r) => {
+        const bytes = new Uint8Array(await r.arrayBuffer());
+        if (!r.ok || /text\/html/i.test(r.headers.get('content-type') ?? '') ||
+          (file.endsWith('.wasm') && (bytes[0] !== 0 || bytes[1] !== 97 || bytes[2] !== 115 || bytes[3] !== 109))) invalidPrefetches.add(url.href);
+      }).catch(() => {});
+    }
+  };
+  const idle = () => setTimeout(() => ('requestIdleCallback' in window ? requestIdleCallback(fetchAhead, { timeout: 2000 }) : fetchAhead()), 2000);
+  if (document.readyState === 'complete') idle();
+  else addEventListener('load', idle, { once: true });
+
   start.addEventListener('click', () => void launch(false));
   tour.addEventListener('click', () => void launch(true));
   resume.addEventListener('click', () => void launch(false, true));

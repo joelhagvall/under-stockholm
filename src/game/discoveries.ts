@@ -1,11 +1,13 @@
-import text from './i18n/sv.json';
+import sv from './i18n/sv.json';
+import en from './i18n/en.json';
 
 /**
  * The discovery book: every hidden moment in the game, collected. Almost
  * everything that happens down here is told in a caption, so an entry names
- * the texts in `sv.json` that give it away, and seeing one of them on screen
- * counts as finding it. What you have not found yet shows as a hint, so the
- * book tells a new player how much there is. Saved in the browser.
+ * the texts in `sv.json` that give it away, and seeing one of them on screen,
+ * in Swedish or in its English override (`en.json`), counts as finding it.
+ * What you have not found yet shows as a hint, so the book tells a new player
+ * how much there is. Saved in the browser.
  */
 
 const KEY = 'under-stockholm:discoveries';
@@ -101,8 +103,8 @@ const WHOLE_ONLY = 24;
 
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
-function lookup(path: string): Json | undefined {
-  let node: Json | undefined = text as unknown as Json;
+function lookup(path: string, root: unknown = sv): Json | undefined {
+  let node: Json | undefined = root as Json;
   for (const part of path.split('.')) {
     if (node === null || typeof node !== 'object' || Array.isArray(node)) return undefined;
     node = node[part];
@@ -129,7 +131,7 @@ function matchers(): Matcher[] {
     for (const path of d.texts) {
       const found = strings(lookup(path));
       if (!found.length) throw new Error(`Discovery ${d.id}: no text at ${path}`);
-      for (const s of found) {
+      for (const s of new Set([...found, ...strings(lookup(path, en))])) {
         if (!/\{\w+\}/.test(s)) { out.push({ id: d.id, exact: s }); continue; }
         // A template: the filled-in parts can be anything.
         const source = s.split(/\{\w+\}/).map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.+?');

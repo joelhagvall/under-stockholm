@@ -1,7 +1,7 @@
 import { AdditiveBlending, BufferAttribute, BufferGeometry, CylinderGeometry, DynamicDrawUsage, Group, Mesh, MeshBasicMaterial, Points, PointsMaterial, Vector3, type PerspectiveCamera, type Scene } from 'three';
 import { serviceOpen, stockholm } from './clock';
 import { glowTexture } from './gfx/textures';
-import text from './i18n/sv.json';
+import { text } from './i18n/text';
 import { beep, type AudioOut } from './sfx';
 import { KIOSK, kioskShift } from './world/kiosk';
 import type { StationInfo } from './world/station';

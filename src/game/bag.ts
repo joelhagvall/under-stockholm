@@ -1,5 +1,4 @@
 import { Color, DirectionalLight, Group, HemisphereLight, Mesh, PerspectiveCamera, Scene, WebGLRenderTarget, type BufferGeometry, type Material, type WebGLRenderer } from 'three';
-import sv from './i18n/sv.json';
 import { text } from './i18n/text';
 
 /**
@@ -146,7 +145,7 @@ export class Bag {
       if (fresh) {
         const badge = document.createElement('span');
         badge.className = 'hud-bag-new';
-        badge.textContent = sv.lost.newKind;
+        badge.textContent = text.lost.newKind;
         slot.append(badge);
         window.setTimeout(() => badge.remove(), 3200);
       }
@@ -210,6 +209,7 @@ export class Bag {
   /** The collection in the discovery book: every kind there is, the ones never found as silhouettes, each one to choose. */
   showCollection(found: string[], kinds: string[]): void {
     this.shown = { found, kinds };
+    this.relabel();
     const heading = document.createElement('h3');
     heading.textContent = `${text.lost.collection} · ${found.length}/${kinds.length}`;
     const list = document.createElement('ul');
@@ -261,6 +261,11 @@ export class Bag {
     window.clearTimeout(this.hideTimer);
     if (show) this.root.hidden = this.carried.length === 0;
     this.root.classList.toggle('is-full', this.carried.length >= this.capacity);
-    this.status.textContent = sv.lost.bagStatus.replace('{count}', String(this.carried.length)).replace('{capacity}', String(this.capacity));
+    this.relabel();
+  }
+
+  /** The count under the bag, in the player's language: also called when the book is drawn again after a language switch. */
+  private relabel(): void {
+    this.status.textContent = text.lost.bagStatus.replace('{count}', String(this.carried.length)).replace('{capacity}', String(this.capacity));
   }
 }

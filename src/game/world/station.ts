@@ -1,5 +1,6 @@
 import { SIGN_LAYOUT, STATION_ROCK_INSET } from '../layout';
-import text from '../i18n/sv.json';
+import sv from '../i18n/sv.json';
+import { text } from '../i18n/text';
 import { BoxGeometry, CircleGeometry, CylinderGeometry, DoubleSide, Group, Matrix4, Mesh, MeshBasicMaterial, PlaneGeometry, Vector3 } from 'three';
 import { brokenTube } from '../calendar';
 import { buildClutter, type StationClutter } from './clutter';
@@ -424,7 +425,7 @@ function stopMark(): CanvasSign {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `800 40px ${FONT}`;
-    ctx.fillText(text.driver.stopSign.toUpperCase(), w / 2, h * 0.36);
+    ctx.fillText(sv.driver.stopSign.toUpperCase(), w / 2, h * 0.36);
     ctx.font = `700 46px ${FONT}`;
     ctx.fillText('C20', w / 2, h * 0.68);
   });
@@ -524,7 +525,7 @@ function artSign(station: string, title: string, body: string): CanvasSign {
     ctx.font = `600 22px ${FONT}`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text.art.heading, 20, 32);
+    ctx.fillText(sv.art.heading, 20, 32);
     ctx.fillStyle = '#1d2a3a';
     ctx.textBaseline = 'top';
     ctx.font = `500 18px ${FONT}`;
@@ -1093,7 +1094,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     physics.box({ x: ax - 0.5, y: PLATFORM_Y, z: zi - 0.06 }, { x: ax + 0.5, y: PLATFORM_Y + 2.2, z: zi + 0.06 });
     const sign = artSign(def.name, plaque[0], plaque[1]);
     for (const side of [-1, 1]) place(s, sign, 0.94, 1.24, new Vector3(ax, PLATFORM_Y + 1.55, zi + side * 0.05), new Vector3(0, 0, side));
-    artInteractables.push({ pos: new Vector3(ax, PLATFORM_Y + 1, zi), radius: 1.9, prompt: text.art.prompt, act: () => artWalk.visit(def.name) });
+    artInteractables.push({ pos: new Vector3(ax, PLATFORM_Y + 1, zi), radius: 1.9, prompt: () => text.art.prompt, act: () => artWalk.visit(def.name) });
   }
 
   // Hanging clocks showing the real time.
@@ -1316,7 +1317,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     const names = there.lines.map((li) => net.lines[li].name.toLowerCase());
     // From the blue line's T-Centralen, and back to it, the way is Blå gången, painted blue.
     const blue = !!def.passage || !!there.passage;
-    buildWalkway(s, hallPhysics, end, dry ? '' : `↑ ${text.transfer.to} ${names.join(` ${text.transfer.and} `)}`, blue);
+    buildWalkway(s, hallPhysics, end, dry ? '' : `↑ ${sv.transfer.to} ${names.join(` ${sv.transfer.and} `)}`, blue);
     return { to, end };
   });
   yield;
@@ -1348,7 +1349,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     passage,
     walkways,
     spawn: new Vector3([cx - e * 20, cx + e * 20, cx - e * 40].find((x) => free(x, 1)) ?? cx - e * 20, PLATFORM_Y, islands[islands.length - 1] + 2.2),
-    zones: [...(passage ? [passage.zone] : []), ...walkways.flatMap((w) => walkwayZones(w.end, index, def.passage ? text.transfer.blueWay : `${text.transfer.way} ${net.stations[w.to].lines.map((li) => net.lines[li].name.toLowerCase()).join(` ${text.transfer.and} `)}`))],
+    zones: [...(passage ? [passage.zone] : []), ...walkways.flatMap((w) => walkwayZones(w.end, index, def.passage ? sv.transfer.blueWay : `${sv.transfer.way} ${net.stations[w.to].lines.map((li) => net.lines[li].name.toLowerCase()).join(` ${sv.transfer.and} `)}`))],
     interactables: [...(passage ? passage.interactables : []), ...artInteractables.map((it) => {
       const [z, y] = folded(it.pos.z);
       return y ? { ...it, pos: new Vector3(it.pos.x, it.pos.y + y, z) } : it;
@@ -1913,7 +1914,7 @@ function buildPassage(s: Section, physics: Physics, label: string, index: number
   box(tiles, a0 - 0.3, a0, Y, Y + height, z0, side.z0, rgb(0xffffff));
   box(tiles, a0 - 0.3, a0, Y, Y + height, side.z1, z1, rgb(0xffffff));
   if (side.height < height) box(tiles, a0 - 0.3, a0, Y + side.height, Y + height, side.z0, side.z1, rgb(0xffffff));
-  place(s, textSign(text.transfer.fromPassage, 1024, 112, SIGN_BG), 2.8, 0.3, new Vector3(X(a0 + 0.02), Y + height - 0.35, (side.z0 + side.z1) / 2), new Vector3(Math.sign(X(a1) - X(a0)), 0, 0));
+  place(s, textSign(sv.transfer.fromPassage, 1024, 112, SIGN_BG), 2.8, 0.3, new Vector3(X(a0 + 0.02), Y + height - 0.35, (side.z0 + side.z1) / 2), new Vector3(Math.sign(X(a1) - X(a0)), 0, 0));
   box(tiles, a1, a1 + 0.3, Y, Y + height, z0, z1, rgb(0xffffff));
   box(tiles, a0, a1, Y, Y + height, z1, z1 + 0.3, rgb(0xffffff));
   // A blue band at hand height, broken by the side opening.
@@ -1928,8 +1929,8 @@ function buildPassage(s: Section, physics: Physics, label: string, index: number
   }
 
   // Hanging direction signs, one face for each way.
-  const cityWay = textSign(text.rush.toCity, 1024, 112, SIGN_BG);
-  const hallWay = textSign(text.rush.toBlue, 1024, 112, SIGN_BG);
+  const cityWay = textSign(sv.rush.toCity, 1024, 112, SIGN_BG);
+  const hallWay = textSign(sv.rush.toBlue, 1024, 112, SIGN_BG);
   for (let z = z0 + 34; z < zg - 10; z += 36) {
     box(s.lit, mid - 1.9, mid + 1.9, Y + height - 0.72, Y + height - 0.2, z - 0.04, z + 0.04, PAINT.fixture, false);
     place(s, cityWay, 3.6, 0.4, new Vector3(X(mid), Y + height - 0.46, z - 0.04), toCity);
@@ -1958,7 +1959,7 @@ function buildPassage(s: Section, physics: Physics, label: string, index: number
     if (k < posts - 1) box(s.lit, a + 0.15, a + 0.95, Y + 0.3, Y + 0.92, zg - 0.01, zg + 0.01, rgb(0xbfd6e6), false);
   }
   physics.box({ x: Math.min(X(a0), X(a1)), y: Y, z: zg - 0.8 }, { x: Math.max(X(a0), X(a1)), y: Y + 1.05, z: zg + 0.8 });
-  place(s, textSign(text.rush.city, 1024, 128, '#c2185b'), 4.4, 0.55, new Vector3(X(mid), Y + height - 0.45, zg - 0.9), toCity);
+  place(s, textSign(sv.rush.city, 1024, 128, '#c2185b'), 4.4, 0.55, new Vector3(X(mid), Y + height - 0.45, zg - 0.9), toCity);
 
   // Beyond the gates: two lift doors in the end wall and the commuter trains' destinations.
   const LIFT = rgb(0x9aa3ab);
@@ -1967,8 +1968,8 @@ function buildPassage(s: Section, physics: Physics, label: string, index: number
     box(s.lit, a - 0.01, a + 0.01, Y, Y + 2.2, z1 - 0.08, z1 - 0.06, rgb(0x5c646b), false);
     s.unlit.box({ x: X(a + 0.75) - 0.05, y: Y + 1.05, z: z1 - 0.04 }, { x: X(a + 0.75) + 0.05, y: Y + 1.15, z: z1 }, rgb(0xf2c94c));
   }
-  place(s, textSign(text.rush.lift, 1024, 112, SIGN_BG), 3.6, 0.4, new Vector3(X(mid), Y + 2.55, z1 - 0.02), toCity);
-  place(s, textSign(text.rush.north, 1024, 96, '#1c2025', '#f6c956'), 3.8, 0.36, new Vector3(X(mid), Y + 2.98, z1 - 0.02), toCity);
+  place(s, textSign(sv.rush.lift, 1024, 112, SIGN_BG), 3.6, 0.4, new Vector3(X(mid), Y + 2.55, z1 - 0.02), toCity);
+  place(s, textSign(sv.rush.north, 1024, 96, '#1c2025', '#f6c956'), 3.8, 0.36, new Vector3(X(mid), Y + 2.98, z1 - 0.02), toCity);
   const reader = new Vector3(X(mid), Y + 1, gateFace - 0.3);
 
   const busker = new Vector3(X(a1 - 0.8), Y, z0 + buskerZ);
@@ -1980,8 +1981,8 @@ function buildPassage(s: Section, physics: Physics, label: string, index: number
     gateZ: zg,
     X,
     interactables: [
-      { pos: reader, radius: 2.2, prompt: text.rush.gatePrompt, act: () => text.rush.gateRed },
-      { pos: new Vector3(X(mid), Y + 1, z1 - 1), radius: 2.4, prompt: text.rush.liftPrompt, act: () => text.rush.liftComing },
+      { pos: reader, radius: 2.2, prompt: () => text.rush.gatePrompt, act: () => text.rush.gateRed },
+      { pos: new Vector3(X(mid), Y + 1, z1 - 1), radius: 2.4, prompt: () => text.rush.liftPrompt, act: () => text.rush.liftComing },
     ],
   };
 }

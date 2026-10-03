@@ -195,6 +195,7 @@ export function* extrudeRockSteps(b: MeshBuilder, profile: ProfilePoint[], x0: n
  * for tunnel mouths and shafts. Hole outlines are given in (z, y).
  */
 export function wallWithHoles(b: MeshBuilder, x: number, outline: ProfilePoint[], holes: Array<Array<[number, number]>>, paint: Paint): void {
+  if (b.dry) return;
   const shape = new Shape(outline.map((p) => new Vector2(p.z, p.y)));
   shape.closePath();
   for (const hole of holes) {

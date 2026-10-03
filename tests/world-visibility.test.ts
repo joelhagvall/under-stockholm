@@ -86,3 +86,31 @@ test('an underground station\'s second hall is hidden from the open air, where i
   world.ensureBuilt(0);
   expect(hall.visible).toBe(true);
 });
+
+test('startup prepares the chosen view across slices and leaves distant stations queued', async () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'document');
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: { hidden: true } });
+  try {
+    const world = Object.assign(Object.create(World.prototype) as World, {
+      group: new Group(), lazy: [], built: [], building: null, paused: [], recording: null,
+      extents: new Map(), shownAt: Number.NaN, shownCount: 0, openRanges: [], warm: null,
+    });
+    let nearReady = false, farReady = false;
+    const later = (World.prototype as unknown as { later(x0: number, x1: number, build: () => Generator<void, void>): void }).later;
+    later.call(world, 0, 100, function* () { yield; yield; nearReady = true; });
+    later.call(world, 6000, 6200, function* () { farReady = true; });
+    const pending = world.prepare(50, 0);
+    expect(nearReady).toBe(false);
+    await pending;
+    expect(nearReady).toBe(true);
+    expect(world.hasPendingBuild(50)).toBe(false);
+    expect(farReady).toBe(false);
+    expect(world.hasPendingBuild(6100)).toBe(true);
+    await world.prepare(6100, 0);
+    expect(farReady).toBe(true);
+    expect(world.hasPendingBuild(6100)).toBe(false);
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'document', original);
+    else Reflect.deleteProperty(globalThis, 'document');
+  }
+});

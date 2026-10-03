@@ -1,5 +1,6 @@
 import { CylinderGeometry, Group, Matrix4, Mesh, MeshBasicMaterial, BoxGeometry, PlaneGeometry, Vector3 } from 'three';
-import text from '../i18n/sv.json';
+import sv from '../i18n/sv.json';
+import { text } from '../i18n/text';
 import type { Paint } from '../gfx/builder';
 import { rgb, type RGB } from '../gfx/color';
 import { createCanvasSign, fitText, FONT } from '../gfx/signs';
@@ -137,11 +138,11 @@ function shelterMap() {
     ctx.stroke();
     ctx.fillStyle = '#6d6a62';
     ctx.font = `italic 500 20px "Comic Sans MS", "Marker Felt", ${FONT}`;
-    ctx.fillText(text.service.mapNote, m.x + 0.38 * m.w + 12, m.y + 0.42 * m.h + 42);
+    ctx.fillText(sv.service.mapNote, m.x + 0.38 * m.w + 12, m.y + 0.42 * m.h + 42);
     ctx.fillStyle = '#20252b';
-    fitText(ctx, text.service.mapTitle, w - 48, 800, 30);
+    fitText(ctx, sv.service.mapTitle, w - 48, 800, 30);
     ctx.textBaseline = 'middle';
-    ctx.fillText(text.service.mapTitle, w / 2, 38);
+    ctx.fillText(sv.service.mapTitle, w / 2, 38);
   });
 }
 
@@ -222,7 +223,7 @@ export function buildServiceAccess(s: Section, physics: Physics, cx: number, e: 
   s.unlit.box({ x: Math.min(X(wallA - 0.25), X(wallA - 0.05)), y: d.height + 0.2, z: -0.12 }, { x: Math.max(X(wallA - 0.25), X(wallA - 0.05)), y: d.height + 0.34, z: 0.12 }, WARM_BULB);
   const facing = new Vector3(e, 0, 0);
   place(s, exitSign(), 0.9, 0.34, new Vector3(X(wallA - 0.02), d.height + 0.62, 0), facing);
-  place(s, textSign(text.service.staffOnly, 512, 96, '#f2f2f2', '#b3261e'), 1.3, 0.24, new Vector3(X(wallA - 0.02), 1.55, d.halfWidth + 0.72), facing);
+  place(s, textSign(sv.service.staffOnly, 512, 96, '#f2f2f2', '#b3261e'), 1.3, 0.24, new Vector3(X(wallA - 0.02), 1.55, d.halfWidth + 0.72), facing);
 }
 
 /**
@@ -366,7 +367,7 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
     lamp(D.flat + 0.6, CORRIDOR.height + 0.8, (D.z0 + D.z1) / 2, LAMP, 0.7, 5);
     lamp((c0 + c1) / 2, CORRIDOR.height - 0.02, -1.6, LAMP, 0.7, 6);
     const zoneBox = (a0: number, a1: number, y0: number, y1: number, z0: number, z1: number) => zones.push({
-      min: { x: Math.min(X(a0), X(a1)), y: y0, z: z0 }, max: { x: Math.max(X(a0), X(a1)), y: y1, z: z1 }, station: index, area: 'service', label: text.service.corridor,
+      min: { x: Math.min(X(a0), X(a1)), y: y0, z: z0 }, max: { x: Math.max(X(a0), X(a1)), y: y1, z: z1 }, station: index, area: 'service', label: sv.service.corridor,
     });
     zoneBox(0, D.turn, -0.5, PLATFORM_Y + 3, D.z0, D.z1);
     zoneBox(c0, c1, -0.5, 3, D.z0, zc);
@@ -376,27 +377,27 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
     wall(-0.12, 0, PLATFORM_Y + D.height, PLATFORM_Y + D.height + 0.12, D.z0, D.z1, STEEL, false);
     if (!s.dry) {
       place(s, exitSign(), 0.7, 0.26, new Vector3(X(-0.14), PLATFORM_Y + D.height + 0.35, (D.z0 + D.z1) / 2), facingOut);
-      place(s, textSign(text.service.staffOnly, 512, 96, '#f2f2f2', '#b3261e'), 0.9, 0.17, new Vector3(X(-0.02), PLATFORM_Y + 1.5, D.z0 - 0.62), facingOut);
+      place(s, textSign(sv.service.staffOnly, 512, 96, '#f2f2f2', '#b3261e'), 0.9, 0.17, new Vector3(X(-0.02), PLATFORM_Y + 1.5, D.z0 - 0.62), facingOut);
     }
   }
 
   if (kind === 'cavern') {
     // A short bypass between the tail tubes into the turnback cavern.
     corridor(start, TAIL_TUBE, 0);
-    zone(start, TAIL_TUBE, -0.5, 3, CORRIDOR.halfWidth + 0.1, text.service.corridor);
-    const sign = textSign(text.service.turnback, 768, 112, '#f2f2f2', '#10325f');
+    zone(start, TAIL_TUBE, -0.5, 3, CORRIDOR.halfWidth + 0.1, sv.service.corridor);
+    const sign = textSign(sv.service.turnback, 768, 112, '#f2f2f2', '#10325f');
     place(s, sign, 1.6, 0.23, new Vector3(X(0.4), 2.25, -CORRIDOR.halfWidth + 0.02), new Vector3(0, 0, 1));
     if (clue === 'scratches') {
-      const scratched = clueNote(text.mystery.clues.scratches[1].split(': ')[1].replace(/[”"]/g, ''), true);
+      const scratched = clueNote(sv.mystery.clues.scratches[1].split(': ')[1].replace(/[”"]/g, ''), true);
       scratched.material.transparent = true;
       place(s, scratched, 1.1, 0.86, new Vector3(X(11), 1.45, CORRIDOR.halfWidth - 0.02), new Vector3(0, 0, -1));
-      interactables.push({ pos: new Vector3(X(11), 1, 0.3), radius: 1.4, prompt: text.mystery.scratchesPrompt, act: () => mystery.read('scratches') });
+      interactables.push({ pos: new Vector3(X(11), 1, 0.3), radius: 1.4, prompt: () => text.mystery.scratchesPrompt, act: () => mystery.read('scratches') });
     }
   }
 
   if (kind === 'staff') {
     corridor(start, 12, 0);
-    zone(start, 12, -0.5, 3, CORRIDOR.halfWidth + 0.1, text.service.corridor);
+    zone(start, 12, -0.5, 3, CORRIDOR.halfWidth + 0.1, sv.service.corridor);
     // Staff room: table, chairs, lockers, a coffee machine and a notice board.
     const R = { a0: 12, a1: 20, halfW: 3.2, height: 2.8 };
     const paint = corridorPaint(0);
@@ -405,7 +406,7 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
     for (const side of [-1, 1]) box(R.a0, R.a1, 0, R.height, side * R.halfW, side * (R.halfW + 0.12), paint);
     endWall(R.a0 - 0.2, 0, R.halfW, R.height, CORRIDOR.halfWidth, CORRIDOR.height, paint);
     endWall(R.a1, 0, R.halfW, R.height, 0.8, 2.5, paint);
-    zone(R.a0, R.a1, -0.5, 3, R.halfW, text.service.staffRoom);
+    zone(R.a0, R.a1, -0.5, 3, R.halfW, sv.service.staffRoom);
     lamp(14.5, R.height - 0.02, -1.4, LAMP, 0.9, 8);
     lamp(17.5, R.height - 0.02, 1.4, LAMP, 0.9, 8);
     box(15, 17.6, 0.72, 0.77, -1.9, -0.9, rgb(0xd8d2c3));
@@ -420,7 +421,7 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
     const board = createCanvasSign(512, 384, (ctx, w, h) => {
       ctx.fillStyle = '#b89a6a';
       ctx.fillRect(0, 0, w, h);
-      const notes: Array<[string, string, number, number]> = text.service.notices.map((note, i) => [note, ['#fff7b0', '#ffffff', '#cfe8ff', '#ffd6d6'][i % 4], 30 + (i % 2) * 250, 24 + Math.floor(i / 2) * 170]);
+      const notes: Array<[string, string, number, number]> = sv.service.notices.map((note, i) => [note, ['#fff7b0', '#ffffff', '#cfe8ff', '#ffd6d6'][i % 4], 30 + (i % 2) * 250, 24 + Math.floor(i / 2) * 170]);
       for (const [note, bg, x, y] of notes) {
         ctx.fillStyle = bg;
         ctx.fillRect(x, y, 220, 150);
@@ -444,28 +445,28 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
     });
     place(s, board, 1.6, 1.2, new Vector3(X(17), 1.6, R.halfW - 0.02), new Vector3(0, 0, -1));
     // Passive-aggressive notes on the fridge, the coffee machine and the lockers.
-    const [yoghurt, descale, locker] = text.service.kitchenNotes.map((note, i) => noteSign(note, ['#fff3a8', '#ffffff', '#ffd9e1'][i]));
+    const [yoghurt, descale, locker] = sv.service.kitchenNotes.map((note, i) => noteSign(note, ['#fff3a8', '#ffffff', '#ffd9e1'][i]));
     place(s, yoghurt, 0.24, 0.28, new Vector3(X(12.72), 1.32, -R.halfW + 0.65), new Vector3(0, 0, 1));
     place(s, descale, 0.22, 0.26, new Vector3(X(18.85), 1.5, R.halfW - 0.6), new Vector3(0, 0, -1));
     place(s, locker, 0.22, 0.26, new Vector3(X(13.95), 1.45, R.halfW - 0.5), new Vector3(0, 0, -1));
     if (clue === 'clipping') {
       place(s, clueNote('SPÖKTÅGET: FÖRAREN SOM VÄGRAR KÖRA'), 0.34, 0.27, new Vector3(X(16.4), 1.95, R.halfW - 0.03), new Vector3(0, 0, -1));
-      interactables.push({ pos: new Vector3(X(16.4), 1.2, R.halfW - 0.9), radius: 1.2, prompt: text.mystery.clippingPrompt, act: () => mystery.read('clipping') });
+      interactables.push({ pos: new Vector3(X(16.4), 1.2, R.halfW - 0.9), radius: 1.2, prompt: () => text.mystery.clippingPrompt, act: () => mystery.read('clipping') });
     }
     // The shared notice board on the other wall: notes from other players (see `notes.ts`).
     if (!s.dry) place(s, sharedNotes.board(), 1.8, 1.2, new Vector3(X(16.3), 1.55, -R.halfW + 0.02), new Vector3(0, 0, 1));
     interactables.push({
-      pos: new Vector3(X(16.3), 1, -R.halfW + 1), radius: 1.5, prompt: text.notes.prompt,
+      pos: new Vector3(X(16.3), 1, -R.halfW + 1), radius: 1.5, prompt: () => text.notes.prompt,
       act: () => { sharedNotes.refresh(); noteWriter.open?.(); },
     });
     interactables.push({
-      pos: new Vector3(X(19.05), 1.1, R.halfW - 0.9), radius: 1.3, prompt: text.service.coffeePrompt,
+      pos: new Vector3(X(19.05), 1.1, R.halfW - 0.9), radius: 1.3, prompt: () => text.service.coffeePrompt,
       act: () => text.service.coffee,
     });
 
     // Emergency stairs up to a locked, alarmed door.
     stairs(20.2, 30.2, 0, 6, 0.8);
-    zone(20.2, 32.2, -0.5, 9, 0.9, text.service.emergencyExit);
+    zone(20.2, 32.2, -0.5, 9, 0.9, sv.service.emergencyExit);
     box(30.2, 32.2, 5.8, 6, -0.92, 0.92, CONCRETE);
     box(30.2, 32.2, 8.6, 8.8, -0.92, 0.92, CONCRETE);
     for (const side of [-1, 1]) box(30.2, 32.2, 6, 8.6, side * 0.8, side * 0.92, corridorPaint(6));
@@ -473,18 +474,18 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
     box(32.1, 32.2, 6, 8.1, -0.5, 0.5, rgb(0x5a6b58), false);
     box(32.0, 32.1, 7.05, 7.1, -0.4, 0.4, STEEL, false);
     lamp(31.2, 8.58, 0, LAMP, 0.8, 5);
-    place(s, exitSign(text.service.exitVasagatan), 0.9, 0.34, new Vector3(X(32.08), 8.3, 0), facing(1));
-    place(s, textSign(text.service.alarmed, 512, 96, '#f4d03f', '#1c2025'), 0.7, 0.13, new Vector3(X(32.08), 7.45, 0), facing(1));
+    place(s, exitSign(sv.service.exitVasagatan), 0.9, 0.34, new Vector3(X(32.08), 8.3, 0), facing(1));
+    place(s, textSign(sv.service.alarmed, 512, 96, '#f4d03f', '#1c2025'), 0.7, 0.13, new Vector3(X(32.08), 7.45, 0), facing(1));
     const door = new Vector3(X(31.7), 7, 0);
     interactables.push({ pos: door, radius: 1.3, get prompt() { return staffKey.has ? text.key.unlockPrompt : text.service.pushPrompt; }, act: () => (staffKey.exit(door) ? undefined : text.service.lockedExit) });
   }
 
   if (kind === 'shelter') {
     corridor(start, 10, 0);
-    zone(start, 10, -0.5, 3, CORRIDOR.halfWidth + 0.1, text.service.corridor);
+    zone(start, 10, -0.5, 3, CORRIDOR.halfWidth + 0.1, sv.service.corridor);
     const floor = -6;
     stairs(10, 20, 0, floor, 0.9);
-    zone(10, 20, floor - 0.5, 3, 1, text.service.shelterStairs);
+    zone(10, 20, floor - 0.5, 3, 1, sv.service.shelterStairs);
     const tube = (a: number, z: number, y: number, ceiling: number, intensity = 0.85) => {
       // A fluorescent fitting on two wires, lengthwise.
       for (const da of [-0.5, 0.5]) box(a + da - 0.01, a + da + 0.01, y + 0.07, ceiling, z - 0.01, z + 0.01, rgb(0x2a2c2e), false);
@@ -509,14 +510,14 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
     for (const side of [-1, 1]) box(L.a0 - 0.06, L.a0, floor, floor + 2.18, side * 0.65, side * 0.78, STEEL, false);
     box(L.a0 - 0.06, L.a0, floor + 2.1, floor + 2.18, -0.78, 0.78, STEEL, false);
     place(s, shelterSign(), 0.56, 0.7, new Vector3(X(L.a0 - 0.02), floor + 2.62, 0), facing(-1));
-    place(s, textSign(text.service.shelterPlate, 768, 96, '#f2f2f2', '#10151c'), 1.5, 0.19, new Vector3(X(L.a0 - 0.02), floor + 3.25, 0), facing(-1));
+    place(s, textSign(sv.service.shelterPlate, 768, 96, '#f2f2f2', '#10151c'), 1.5, 0.19, new Vector3(X(L.a0 - 0.02), floor + 3.25, 0), facing(-1));
     // The blast door swung back against the lock's wall, its closing levers showing.
     box(L.a0 + 0.62, L.a0 + 1.94, floor + 0.02, floor + 2.06, 1.56, 1.76, door);
     for (const a of [L.a0 + 0.85, L.a0 + 1.7]) for (const y of [0.55, 1.55]) box(a - 0.05, a + 0.05, floor + y - 0.13, floor + y + 0.13, 1.48, 1.56, STEEL, false);
     doorWall(L.a1 - 0.6, L.a1 - 0.02, L.height);
     tube((L.a0 + L.a1) / 2, 0, floor + L.height - 0.25, floor + L.height, 0.7);
-    zone(L.a0, L.a1, floor - 0.5, floor + L.height + 0.2, L.halfW, text.service.shelterLock);
-    place(s, textSign(text.service.lockSign, 1024, 96, '#f4d03f', '#1c2025'), 1.3, 0.12, new Vector3(X(L.a1 - 0.62), floor + 2.35, 0), facing(-1));
+    zone(L.a0, L.a1, floor - 0.5, floor + L.height + 0.2, L.halfW, sv.service.shelterLock);
+    place(s, textSign(sv.service.lockSign, 1024, 96, '#f4d03f', '#1c2025'), 1.3, 0.12, new Vector3(X(L.a1 - 0.62), floor + 2.35, 0), facing(-1));
     // The decontamination shower over a drain, a bench, and masks on their hooks.
     const shower = { a: L.a0 + 2.4, z: -1.1 };
     box(shower.a - 0.02, shower.a + 0.02, floor + 2.2, floor + L.height, shower.z - 0.02, shower.z + 0.02, STEEL, false);
@@ -524,7 +525,7 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
     s.lit.geometry(head, new Matrix4().setPosition(X(shower.a), floor + 2.16, shower.z), STEEL);
     head.dispose();
     box(shower.a - 0.25, shower.a + 0.25, floor, floor + 0.006, shower.z - 0.25, shower.z + 0.25, rgb(0x2b2d2f), false);
-    interactables.push({ pos: new Vector3(X(shower.a), floor + 1, shower.z), radius: 1.2, prompt: text.service.showerPrompt, act: () => text.service.shower });
+    interactables.push({ pos: new Vector3(X(shower.a), floor + 1, shower.z), radius: 1.2, prompt: () => text.service.showerPrompt, act: () => text.service.shower });
     box(L.a0 + 3.4, L.a0 + 5.6, floor + 0.42, floor + 0.47, 1.3, 1.75, rgb(0x8a6a45));
     for (const a of [L.a0 + 3.5, L.a0 + 5.5]) box(a - 0.03, a + 0.03, floor, floor + 0.42, 1.35, 1.7, STEEL, false);
     box(L.a0 + 3.2, L.a0 + 6, floor + 1.72, floor + 1.76, -L.halfW + 0.02, -L.halfW + 0.07, STEEL, false);
@@ -535,7 +536,7 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
       s.lit.geometry(filter, new Matrix4().makeRotationX(Math.PI / 2).setPosition(X(a), floor + 1.46, -L.halfW + 0.18), rgb(0x5d6a47));
       filter.dispose();
     }
-    interactables.push({ pos: new Vector3(X(L.a0 + 4.6), floor + 1, -L.halfW + 0.7), radius: 1.3, prompt: text.service.masksPrompt, act: () => text.service.masks });
+    interactables.push({ pos: new Vector3(X(L.a0 + 4.6), floor + 1, -L.halfW + 0.7), radius: 1.3, prompt: () => text.service.masksPrompt, act: () => text.service.masks });
 
     // The shelter proper: a vault blasted into the rock and sprayed with concrete, 480 places under one arch.
     const V = { a0: L.a1, a1: 67.6, halfW: 7, wallH: 1.8, top: 4.8, rooms: 59.6 };
@@ -551,7 +552,7 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
       physics.box({ x: Math.min(X(V.a0 - 0.6), X(V.a0)), y: floor, z: Math.min(side * L.halfW, side * (V.halfW + 0.6)) }, { x: Math.max(X(V.a0 - 0.6), X(V.a0)), y: floor + V.top + 1, z: Math.max(side * L.halfW, side * (V.halfW + 0.6)) });
     }
     physics.box({ x: Math.min(X(V.a1), X(V.a1 + 0.5)), y: floor, z: -V.halfW - 0.6 }, { x: Math.max(X(V.a1), X(V.a1 + 0.5)), y: floor + V.top + 1, z: V.halfW + 0.6 });
-    zone(V.a0, V.rooms, floor - 0.5, floor + V.top + 0.2, V.halfW, text.service.shelter);
+    zone(V.a0, V.rooms, floor - 0.5, floor + V.top + 0.2, V.halfW, sv.service.shelter);
     // The inner door, open into the shelter.
     box(V.a0 + 0.02, V.a0 + 1.3, floor + 0.02, floor + 2.04, -0.76, -0.68, door);
     box(V.a0 + 1.1, V.a0 + 1.16, floor + 0.95, floor + 1.15, -0.68, -0.64, STEEL, false);
@@ -622,7 +623,7 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
       // A worn driver's logbook, left open on a table.
       box(V.a0 + 14.9, V.a0 + 15.5, floor + 0.77, floor + 0.81, -0.22, 0.22, rgb(0x5a2a22), false);
       box(V.a0 + 14.93, V.a0 + 15.47, floor + 0.81, floor + 0.82, -0.2, 0.2, rgb(0xe6d9a8), false);
-      interactables.push({ pos: new Vector3(X(V.a0 + 15.2), floor + 0.6, 0), radius: 1.5, prompt: text.mystery.logbookPrompt, act: () => mystery.read('logbook') });
+      interactables.push({ pos: new Vector3(X(V.a0 + 15.2), floor + 0.6, 0), radius: 1.5, prompt: () => text.mystery.logbookPrompt, act: () => mystery.read('logbook') });
     }
     // Water and emergency rations by the far end.
     for (let i = 0; i < 3; i++) {
@@ -636,12 +637,12 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
       const y = floor + Math.floor(i / 3) * 0.5;
       box(a - 0.3, a + 0.3, y, y + 0.48, V.halfW - 1.9, V.halfW - 1.1, rgb(0x6d7a4e), i < 3);
     }
-    place(s, textSign(text.service.rations, 512, 96, '#6d7a4e', '#f0f0e6'), 0.6, 0.11, new Vector3(X(V.rooms - 1.9), floor + 0.75, V.halfW - 1.93), new Vector3(0, 0, -1));
+    place(s, textSign(sv.service.rations, 512, 96, '#6d7a4e', '#f0f0e6'), 0.6, 0.11, new Vector3(X(V.rooms - 1.9), floor + 0.75, V.halfW - 1.93), new Vector3(0, 0, -1));
     // Notices and a first aid cabinet on the entrance wall, facing in.
     const posters: Array<[string, string, string[]]> = [
-      [text.service.posterAlarm, '#d9b93b', text.service.alarmLines],
-      [text.service.posterInfo, '#b3261e', text.service.posterLines],
-      [text.service.posterCalm, '#1c4a9a', text.service.posterLines],
+      [sv.service.posterAlarm, '#d9b93b', sv.service.alarmLines],
+      [sv.service.posterInfo, '#b3261e', sv.service.posterLines],
+      [sv.service.posterCalm, '#1c4a9a', sv.service.posterLines],
     ];
     posters.forEach(([title, band, lines], i) => {
       const poster = createCanvasSign(384, 512, (ctx, w) => {
@@ -681,7 +682,7 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
       staffKey.hang(key);
     }
     interactables.push({
-      pos: new Vector3(X(V.a0 + 0.8), floor + 1, hookZ), radius: 1.3, prompt: text.key.takePrompt,
+      pos: new Vector3(X(V.a0 + 0.8), floor + 1, hookZ), radius: 1.3, prompt: () => text.key.takePrompt,
       enabled: () => !staffKey.has,
       act: () => { staffKey.take(); return text.key.taken; },
     });
@@ -696,14 +697,14 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
       box(R.a0, R.a0 + R.wall, floor, floor + V.wallH, side * R.edge, side * V.halfW, shelterPaint(floor));
       box(R.a0 + R.wall, R.a1, floor, floor + R.height, side * 2.3, side * 2.45, shelterPaint(floor));
     }
-    const roomSigns: Array<[string, number]> = [[text.service.roomCommand, doors[0]], [text.service.roomFilters, doors[1]], [text.service.roomToilets, doors[2]]];
+    const roomSigns: Array<[string, number]> = [[sv.service.roomCommand, doors[0]], [sv.service.roomFilters, doors[1]], [sv.service.roomToilets, doors[2]]];
     for (const [label, z] of roomSigns) place(s, textSign(label, 512, 96, '#f2f2f2', '#10151c'), 0.8, 0.15, new Vector3(X(R.a0 - 0.02), floor + 2.23, z), facing(-1));
     const zoneZ = (a0: number, a1: number, z0: number, z1: number, label: string) => {
       zones.push({ min: { x: Math.min(X(a0), X(a1)), y: floor - 0.5, z: z0 }, max: { x: Math.max(X(a0), X(a1)), y: floor + V.top + 0.2, z: z1 }, station: index, area: 'service', label });
     };
-    zoneZ(R.a0, R.a1, -V.halfW, -2.3, text.service.shelterCommand);
-    zoneZ(R.a0, R.a1, -2.3, 2.3, text.service.shelterFilters);
-    zoneZ(R.a0, R.a1, 2.3, V.halfW, text.service.shelterToilets);
+    zoneZ(R.a0, R.a1, -V.halfW, -2.3, sv.service.shelterCommand);
+    zoneZ(R.a0, R.a1, -2.3, 2.3, sv.service.shelterFilters);
+    zoneZ(R.a0, R.a1, 2.3, V.halfW, sv.service.shelterToilets);
     const roomY = floor + 2.3;
     for (const z of [-4.6, 0, 4.6]) tube((R.a0 + R.a1) / 2, z, roomY, floor + (z === 0 ? 4.2 : 3.6), 0.75);
 
@@ -749,9 +750,9 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
         return text.service.radio[radioLine++ % text.service.radio.length];
       },
     });
-    interactables.push({ pos: new Vector3(X(R.a1 - 1.1), floor + 1, -3.9), radius: 1, prompt: text.service.phonePrompt, act: () => text.service.phone });
+    interactables.push({ pos: new Vector3(X(R.a1 - 1.1), floor + 1, -3.9), radius: 1, prompt: () => text.service.phonePrompt, act: () => text.service.phone });
     place(s, shelterMap(), 1.5, 1, new Vector3(X((R.a0 + R.a1) / 2), floor + 1.45, -2.47), new Vector3(0, 0, -1));
-    interactables.push({ pos: new Vector3(X((R.a0 + R.a1) / 2), floor + 1, -3.3), radius: 1.3, prompt: text.service.mapPrompt, act: () => text.service.map });
+    interactables.push({ pos: new Vector3(X((R.a0 + R.a1) / 2), floor + 1, -3.3), radius: 1.3, prompt: () => text.service.mapPrompt, act: () => text.service.map });
     const clock = stoppedClock();
     clock.material.transparent = true;
     place(s, clock, 0.34, 0.34, new Vector3(X(R.a0 + R.wall + 0.02), floor + 1.95, -3.2), facing(1));
@@ -764,7 +765,7 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
       s.lit.geometry(pipe, new Matrix4().setPosition(X(vent.a + da), floor + 1.7 + (ductY - 1.7 - floor) / 2, vent.z + 0.2), rgb(0x8b948d));
       pipe.dispose();
     }
-    place(s, textSign(text.service.ventilation, 512, 96, '#5b6e5c', '#f0f0e6'), 0.9, 0.17, new Vector3(X(vent.a), floor + 1.56, vent.z + 0.72), new Vector3(0, 0, 1));
+    place(s, textSign(sv.service.ventilation, 512, 96, '#5b6e5c', '#f0f0e6'), 0.9, 0.17, new Vector3(X(vent.a), floor + 1.56, vent.z + 0.72), new Vector3(0, 0, 1));
     const crank = new Group();
     const arm = new Mesh(new BoxGeometry(0.05, 0.36, 0.05), new MeshBasicMaterial({ color: 0x9a9f98 }));
     arm.position.y = 0.16;
@@ -781,7 +782,7 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
       crank.rotation.z -= dt * 5 * Math.min(1, spin);
     });
     interactables.push({
-      pos: new Vector3(X(vent.a), floor + 1.1, vent.z + 1), radius: 1.4, prompt: text.service.crankPrompt,
+      pos: new Vector3(X(vent.a), floor + 1.1, vent.z + 1), radius: 1.4, prompt: () => text.service.crankPrompt,
       act: () => { spin = 3; return text.service.crank; },
     });
     for (let i = 0; i < 3; i++) {
@@ -800,8 +801,8 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
     const wheel = new CylinderGeometry(0.2, 0.2, 0.04, 16);
     s.lit.geometry(wheel, new Matrix4().makeRotationZ(Math.PI / 2).setPosition(X(R.a1 - 0.2), floor + 1.25, 0), STEEL);
     wheel.dispose();
-    place(s, exitSign(text.service.reserveExitSign), 0.9, 0.34, new Vector3(X(R.a1 - 0.02), floor + 2.1, 0), facing(-1));
-    interactables.push({ pos: new Vector3(X(R.a1 - 0.6), floor + 1, 0), radius: 1.3, prompt: text.service.pushPrompt, act: () => text.service.reserveExit });
+    place(s, exitSign(sv.service.reserveExitSign), 0.9, 0.34, new Vector3(X(R.a1 - 0.02), floor + 2.1, 0), facing(-1));
+    interactables.push({ pos: new Vector3(X(R.a1 - 0.6), floor + 1, 0), radius: 1.3, prompt: () => text.service.pushPrompt, act: () => text.service.reserveExit });
 
     // Dry toilets: three cubicles with their doors open, and water for washing.
     const stalls = [2.45, 3.85, 5.25, 6.55];
@@ -818,7 +819,7 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
       const seat = new CylinderGeometry(0.24, 0.24, 0.04, 14);
       s.lit.geometry(seat, new Matrix4().setPosition(X(R.a1 - 0.45), floor + 0.44, zc), rgb(0x1d1f21));
       seat.dispose();
-      interactables.push({ pos: new Vector3(X(R.a1 - 1.6), floor + 1, zc), radius: 1, prompt: text.service.toiletPrompt, act: () => text.service.toilet });
+      interactables.push({ pos: new Vector3(X(R.a1 - 1.6), floor + 1, zc), radius: 1, prompt: () => text.service.toiletPrompt, act: () => text.service.toilet });
     }
     box(R.a0 + 0.6, R.a0 + 1.8, floor + 0.78, floor + 0.82, 5.8, 6.5, rgb(0x8a6a45));
     for (const a of [R.a0 + 0.7, R.a0 + 1.7]) box(a - 0.03, a + 0.03, floor, floor + 0.78, 5.85, 6.45, STEEL, false);

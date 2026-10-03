@@ -4,7 +4,7 @@ import { hash01 } from './clock';
 import { MeshBuilder } from './gfx/builder';
 import { rgb } from './gfx/color';
 import { glowTexture } from './gfx/textures';
-import text from './i18n/sv.json';
+import { text } from './i18n/text';
 import { PLATFORM_Y } from './layout';
 import { propMaterial } from './props';
 import { Spatial, tone, type AudioOut } from './sfx';

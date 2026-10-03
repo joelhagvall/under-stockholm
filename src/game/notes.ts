@@ -1,6 +1,7 @@
 import { relayUrl } from './relay';
 import { createCanvasSign, FONT, redraw, type CanvasSign } from './gfx/signs';
-import text from './i18n/sv.json';
+import sv from './i18n/sv.json';
+import { text } from './i18n/text';
 import { cleanNote } from './notePhrases';
 
 /**
@@ -79,11 +80,11 @@ class SharedNotes {
       ctx.font = `700 26px ${FONT}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillText(text.notes.title, w / 2, 12);
+      ctx.fillText(sv.notes.title, w / 2, 12);
       const list = this.notes.slice(0, 12);
       if (!list.length) {
         ctx.font = `italic 500 22px ${FONT}`;
-        ctx.fillText(text.notes.empty, w / 2, h / 2);
+        ctx.fillText(sv.notes.empty, w / 2, h / 2);
         return;
       }
       list.forEach((note, i) => {

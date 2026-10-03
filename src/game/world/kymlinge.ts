@@ -1,5 +1,6 @@
 import { CircleGeometry, CylinderGeometry, Group, Matrix4, Mesh, MeshBasicMaterial, SphereGeometry, Vector3 } from 'three';
-import text from '../i18n/sv.json';
+import sv from '../i18n/sv.json';
+import { text } from '../i18n/text';
 import type { Paint } from '../gfx/builder';
 import { mix, rgb } from '../gfx/color';
 import { fbm3, noise3 } from '../gfx/noise';
@@ -96,7 +97,7 @@ export function* kymlingeSteps(physics: Physics, kx: number, dry = false): Gener
   const bx = xb - 0.06;
   const hole = rectHole(-2.6, 2.6, PLATFORM_Y, PLATFORM_Y + 3.9);
   s.lit.quad(new Vector3(bx, hole[0][1], hole[0][0]), new Vector3(bx, hole[1][1], hole[1][0]), new Vector3(bx, hole[2][1], hole[2][0]), new Vector3(bx, hole[3][1], hole[3][0]), BLOCKWORK);
-  place(s, paintedSign(text.kymlinge.noExit, 512, 128, '#7a5b3a'), 1.8, 0.45, new Vector3(bx - 0.02, PLATFORM_Y + 2.2, 0), new Vector3(-1, 0, 0));
+  place(s, paintedSign(sv.kymlinge.noExit, 512, 128, '#7a5b3a'), 1.8, 0.45, new Vector3(bx - 0.02, PLATFORM_Y + 2.2, 0), new Vector3(-1, 0, 0));
 
   // Trackbed and both through tracks, with spare sleepers stacked against the far wall.
   s.lit.box({ x: xa, y: -0.5, z: -CAVE_HALF_W }, { x: xb, y: 0, z: CAVE_HALF_W }, PAINT.ballast, ['ny']);
@@ -149,7 +150,7 @@ export function* kymlingeSteps(physics: Physics, kx: number, dry = false): Gener
   s.light(kx, 5.5, -TRACK_Z, BULB, 0.4, 14);
 
   // Hand-painted name on the rock above the track, and the enamel sign that never went up.
-  const painted = paintedSign(text.kymlinge.name.toUpperCase(), 1024, 192, null);
+  const painted = paintedSign(sv.kymlinge.name.toUpperCase(), 1024, 192, null);
   painted.material.transparent = true;
   for (const x of [kx - 30, kx + 26]) place(s, painted, 6, 1.1, new Vector3(x, 3.4, -CAVE_HALF_W + STATION_ROCK_INSET + 0.3), new Vector3(0, 0, 1));
   const enamel = createCanvasSign(1024, 192, (ctx, w, h) => {
@@ -159,10 +160,10 @@ export function* kymlingeSteps(physics: Physics, kx: number, dry = false): Gener
     ctx.lineWidth = 10;
     ctx.strokeRect(14, 14, w - 28, h - 28);
     ctx.fillStyle = '#eef1f3';
-    fitText(ctx, text.kymlinge.name, w - 120, 600, 110);
+    fitText(ctx, sv.kymlinge.name, w - 120, 600, 110);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text.kymlinge.name, w / 2, h / 2 + 4);
+    ctx.fillText(sv.kymlinge.name, w / 2, h / 2 + 4);
     // Dust and chips.
     for (let i = 0; i < 260; i++) {
       ctx.fillStyle = i % 3 ? 'rgba(120, 110, 95, 0.25)' : 'rgba(20, 20, 20, 0.5)';
@@ -173,7 +174,7 @@ export function* kymlingeSteps(physics: Physics, kx: number, dry = false): Gener
   const leaning = place(s, enamel, 3, 0.56, new Vector3(kx + 12, PLATFORM_Y + 0.62, -PLATFORM_HALF_W + 1.2), new Vector3(0, 0, 1));
   leaning.rotation.x = -0.28;
   s.lit.box({ x: kx + 10.4, y: PLATFORM_Y, z: -PLATFORM_HALF_W + 0.9 }, { x: kx + 13.6, y: PLATFORM_Y + 0.05, z: -PLATFORM_HALF_W + 1.25 }, rgb(0x2b2b2b));
-  interactables.push({ pos: new Vector3(kx + 12, PLATFORM_Y + 0.8, -PLATFORM_HALF_W + 1.6), radius: 1.8, prompt: text.kymlinge.signPrompt, act: () => text.kymlinge.sign });
+  interactables.push({ pos: new Vector3(kx + 12, PLATFORM_Y + 0.8, -PLATFORM_HALF_W + 1.6), radius: 1.8, prompt: () => text.kymlinge.signPrompt, act: () => text.kymlinge.sign });
 
   yield;
   // A clock that stopped before anyone arrived.
@@ -191,20 +192,20 @@ export function* kymlingeSteps(physics: Physics, kx: number, dry = false): Gener
   s.lit.geometry(ring, new Matrix4().makeRotationZ(Math.PI / 2).setPosition(kx - 6, 3.85, 0), rgb(0x2a2c30));
   ring.dispose();
   s.lit.box({ x: kx - 6.02, y: 4.2, z: -0.02 }, { x: kx - 5.98, y: CAVE_TOP, z: 0.02 }, rgb(0x2a2c30));
-  interactables.push({ pos: new Vector3(kx - 6, PLATFORM_Y + 1, 0), radius: 2, prompt: text.kymlinge.clockPrompt, act: () => { mystery.read('clock'); return text.kymlinge.clock; } });
+  interactables.push({ pos: new Vector3(kx - 6, PLATFORM_Y + 1, 0), radius: 2, prompt: () => text.kymlinge.clockPrompt, act: () => { mystery.read('clock'); return text.kymlinge.clock; } });
 
   // An emergency phone that still has a line to somewhere.
   s.lit.box({ x: kx + 30 - 0.3, y: PLATFORM_Y, z: -0.3 }, { x: kx + 30 + 0.3, y: PLATFORM_Y + 2.2, z: 0.3 }, rgb(0x2b3037));
   physics.box({ x: kx + 30 - 0.3, y: PLATFORM_Y, z: -0.3 }, { x: kx + 30 + 0.3, y: PLATFORM_Y + 2.2, z: 0.3 });
   s.lit.box({ x: kx + 30 - 0.36, y: PLATFORM_Y + 1, z: -0.16 }, { x: kx + 30 - 0.3, y: PLATFORM_Y + 1.5, z: 0.16 }, rgb(0x2a7a45));
   place(s, textSign('Nödtelefon', 256, 64, '#1f7a3d'), 0.34, 0.085, new Vector3(kx + 30 - 0.365, PLATFORM_Y + 1.6, 0), new Vector3(-1, 0, 0));
-  interactables.push({ pos: new Vector3(kx + 29.4, PLATFORM_Y + 1.2, 0), radius: 1.3, prompt: text.kymlinge.phonePrompt, act: () => (mystery.has('lastPage') ? text.mystery.phoneAfter : text.kymlinge.phone) });
+  interactables.push({ pos: new Vector3(kx + 29.4, PLATFORM_Y + 1.2, 0), radius: 1.3, prompt: () => text.kymlinge.phonePrompt, act: () => (mystery.has('lastPage') ? text.mystery.phoneAfter : text.kymlinge.phone) });
   // A steel cabinet by the phone, locked with a staff lock. The logbook's last page is inside.
   s.lit.box({ x: kx + 32, y: PLATFORM_Y, z: -0.45 }, { x: kx + 32.9, y: PLATFORM_Y + 1.9, z: 0.45 }, rgb(0x4a5057));
   s.lit.box({ x: kx + 32.9, y: PLATFORM_Y + 0.95, z: 0.25 }, { x: kx + 32.94, y: PLATFORM_Y + 1.1, z: 0.32 }, rgb(0xc9a44a));
   physics.box({ x: kx + 32, y: PLATFORM_Y, z: -0.45 }, { x: kx + 32.9, y: PLATFORM_Y + 1.9, z: 0.45 });
   interactables.push({
-    pos: new Vector3(kx + 33.4, PLATFORM_Y + 1, 0), radius: 1.3, prompt: text.mystery.cabinetPrompt,
+    pos: new Vector3(kx + 33.4, PLATFORM_Y + 1, 0), radius: 1.3, prompt: () => text.mystery.cabinetPrompt,
     act: () => { if (!staffKey.has) return text.mystery.cabinetLocked; mystery.read('lastPage'); },
   });
 
@@ -227,8 +228,8 @@ export function* kymlingeSteps(physics: Physics, kx: number, dry = false): Gener
   physics.box({ x: kx - 26.1, y: PLATFORM_Y, z: -0.35 }, { x: kx - 23.9, y: PLATFORM_Y + 0.5, z: 0.35 });
 
   const spawn = new Vector3(kx - 10, PLATFORM_Y, -1.5);
-  zones.push({ min: { x: p0, y: PLATFORM_Y - 0.3, z: -PLATFORM_HALF_W - 0.05 }, max: { x: p1, y: 9, z: PLATFORM_HALF_W + 0.05 }, station: null, area: 'platform', label: text.kymlinge.name });
-  zones.push({ min: { x: xa, y: -1, z: -CAVE_HALF_W }, max: { x: xb, y: 9, z: CAVE_HALF_W }, station: null, area: 'track', label: text.kymlinge.name });
+  zones.push({ min: { x: p0, y: PLATFORM_Y - 0.3, z: -PLATFORM_HALF_W - 0.05 }, max: { x: p1, y: 9, z: PLATFORM_HALF_W + 0.05 }, station: null, area: 'platform', label: sv.kymlinge.name });
+  zones.push({ min: { x: xa, y: -1, z: -CAVE_HALF_W }, max: { x: xb, y: 9, z: CAVE_HALF_W }, station: null, area: 'track', label: sv.kymlinge.name });
 
   const group = yield* s.finishSteps();
   const bulb = flicker;

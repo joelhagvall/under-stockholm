@@ -14,7 +14,8 @@ import {
   TUBE_TOP,
   TUBE_WALL_H,
 } from '../layout';
-import text from '../i18n/sv.json';
+import sv from '../i18n/sv.json';
+import { text } from '../i18n/text';
 import type { Paint } from '../gfx/builder';
 import type { Physics } from '../physics';
 import type { Section } from './section';
@@ -146,7 +147,7 @@ export function* tubeSteps(s: Section, physics: Physics, x0: number, x1: number,
 
 /** Green signs along the outer wall, each pointing to the nearer way out: the cross passage or a station. */
 function exitMarkers(s: Section, x0: number, x1: number, xm: number, zc: number, wallZ: number): void {
-  if (!exitSigns || exitSigns.left.canvas.width === 1) exitSigns = { left: exitSign(`← ${text.escape.sign}`), right: exitSign(`${text.escape.sign} →`) };
+  if (!exitSigns || exitSigns.left.canvas.width === 1) exitSigns = { left: exitSign(`← ${sv.escape.sign}`), right: exitSign(`${sv.escape.sign} →`) };
   const facing = new Vector3(0, 0, -Math.sign(zc));
   for (let x = x0 + 30; x < x1 - 20; x += 50) {
     const toExit = Math.abs(x - xm) < Math.min(x - x0, x1 - x) ? Math.sign(xm - x) : x - x0 < x1 - x ? -1 : 1;
@@ -176,7 +177,7 @@ function buildEscape(s: Section, physics: Physics, xm: number, extras: TubeExtra
   wall(xm + E.halfWidth, xm + E.halfWidth + 0.3, 2.2, E.height, -E.stairHalfW, E.stairHalfW);
   s.unlit.box({ x: xm - 0.4, y: E.height - 0.06, z: -0.15 }, { x: xm + 0.4, y: E.height, z: 0.15 }, rgb(0xeaf6ee));
   s.light(xm, E.height - 0.4, 0, rgb(0xd8ffe6), 0.9, 7);
-  place(s, exitSign(text.escape.sign), 0.9, 0.34, new Vector3(xm + E.halfWidth - 0.02, 2.35, 0), new Vector3(-1, 0, 0));
+  place(s, exitSign(sv.escape.sign), 0.9, 0.34, new Vector3(xm + E.halfWidth - 0.02, 2.35, 0), new Vector3(-1, 0, 0));
   // The stair up, with a ramp collider for a steady walk.
   const a0 = xm + E.halfWidth + 0.3;
   const steps = Math.round(E.stairRise / 0.25);
@@ -206,10 +207,10 @@ function buildEscape(s: Section, physics: Physics, xm: number, extras: TubeExtra
   s.lit.box({ x: b1 - 0.12, y: E.stairRise + 1.02, z: -0.4 }, { x: b1 - 0.05, y: E.stairRise + 1.08, z: 0.4 }, rgb(0x9aa0a6));
   s.unlit.box({ x: b1 - 0.9, y: E.stairRise + 2.55, z: -0.12 }, { x: b1 - 0.3, y: E.stairRise + 2.6, z: 0.12 }, rgb(0xeaf6ee));
   s.light(b1 - 0.8, E.stairRise + 2.2, 0, rgb(0xd8ffe6), 0.8, 5);
-  place(s, exitSign(text.escape.street), 0.9, 0.34, new Vector3(b1 - 0.07, E.stairRise + 2.35, 0), new Vector3(-1, 0, 0));
+  place(s, exitSign(sv.escape.street), 0.9, 0.34, new Vector3(b1 - 0.07, E.stairRise + 2.35, 0), new Vector3(-1, 0, 0));
   extras.zones.push(
-    { min: { x: xm - E.halfWidth, y: -0.5, z: -zi + 0.05 }, max: { x: xm + E.halfWidth, y: E.height, z: zi - 0.05 }, station: null, area: 'service', label: text.escape.passage },
-    { min: { x: a0 - 0.3, y: -0.5, z: -E.stairHalfW }, max: { x: b1, y: E.stairRise + 2.6, z: E.stairHalfW }, station: null, area: 'service', label: text.escape.stair },
+    { min: { x: xm - E.halfWidth, y: -0.5, z: -zi + 0.05 }, max: { x: xm + E.halfWidth, y: E.height, z: zi - 0.05 }, station: null, area: 'service', label: sv.escape.passage },
+    { min: { x: a0 - 0.3, y: -0.5, z: -E.stairHalfW }, max: { x: b1, y: E.stairRise + 2.6, z: E.stairHalfW }, station: null, area: 'service', label: sv.escape.stair },
   );
   const door = new Vector3(b1 - 0.6, E.stairRise + 0.1, 0);
   extras.interactables.push({ pos: door, radius: 1.3, get prompt() { return staffKey.has ? text.key.unlockPrompt : text.escape.prompt; }, act: () => (staffKey.exit(door) ? undefined : text.escape.locked) });

@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 import { DISCOVERIES, DiscoveryBook, discoveriesIn, GROUPS } from '../src/game/discoveries';
 import text from '../src/game/i18n/sv.json';
+import en from '../src/game/i18n/en.json';
 
 const memory = () => {
   const data = new Map<string, string>();
@@ -49,11 +50,13 @@ test('the book remembers, once', () => {
   expect(again.count).toBe(2);
 });
 
-test('no text gives away the wrong discovery', () => {
-  const at = (path: string): unknown => path.split('.').reduce<unknown>((node, key) => (node as Record<string, unknown>)?.[key], text);
-  const all = (node: unknown): string[] => (typeof node === 'string' ? [node] : Array.isArray(node) ? node.flatMap(all) : node && typeof node === 'object' ? Object.values(node).flatMap(all) : []);
-  for (const d of DISCOVERIES) for (const path of d.texts) for (const s of all(at(path))) {
-    if (/\{\w+\}/.test(s)) continue;
-    expect([path, discoveriesIn(s)]).toEqual([path, [d.id]]);
+test('no text gives away the wrong discovery, in Swedish or in English', () => {
+  for (const root of [text, en]) {
+    const at = (path: string): unknown => path.split('.').reduce<unknown>((node, key) => (node as Record<string, unknown>)?.[key], root);
+    const all = (node: unknown): string[] => (typeof node === 'string' ? [node] : Array.isArray(node) ? node.flatMap(all) : node && typeof node === 'object' ? Object.values(node).flatMap(all) : []);
+    for (const d of DISCOVERIES) for (const path of d.texts) for (const s of all(at(path))) {
+      if (/\{\w+\}/.test(s)) continue;
+      expect([path, discoveriesIn(s)]).toEqual([path, [d.id]]);
+    }
   }
 });

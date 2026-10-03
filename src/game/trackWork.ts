@@ -5,7 +5,7 @@ import { drawFigure, figureMesh, paintFigure } from './figures';
 import { MeshBuilder } from './gfx/builder';
 import { rgb } from './gfx/color';
 import { glowTexture } from './gfx/textures';
-import text from './i18n/sv.json';
+import { text } from './i18n/text';
 import { CAVE_HALF_L, TRACK_Z, trackSide } from './layout';
 import type { Physics, StaticCollider } from './physics';
 import { propMaterial } from './props';

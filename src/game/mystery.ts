@@ -1,4 +1,5 @@
-import text from './i18n/sv.json';
+import sv from './i18n/sv.json';
+import { text } from './i18n/text';
 
 /**
  * The Silverpilen mystery: clues scattered through the staff spaces that
@@ -9,9 +10,9 @@ import text from './i18n/sv.json';
  * there. What you have found is kept in the browser.
  */
 
-export type Clue = keyof typeof text.mystery.clues;
+export type Clue = keyof typeof sv.mystery.clues;
 const KEY = 'under-stockholm:clues';
-export const CLUES = Object.keys(text.mystery.clues) as Clue[];
+export const CLUES = Object.keys(sv.mystery.clues) as Clue[];
 
 class Mystery {
   private readonly found = new Set<Clue>();
@@ -33,7 +34,7 @@ class Mystery {
     return this.found.size;
   }
 
-  /** Reads a clue: shows it, notes it down, and returns nothing (the notice says it all). */
+  /** Reads a clue: shows it in the player's language, notes it down, and returns nothing (the notice says it all). */
   read(clue: Clue): void {
     const first = !this.found.has(clue);
     this.found.add(clue);

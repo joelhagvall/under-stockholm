@@ -1,7 +1,8 @@
 import { type Scene, type Vector3 } from 'three';
 import { hash01, stockholm } from './clock';
 import { drawFigure, figureMesh, hideFigure, paintFigure, type FigurePose } from './figures';
-import text from './i18n/sv.json';
+import sv from './i18n/sv.json';
+import { text } from './i18n/text';
 import { CAVE_HALF_L, PLATFORM_HALF_W, PLATFORM_Y, TRAIN_HALF_W } from './layout';
 import { noiseBurst, Spatial, tone, type AudioOut } from './sfx';
 import type { Timetable, TrainState } from './timetable';
@@ -123,7 +124,7 @@ export class PlatformLife {
     this.draw(TALKER, { x, z, yaw: t < span ? Math.PI / 2 : -Math.PI / 2, walking: true, arm: 'phone', carry: 'phone' });
     const near = Math.hypot(x - feet.x, z - feet.z) < 7;
     if (!near || this.clock < this.call.next) return;
-    const lines = text.platform.call;
+    const lines = sv.platform.call;
     const [caption, spoken] = lines[this.call.line % lines.length];
     this.call.line++;
     this.call.next = this.clock + 18 + Math.random() * 12;

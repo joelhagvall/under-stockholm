@@ -2,7 +2,8 @@ import { Mesh, type Scene, type Vector3 } from 'three';
 import { dayNumber } from './calendar';
 import { hash01, stockholm } from './clock';
 import { drawCount, drawFigure, figureMesh, paintFigure, type FigurePose } from './figures';
-import text from './i18n/sv.json';
+import sv from './i18n/sv.json';
+import { text } from './i18n/text';
 import { cabinSeats, sitterYaw } from './journey';
 import { CAVE_HALF_L, DOOR_XS, PLATFORM_HALF_W, PLATFORM_Y } from './layout';
 import type { Operations } from './operations';
@@ -46,8 +47,6 @@ export interface RegularEvents {
 interface Memory { days: number[]; cut: number }
 
 const format = (template: string, values: Record<string, string>) => template.replace(/\{(\w+)\}/g, (_, k: string) => values[k] ?? '');
-const people = text.regulars.names as Record<string, string>;
-const firsts = text.regulars.people as Record<string, string>;
 
 /** Where a regular is at a moment: on the platform, aboard a train, or nowhere to be seen. */
 type Place =
@@ -268,7 +267,7 @@ export class RegularLife {
     const days = mem.days.length;
     // Someone who knows you looks your way.
     if (days >= NOD_DAYS) pose.look = Math.max(-1, Math.min(1, ((Math.atan2(feet.x - pose.x, feet.z - pose.z) - pose.yaw + 3 * Math.PI) % (2 * Math.PI)) - Math.PI));
-    const name = people[r.id] ?? text.regulars.someone;
+    const name = (text.regulars.names as Record<string, string>)[r.id] ?? text.regulars.someone;
     const once = (what: string, message: string, seconds = 5) => {
       const k = `${r.id}:${plan.day}:${what}`;
       if (this.told.has(k)) return false;
@@ -276,12 +275,12 @@ export class RegularLife {
       this.events.say(message, seconds, !!pose.seated);
       return true;
     };
-    if (days === 1 && r.named) { once('first', firsts[r.id]); return; }
+    if (days === 1 && r.named) { once('first', (text.regulars.people as Record<string, string>)[r.id]); return; }
     // A haircut or a cast shows on the figure; nobody needs to say so.
     if (plan.today.haircut !== mem.cut) mem.cut = plan.today.haircut;
     if (days >= GREET_DAYS) {
       const morning = stockholm(time).hours < 10;
-      const line = morning ? text.regulars.morning : text.regulars.hello;
+      const line = morning ? sv.regulars.morning : sv.regulars.hello;
       if (once('greet', format(text.regulars.greets, { name, line }), 4)) this.events.speak(line, r.build === 'woman' ? 1.15 : 0.85, 1, !!pose.seated);
       return;
     }

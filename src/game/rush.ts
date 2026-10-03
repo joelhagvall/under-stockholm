@@ -2,7 +2,8 @@ import { CapsuleGeometry, Color, DynamicDrawUsage, InstancedMesh, Matrix4, MeshL
 import { hash01, stockholm } from './clock';
 import { carryFor, passengerLook, type CrowdConditions } from './crowd';
 import { drawFigure, figureMesh, hideFigure, paintFigure, PARTS, type Carry } from './figures';
-import text from './i18n/sv.json';
+import sv from './i18n/sv.json';
+import { text } from './i18n/text';
 import { RUSH_LAYOUT as R, TRAVELATOR_LAYOUT as V } from './layout';
 import { loopNoise, thump, type AudioOut } from './sfx';
 import type { Passage } from './world/station';
@@ -153,7 +154,7 @@ export class RushHour {
       pos: this.reach,
       radius: 1,
       // Punching is keyboard and mouse only.
-      prompt: touch ? text.rush.shovePrompt : text.rush.punchPrompt,
+      prompt: () => (touch ? text.rush.shovePrompt : text.rush.punchPrompt),
       enabled: () => this.canShove,
       act: () => this.shove(),
     };
@@ -246,9 +247,9 @@ export class RushHour {
       this.anger[i] += 0.8;
       if (this.muck[i] > 0) {
         if (Math.random() < 0.55) this.shoveBack(i);
-        else { this.muck[i] = 0; this.talk(i, text.rush.backOff); }
+        else { this.muck[i] = 0; this.talk(i, sv.rush.backOff); }
       } else if (this.hothead(i) && this.anger[i] > 1) this.startMuck(i);
-      else if (hit === 0) this.talk(i, text.rush.shoved);
+      else if (hit === 0) this.talk(i, sv.rush.shoved);
       if (++hit >= 4) break;
     }
     if (hit === 0) return;
@@ -299,7 +300,7 @@ export class RushHour {
       this.anger[j] += 0.6;
       if (!friend && this.hothead(j) && d < 2) { friend = true; this.retaliate[j] = 0.8; this.muck[j] = 2; }
     }
-    this.talk(i, text.rush.punched, true);
+    this.talk(i, sv.rush.punched, true);
     if (this.heat >= GUARDS_AT) this.guards();
   }
 
@@ -315,13 +316,13 @@ export class RushHour {
   private hitBack(i: number): void {
     const dx = this.reach.x - this.x[i], dz = this.reach.z - this.z[i];
     const d = Math.hypot(dx, dz);
-    if (d > 1.8) { this.talk(i, text.rush.comeHere, true); return; }
+    if (d > 1.8) { this.talk(i, sv.rush.comeHere, true); return; }
     this.fights++;
     this.kick.x += (dx / Math.max(0.1, d)) * 7;
     this.kick.z += (dz / Math.max(0.1, d)) * 7;
     this.events.lurch(1.5);
     if (this.out) thump(this.out, 0.7, 200);
-    this.talk(i, text.rush.hitBack, true);
+    this.talk(i, sv.rush.hitBack, true);
   }
 
   /** The walkable width at `z`: between the moving walkways' balustrades where they run, wall to wall elsewhere. */
@@ -524,7 +525,7 @@ export class RushHour {
         if (playerSpeed > 0.5) {
           const before = this.anger[i];
           this.anger[i] += dt * 1.2;
-          if (before < 0.5 && this.anger[i] >= 0.5 && Math.random() < 0.6) this.talk(i, text.rush.bump);
+          if (before < 0.5 && this.anger[i] >= 0.5 && Math.random() < 0.6) this.talk(i, sv.rush.bump);
           if (this.hothead(i) && this.anger[i] > 1.1 && this.muck[i] <= 0) this.startMuck(i);
         }
       }
@@ -563,7 +564,7 @@ export class RushHour {
       }
       if (this.blocked[i] > 2.5) {
         this.blocked[i] = 0;
-        this.talk(i, text.rush.passBy);
+        this.talk(i, sv.rush.passBy);
       }
     }
   }
@@ -572,7 +573,7 @@ export class RushHour {
     this.muck[i] = 4.5;
     this.shovedBack[i] = 0;
     this.fights++;
-    this.talk(i, text.rush.muck, true);
+    this.talk(i, sv.rush.muck, true);
   }
 
   private shoveBack(i: number): void {
@@ -584,7 +585,7 @@ export class RushHour {
     this.muck[i] = Math.min(this.muck[i], 1);
     this.events.lurch(0.9);
     if (this.out) thump(this.out, 0.4, 120);
-    this.talk(i, text.rush.shoveBack, true);
+    this.talk(i, sv.rush.shoveBack, true);
   }
 
   private talk(i: number, lines: string[], urgent = false): void {

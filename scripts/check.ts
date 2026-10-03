@@ -59,7 +59,7 @@ const LIMITS = {
     // A real phone draws slower than the emulated one, and its GPU is the unknown: a floor, not a target.
     device: { fps: 45, slow: 25, hitches: 2, worst: 120, pixelRatio: 1 },
   } as Record<string, { fps: number; slow: number; hitches: number; worst: number; pixelRatio: number }>,
-  /** Seconds from the click to playing, without the loading screen's minimum. */
+  /** Seconds from the click until physics, the starting view and its first GPU render are ready. */
   load: { desktop: 3, phone: 12 } as Record<string, number>,
   web: { performance: 100, accessibility: 100, seo: 100, 'best-practices': 90, pa11yErrors: 0 },
 };
