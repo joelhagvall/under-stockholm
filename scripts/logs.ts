@@ -3,7 +3,7 @@
 //   1. Players: the error groups on /errors seen since then, and /perf for the newest build against the one before it.
 //      Both pages are public, so this part always runs.
 //   2. The Worker's own logs (Workers Logs): outcomes, what the errors and warnings say and where they happen.
-//   3. Usage over the last 7 days, projected to a month, against what Workers Paid includes.
+//   3. Usage over the last 7 days, projected to a month, against what Workers Paid includes, and the data center the hub runs in.
 //   4. Traffic through the zone over the last 7 days, a day at a time: requests, page views, visitors, data, cache, countries.
 //
 // Parts 2 to 4 need a Cloudflare API token in CF_OBS_TOKEN (in `.env.local`, which git ignores and Bun reads by itself)
@@ -171,6 +171,21 @@ for (const [name, used, included] of usage) {
   const month = used * 30 / 7;
   const share = (month / included) * 100;
   console.log(`  ${name.padEnd(38)} week ${fmt(used).padStart(12)}  month ~${fmt(month).padStart(13)} of ${fmt(included).padStart(14)}  ${share.toFixed(share < 1 ? 2 : 0).padStart(5)}%${share > 100 ? '  OVER' : ''}`);
+}
+
+// Where the hub lives: a Durable Object settles near whoever first asks for it and stays there, so every player's socket
+// and every feed miss travels to that one data center.
+if (periodic) {
+  const query = `query($a: String!, $from: Time!, $to: Time!) { viewer { accounts(filter: { accountTag: $a }) {
+    rows: durableObjectsPeriodicGroups(limit: 100, filter: { datetime_geq: $from, datetime_leq: $to }) { dimensions { coloCode objectId } sum { activeTime } } } } }`;
+  const res = await fetch('https://api.cloudflare.com/client/v4/graphql', { method: 'POST', headers: auth, body: JSON.stringify({ query, variables: { a: ACCOUNT, ...week } }) });
+  const json = await res.json().catch(() => null) as { data?: { viewer: { accounts: { rows: { dimensions: { coloCode: string; objectId: string }; sum: { activeTime: number } }[] }[] } } } | null;
+  const where = new Map<string, number>();
+  for (const { dimensions, sum } of json?.data?.viewer.accounts[0]?.rows ?? []) {
+    const key = `${dimensions.coloCode} (object ${dimensions.objectId.slice(0, 8)})`;
+    where.set(key, (where.get(key) ?? 0) + sum.activeTime);
+  }
+  console.log(`  hub runs in: ${[...where].sort((a, b) => b[1] - a[1]).map(([k]) => k).join(', ') || '?'}`);
 }
 
 // 4. Traffic through the zone over the same week, a day at a time: everything Cloudflare served, the cached static build too.

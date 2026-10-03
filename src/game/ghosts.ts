@@ -20,6 +20,12 @@ const SEND_EVERY = 0.5;
  * for gone (IDLE_MS in `server/pose.ts`). Not game time, which a slow tab's capped frames run far behind.
  */
 const KEEP_ALIVE_MS = 5000;
+/**
+ * A player with nobody else this near (meters, as the last snapshot placed them) sends only the keep-alive: most play
+ * alone, and the hub is billed for every message. Wide enough that two trains closing on each other in the five
+ * seconds between keep-alives are still far out of sight when both start sending twice a second again.
+ */
+const NEAR = 500;
 /** Others are drawn this far behind, so there is nearly always a snapshot on each side to blend between. */
 const DELAY = 0.8;
 /** Close codes from the relay (`server/pose.ts`): the day's budget is spent, or it is full. */
@@ -58,6 +64,9 @@ export class Ghosts {
   private clock = 0;
   private lastSent = '';
   private lastSentAt = 0;
+  private lastPose: number[] | null = null;
+  /** Whether the last snapshot had anyone within NEAR, or on the train you ride. */
+  private company = false;
   private enabled = false;
   /** Server clock minus local clock, in seconds, once known. */
   clockOffset: number | null = null;
@@ -125,6 +134,7 @@ export class Ghosts {
           if (remote.samples.length > 4) remote.samples.shift();
         }
         for (const [id, remote] of this.remotes) if (!seen.has(id)) { hideFigure(this.mesh, remote.slot); this.remotes.delete(id); }
+        this.company = this.near(data.p);
       }
     };
     socket.onclose = (event) => {
@@ -136,12 +146,21 @@ export class Ghosts {
       this.onCount?.(null);
       for (const remote of this.remotes.values()) hideFigure(this.mesh, remote.slot);
       this.remotes.clear();
+      this.company = false;
       // Idle means no frames ran to send a pose: waiting for the next one, rather than a retry, keeps a paused game
       // or a hidden tab from opening a new socket every minute.
       if (event.reason === 'idle') this.dozing = true;
       else this.scheduleRetry();
     };
     socket.onerror = () => socket.close();
+  }
+
+  /** Whether any row of a snapshot is within NEAR of the pose last sent, or rides the same train. */
+  private near(rows: number[][]): boolean {
+    const me = this.lastPose;
+    if (!me) return true;
+    return rows.some((row) => Array.isArray(row) && row.length === 8
+      && ((me[4] >= 0 && row[5] === me[4]) || Math.hypot(row[1] - me[0], row[3] - me[2]) < NEAR));
   }
 
   private scheduleRetry(): void {
@@ -174,9 +193,10 @@ export class Ghosts {
       const yaw = Math.atan2(Math.sin(me.yaw), Math.cos(me.yaw));
       const pose = [me.x, me.y, me.z, yaw, me.ride, me.lx, me.lz].map((v) => Math.round(v * 100) / 100);
       const message = JSON.stringify({ t: 'p', p: pose });
-      if (message !== this.lastSent || now - this.lastSentAt >= KEEP_ALIVE_MS) {
+      if ((this.company && message !== this.lastSent) || now - this.lastSentAt >= KEEP_ALIVE_MS) {
         this.socket.send(message);
         this.lastSent = message;
+        this.lastPose = pose;
         this.lastSentAt = now;
       }
     }

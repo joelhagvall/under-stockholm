@@ -3,7 +3,7 @@
 //
 // Protocol (JSON over a WebSocket):
 //   server -> client  { t: 'hello', id, now }                        once, on connect
-//   client -> server  { t: 'p', p: [x, y, z, yaw, ride, lx, lz] }     twice a second (SEND_EVERY in src/game/ghosts.ts)
+//   client -> server  { t: 'p', p: [x, y, z, yaw, ride, lx, lz] }     twice a second with anyone within 500 m, else every 5 s (src/game/ghosts.ts)
 //   client -> server  { t: 'w' }                                     a watcher with no pose (the network view), while shown
 //   server -> client  { t: 's', now, n, p: [[id, x, y, z, yaw, ride, lx, lz], ...] }   twice a second
 // `ride` is the index of the train the player rides (-1 on foot); lx and lz are then relative to that train, so
