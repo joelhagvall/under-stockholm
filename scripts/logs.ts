@@ -4,11 +4,14 @@
 //      Both pages are public, so this part always runs.
 //   2. The Worker's own logs (Workers Logs): outcomes, what the errors and warnings say and where they happen.
 //   3. Usage over the last 7 days, projected to a month, against what Workers Paid includes.
+//   4. Traffic through the zone over the last 7 days, a day at a time: requests, page views, visitors, data, cache, countries.
 //
-// Parts 2 and 3 need a Cloudflare API token in CF_OBS_TOKEN (in `.env.local`, which git ignores and Bun reads by itself)
-// with "Workers Observability: Read" for the logs and "Account Analytics: Read" for the usage. Make it a user token (My
-// Profile, API Tokens): an account-owned token reads the logs but is refused by the GraphQL analytics. Without it, or without one
-// of the permissions, that part says so and the rest still runs. The last deploy's time comes from `wrangler deployments`.
+// Parts 2 to 4 need a Cloudflare API token in CF_OBS_TOKEN (in `.env.local`, which git ignores and Bun reads by itself)
+// with "Workers Observability: Read" for the logs, "Account Analytics: Read" for the usage and "Zone: Read" and "Zone Analytics:
+// Read" on understockholm.com for the traffic. Bun leaves a variable already set in the shell as it is, so a CF_OBS_TOKEN
+// exported there wins over `.env.local`. Make it a user token (My Profile, API Tokens): an account-owned token reads the logs
+// but is refused by the GraphQL analytics. Without it, or without one of the permissions, that part says so and the rest still
+// runs. The last deploy's time comes from `wrangler deployments`.
 import { $ } from 'bun';
 
 const SITE = 'https://understockholm.com';
@@ -168,4 +171,38 @@ for (const [name, used, included] of usage) {
   const month = used * 30 / 7;
   const share = (month / included) * 100;
   console.log(`  ${name.padEnd(38)} week ${fmt(used).padStart(12)}  month ~${fmt(month).padStart(13)} of ${fmt(included).padStart(14)}  ${share.toFixed(share < 1 ? 2 : 0).padStart(5)}%${share > 100 ? '  OVER' : ''}`);
+}
+
+// 4. Traffic through the zone over the same week, a day at a time: everything Cloudflare served, the cached static build too.
+
+const ZONE = 'understockholm.com';
+interface Day { dimensions: { date: string }; sum: { requests: number; cachedRequests: number; bytes: number; cachedBytes: number; pageViews: number; threats: number; countryMap: { clientCountryName: string; requests: number }[] }; uniq: { uniques: number } }
+head(`Traffic: ${ZONE}, last 7 days (UTC days, visitors are unique within a day)`);
+const zones = await fetch(`https://api.cloudflare.com/client/v4/zones?name=${ZONE}`, { headers: auth }).then((r) => r.json()).catch(() => null) as { result?: { id: string }[] } | null;
+const zone = zones?.result?.[0]?.id;
+if (!zone) console.log('  the token cannot see the zone: give it "Zone: Read" and "Zone Analytics: Read" for it');
+else {
+  const query = `query($z: String!, $from: Date!, $to: Date!) { viewer { zones(filter: { zoneTag: $z }) {
+    days: httpRequests1dGroups(limit: 10, orderBy: [date_ASC], filter: { date_geq: $from, date_leq: $to }) {
+      dimensions { date } sum { requests cachedRequests bytes cachedBytes pageViews threats countryMap { clientCountryName requests } } uniq { uniques } } } } }`;
+  const variables = { z: zone, from: new Date(now - WEEK + 86_400_000).toISOString().slice(0, 10), to: week.to.slice(0, 10) };
+  const res = await fetch('https://api.cloudflare.com/client/v4/graphql', { method: 'POST', headers: auth, body: JSON.stringify({ query, variables }) });
+  const json = await res.json().catch(() => null) as { data?: { viewer: { zones: { days: Day[] }[] } }; errors?: { message: string }[] } | null;
+  const days = json?.data?.viewer.zones[0]?.days;
+  if (!res.ok || json?.errors?.length || !days) console.log(`  ${json?.errors?.map((e) => e.message).join('; ') ?? res.status}`);
+  else {
+    const pct = (part: number, whole: number) => `${whole ? Math.round((part / whole) * 100) : 0}%`.padStart(4);
+    const mb = (bytes: number) => `${fmt(bytes / 1e6)} MB`;
+    console.log(`  ${'day'.padEnd(5)} ${'requests'.padStart(9)} ${'views'.padStart(6)} ${'visitors'.padStart(8)} ${'data'.padStart(10)}  cached req/data  threats`);
+    const total = { requests: 0, cachedRequests: 0, bytes: 0, cachedBytes: 0, pageViews: 0, threats: 0 };
+    const countries = new Map<string, number>();
+    for (const { dimensions, sum, uniq } of days) {
+      for (const k of Object.keys(total) as (keyof typeof total)[]) total[k] += sum[k];
+      for (const c of sum.countryMap) countries.set(c.clientCountryName, (countries.get(c.clientCountryName) ?? 0) + c.requests);
+      console.log(`  ${dimensions.date.slice(5)} ${fmt(sum.requests).padStart(9)} ${fmt(sum.pageViews).padStart(6)} ${fmt(uniq.uniques).padStart(8)} ${mb(sum.bytes).padStart(10)}  ${pct(sum.cachedRequests, sum.requests)} / ${pct(sum.cachedBytes, sum.bytes)}  ${fmt(sum.threats).padStart(7)}`);
+    }
+    console.log(`  ${'week'.padEnd(5)} ${fmt(total.requests).padStart(9)} ${fmt(total.pageViews).padStart(6)} ${''.padStart(8)} ${mb(total.bytes).padStart(10)}  ${pct(total.cachedRequests, total.requests)} / ${pct(total.cachedBytes, total.bytes)}  ${fmt(total.threats).padStart(7)}`);
+    const top = [...countries].sort((a, b) => b[1] - a[1]).slice(0, 8);
+    console.log(`  countries: ${top.map(([c, n]) => `${c} ${pct(n, total.requests).trim()}`).join(', ')}`);
+  }
 }
