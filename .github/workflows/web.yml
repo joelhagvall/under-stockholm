@@ -18,6 +18,7 @@ on:
       - .github/workflows/web.yml
       - .github/actions/setup/**
       - scripts/chrome.ts
+      - scripts/check.ts
   workflow_dispatch:
 permissions:
   contents: read

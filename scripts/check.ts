@@ -22,6 +22,7 @@
 import { existsSync } from 'node:fs';
 import { cpus, loadavg } from 'node:os';
 import { join } from 'node:path';
+import { CHROME } from './chrome';
 import type { FpsReport, Result } from './fps';
 import type { LoadReport } from './load';
 import type { MemReport } from './mem';
@@ -232,12 +233,17 @@ if ((PERF || WEB) && !failures.length) {
     }
     if (WEB) {
       last.web = {};
+      // Both use the installed Chrome rather than one they download: on Ubuntu's runners only the installed one is let
+      // through AppArmor to its sandbox, and the one Puppeteer fetches dies with "No usable sandbox".
+      const browserEnv = { ...process.env, CHROME_PATH: CHROME, PUPPETEER_EXECUTABLE_PATH: CHROME };
       for (const page of ['', 'en/']) {
         const url = prodUrl + page;
         const out = join(SCRATCH, `lighthouse-${page ? 'en' : 'sv'}.json`);
         console.log(`\n== Lighthouse ${url}`);
-        const lh = Bun.spawn(['bunx', 'lighthouse', url, '--only-categories=performance,accessibility,best-practices,seo', '--output=json', `--output-path=${out}`, '--chrome-flags=--headless=new', '--quiet'], { cwd: root, stdout: 'ignore', stderr: 'inherit' });
-        if ((await lh.exited) !== 0 || !existsSync(out)) { fail(`Lighthouse did not run for ${url}`); continue; }
+        // Lighthouse now and then loses the trace of a page load (NO_NAVSTART on CI's runners): a run that fails is tried
+        // once more, as a scene that misses is, and only two in a row fail the gate.
+        const lighthouse = async () => (await Bun.spawn(['bunx', 'lighthouse', url, '--only-categories=performance,accessibility,best-practices,seo', '--output=json', `--output-path=${out}`, '--chrome-flags=--headless=new', '--quiet'], { cwd: root, env: browserEnv, stdout: 'ignore', stderr: 'inherit' }).exited) === 0 && existsSync(out);
+        if (!(await lighthouse()) && (console.log('  Lighthouse did not run, once more'), !(await lighthouse()))) { fail(`Lighthouse did not run for ${url}`); continue; }
         const result = await Bun.file(out).json() as { categories: Record<string, { score: number }> };
         const scores: Record<string, number> = {};
         for (const [name, limit] of Object.entries(LIMITS.web)) {
@@ -248,9 +254,11 @@ if ((PERF || WEB) && !failures.length) {
         }
         console.log(`  ${Object.entries(scores).map(([k, v]) => `${k} ${v}`).join(', ')}`);
         console.log(`\n== pa11y ${url}`);
-        const pa = Bun.spawn(['bunx', 'pa11y', url, '--reporter', 'json'], { cwd: root, stdout: 'pipe', stderr: 'inherit' });
-        const issues = JSON.parse((await new Response(pa.stdout).text()) || '[]') as Array<{ type: string; message: string; selector: string }>;
-        await pa.exited;
+        const pa = Bun.spawn(['bunx', 'pa11y', url, '--reporter', 'json'], { cwd: root, env: browserEnv, stdout: 'pipe', stderr: 'inherit' });
+        const report = (await new Response(pa.stdout).text()).trim();
+        // pa11y exits 2 when it found issues and 1 when it could not test at all (no browser): no report is not a pass.
+        if ((await pa.exited) === 1 || !report) { fail(`pa11y did not run for ${url}`); continue; }
+        const issues = JSON.parse(report) as Array<{ type: string; message: string; selector: string }>;
         const errors = issues.filter((i) => i.type === 'error');
         scores.pa11yErrors = errors.length;
         for (const e of errors) console.log(`  ${e.selector}: ${e.message}`);
