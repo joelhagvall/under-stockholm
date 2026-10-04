@@ -38,6 +38,10 @@ Stay off the tracks when a train is coming.
 
 Optional passengers add twelve stylized waiting and walking figures per station, plus seated passengers inside every train. The same toggle controls both groups, is saved locally and starts off for new visitors. Passengers are decorative and do not block the player. The background platform crowd stays in its lanes; seated passengers travel with their train and leave the aisle and doorways clear. Only nearby crowds are rendered. Four commuting passengers per train board after alighting passengers have cleared the doors. They ride to the next station, step off through the platform-side doors, and stay on the platform when the train departs. These routes are deterministic timetable samples, with no pathfinding or passenger collisions. Seated riders occasionally turn their heads or nod off.
 
+## Planned trips
+
+*Planera resa* in the pause menu takes a station to ride from (where you are, by default) and one to ride to, shows the way and puts you on the next train that takes it, or on its platform. The network view has the same under *Res från* and *till*: pick the first station in the list, then click the second on the map or pick it too, and *Res*. While the trip lasts, a line under the station's name in the status bar says which train to take, how many stations are left and where to change or get off, with a caption at each step. Getting off early finds the way on from there. *Avbryt resan* in the planner ends it.
+
 ## Sitting
 
 A nearby free seat shows an `F` prompt on desktop or a Sitt button on touch devices. Sitting lowers the camera onto the seat, keeps looking around available, and disables walking and jumping until you stand. The collision capsule stays in the aisle and continues to be carried by the train. Small camera-only suspension motion follows distance, speed, acceleration and braking. `V` disables it; the saved choice takes priority over the system reduced-motion preference.

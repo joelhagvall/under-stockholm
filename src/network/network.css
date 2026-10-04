@@ -79,6 +79,9 @@
 .net-morph input { width: 120px; }
 .net-pick select { min-height: 36px; max-width: 200px; padding: 4px 8px; border: 1px solid #d8e3ec55; border-radius: 3px; background-color: #10202d; color: #e8ecf2; color-scheme: dark; }
 .net-pick select:focus-visible { outline: 3px solid #ffb444; outline-offset: 2px; }
+.net-trip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.net-trip select { min-height: 36px; max-width: 180px; padding: 4px 8px; border: 1px solid #d8e3ec55; border-radius: 3px; background-color: #10202d; color: #e8ecf2; color-scheme: dark; }
+.net-trip select:focus-visible { outline: 3px solid #ffb444; outline-offset: 2px; }
 .net-extra { display: contents; }
 .net-more { display: none; }
 .net-buttons { display: flex; flex-wrap: wrap; gap: 8px; }

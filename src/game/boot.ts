@@ -53,10 +53,11 @@ import { crashFacts, FEEDBACK_MAIL, reportError, watchErrors } from './crash';
 import { HallLife } from './hallLife';
 import { RushHour } from './rush';
 import { Hud } from './hud';
+import { planTrip, TripGuide, tripSummary, waitText, type Leg, type TripView, type Wait } from './trip';
 import { cabinSeats, nearestSeat } from './journey';
 import { Crowd, occupiedSeatPoses, trainPassengerPoses } from './crowd';
 import { inLanguage, lang, setLang, text } from './i18n/text';
-import { DOOR_HALF_W, HALL_HALF_W, PLATFORM_HALF_L, PLATFORM_HALF_W, PLATFORM_Y, TRAIN_HALF_L, TRAIN_HALF_W, trackSide, UNDERPASS_DEPTH } from './layout';
+import { DOOR_HALF_W, HALL_HALF_W, PLATFORM_HALF_L, PLATFORM_HALF_W, PLATFORM_Y, TRACK_Z, TRAIN_HALF_L, TRAIN_HALF_W, trackSide, UNDERPASS_DEPTH } from './layout';
 import { isLineTerminal, NETWORK, networkServices, networkSlots, ridership, serviceDestination, stationIndex as indexOf } from './line';
 import { Night, stationLight } from './night';
 import { Operations, startTime } from './operations';
@@ -182,6 +183,8 @@ export interface GameOptions {
   resume?: boolean;
   /** A station picked in the network view: start aboard a train pulling in there, or on its platform. */
   station?: string;
+  /** A trip picked in the network view: start on its first platform, guided from there (`trip.ts`). */
+  trip?: { from: string; to: string };
   /** Start with a life on the blue line (`life.ts`). */
   life?: boolean;
   /** When the player clicked to start, `performance.now()`, so the time to playing counts the download too. */
@@ -284,7 +287,8 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     }));
   }
   const place = options.resume ? savedPlace() : null;
-  const diveTo = options.station ? net.stations.findIndex((s) => s.name === options.station) : -1;
+  const divePlan = options.trip ? planTrip(net, options.trip.from, options.trip.to) : null;
+  const diveTo = divePlan ? divePlan.legs[0].from : options.station ? net.stations.findIndex((s) => s.name === options.station) : -1;
   const startX = diveTo >= 0 ? world.stations[diveTo].cx : place?.x ?? (debug && params.has('x') ? Number(params.get('x')) : spawn.feet.x);
   loadMark('near-start');
   await world.prepare(startX);
@@ -760,7 +764,10 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     player.enabled = listening = !value;
     hud.setPaused(value);
     touch?.setEnabled(!value);
-    if (value) { player.resetInput(); audio.suspend(); hud.setTicket(pauseStatus()); bag.showCollection(lost.kinds, LOST_KINDS); }
+    if (value) {
+      player.resetInput(); audio.suspend(); hud.setTicket(pauseStatus()); bag.showCollection(lost.kinds, LOST_KINDS);
+      hud.setTripHere(world.nearestStation(player.feet.x).name);
+    }
   };
   const resume = () => {
     stageArrival();
@@ -1350,18 +1357,22 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     if (!serviceOpen(time)) return;
     const best = arrivalTrain();
     if (!best) return;
-    const { train } = best.svc;
-    const forward = best.track === 1 ? -Math.PI / 2 : Math.PI / 2;
-    // A free seat facing the way the train runs, near the middle of the train.
+    if (!seatAboard(best.svc.train, best.track)) return;
+    hud.say(format(touchMode ? text.intro.aboardTouch : text.intro.aboard, { station: stationName(best.station) }), 10);
+  }
+
+  /** Sits the player down in a free seat facing the way the train runs on `track`, near the middle of the train. */
+  function seatAboard(train: Train, track: 1 | 2): boolean {
+    const forward = track === 1 ? -Math.PI / 2 : Math.PI / 2;
     const rank = (seat: Seat) => (Math.cos(seat.yaw - forward) > 0.9 ? 0 : 100) + Math.abs(seat.x);
     const occupied = occupiedSeatPoses(train.seating);
     const seat = cabinSeats(train.seating)
       .filter((c) => !occupied.some((p) => Math.abs(p.x - c.x) < 0.2 && Math.abs(p.z - c.z) < 0.2))
       .sort((a, b) => rank(a) - rank(b))[0];
-    if (!seat) return;
-    player.sit(seat, train.position.x, train.position.z, PLATFORM_Y);
+    if (!seat) return false;
+    player.sit(seat, train.position.x, train.position.z, train.position.y + PLATFORM_Y);
     playerSeat = seat;
-    hud.say(format(touchMode ? text.intro.aboardTouch : text.intro.aboard, { station: stationName(best.station) }), 10);
+    return true;
   }
 
   /** The same arrival is used to prepare its surroundings during loading and to seat the player on resume. */
@@ -1383,6 +1394,137 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     }
     return best;
   }
+
+  // A trip the player picked (`trip.ts`): from one station to another, guided along the way.
+  let trip: TripGuide | null = null;
+  /** When the trip's line leaves the status bar after arriving (game time). */
+  let tripGone = 0;
+  /**
+   * The trip's first caption, said on its first tick with the game running: the clock stands still while paused, so a
+   * wait counted before the game has caught up with it would be off by however long the menu was open.
+   */
+  let tripIntro: { waiting: boolean } | null = null;
+  /** The next train that takes a leg, standing at its first station or at most two minutes from it, coming from the station before. */
+  function legTrain(leg: Leg): Service | null {
+    let best: { svc: Service; eta: number } | null = null;
+    for (const svc of services) {
+      const st = svc.state;
+      if (!svc.active || !st || !leg.routes.includes(svc.route)) continue;
+      const tt = svc.timetable;
+      const k = tt.stopIndex(leg.from, leg.track);
+      if (k < 0) continue;
+      let eta: number;
+      if (st.phase !== 'moving' && st.stop === k) eta = 0;
+      else if (st.phase === 'moving' && st.next === k && tt.stops[st.stop].kind === 'station') eta = tt.secondsUntil(svc.clock, k);
+      else continue;
+      if (eta < 120 && (!best || eta < best.eta)) best = { svc, eta };
+    }
+    return best?.svc ?? null;
+  }
+  /**
+   * When the next train that takes a leg comes to its first station, as the platform boards count: SL's departures
+   * where SL drives the line, else the timetable's arrivals. Only trains of the leg's routes count. Null if none soon.
+   */
+  function legWait(leg: Leg): Wait | null {
+    const at = (seconds: number): Wait => ({ seconds, clock: formatClock(time + seconds) });
+    if (lineLive[leg.line]) {
+      const numbers = new Set(leg.routes.map((r) => net.routes[r].number));
+      const next = real.schedules[leg.line].nextDepartures(leg.from, leg.track, time, 6).find((d) => numbers.has(d.journey.line) && d.departs <= 60 * 60);
+      if (!next) return null;
+      // As the board says it: "Nu" from half a minute before (`updateRealDepartures`).
+      const seconds = realArrival(next.journey, next.departs, leg.from, leg.track);
+      return at(seconds < 30 ? 0 : seconds);
+    }
+    const next = operations.nextArrivals(time, leg.from, leg.track, 6, undefined, leg.line).find((a) => leg.routes.includes(operations.routeOf(a.service)));
+    return next ? at(next.eta) : null;
+  }
+  /** On a leg's first platform, by the track its trains leave from, facing it. */
+  function legPlatform(leg: Leg): { feet: Vector3; yaw: number } {
+    const s = world.stations[leg.from];
+    const track = s.platformTracks.find((t) => t.line === leg.line && t.track === leg.track) ?? s.platformTracks.find((t) => t.track === leg.track);
+    if (!track) return { feet: s.spawn.clone(), yaw: s.exitDir > 0 ? -Math.PI / 2 : Math.PI / 2 };
+    // The island beside the track, at its height.
+    const island = s.platforms.reduce((a, b) => (Math.abs(b - track.z) < Math.abs(a - track.z) ? b : a));
+    const z = track.z + Math.sign(island - track.z) * (TRACK_Z - 2.2);
+    const travel = leg.track === 1 ? 1 : -1;
+    return { feet: new Vector3(s.cx - s.exitDir * 20, PLATFORM_Y + track.y, z), yaw: Math.atan2(travel * 0.55, -Math.sign(track.z - z) * 0.84) };
+  }
+  function startTrip(from: string, to: string): void {
+    const plan = planTrip(net, from, to);
+    if (!plan || driving || saver.active || show.active || life || respawning) return;
+    trip = new TripGuide(net, plan);
+    tripGone = 0;
+    staged = true;
+    const leg = plan.legs[0];
+    const here = world.locate(player.feet);
+    // Already there, on foot: the guide takes it from here.
+    if (!riding && here.station !== null && stationName(here.station) === from) {
+      tripIntro = { waiting: true };
+      updateTrip();
+      return;
+    }
+    respawning = true;
+    void hud.blackout(() => {
+      if (player.seated) player.stand();
+      const svc = legTrain(leg);
+      if (svc) world.ensureBuilt(svc.train.position.x);
+      const seated = !!svc && seatAboard(svc.train, leg.track);
+      if (!seated) {
+        const at = legPlatform(leg);
+        world.ensureBuilt(at.feet.x);
+        player.teleport(at.feet, at.yaw);
+      }
+      tripIntro = { waiting: !seated };
+    }).then(() => { respawning = false; updateTrip(); });
+  }
+  function stopTrip(): void {
+    trip = null;
+    tripIntro = null;
+    hud.setTrip(null);
+  }
+  /** Once a second: where the player is on the trip, and what to do next. */
+  function updateTrip(): void {
+    // Not while the view cuts to the trip's start (the platform left behind is not a stop on the way), nor paused.
+    if (!trip || respawning || paused) return;
+    if (tripIntro) {
+      // The way, and on foot how long until the next train that takes it.
+      const wait = tripIntro.waiting ? legWait(trip.current) : null;
+      const start = format(text.trip.start, { station: trip.trip.to, way: tripSummary(net, trip.trip) });
+      hud.say(wait ? `${start} ${format(text.trip.nextTrain, { when: waitText(wait) })}` : start, 9);
+      tripIntro = null;
+    }
+    if (trip.done) {
+      if (time > tripGone) stopTrip();
+      return;
+    }
+    const svc = riding ? services.find((s) => s.train === riding && s.active && s.state) : undefined;
+    let aboard: TripView['aboard'] = null;
+    if (svc?.state) {
+      const st = svc.state;
+      const stops = svc.timetable.stops;
+      const standing = st.phase !== 'moving' && stops[st.stop].kind === 'station';
+      const ahead: number[] = [];
+      for (let n = 0, k = st.phase === 'moving' ? st.next : st.stop + 1; n < stops.length; n++, k++) {
+        const stop = stops[k % stops.length];
+        if (stop.kind !== 'station') break;
+        ahead.push(stop.station);
+        if (stop.terminal) break;
+      }
+      aboard = { train: svc.train.id, at: standing ? stops[st.stop].station : null, ahead };
+    }
+    const here = world.locate(player.feet);
+    const update = trip.step({ aboard, elsewhere: !!riding && !svc, station: here.station, platform: here.area === 'platform' && !here.label, wait: riding ? null : legWait(trip.current) });
+    hud.setTrip(update.status);
+    if (update.say) hud.say(update.say, 7);
+    if (update.done) tripGone = time + 8;
+  }
+  hud.onTrip = (from, to) => {
+    // Not the first minute's seat on another train first.
+    staged = true;
+    resume();
+    startTrip(from, to);
+  };
+  hud.onTripCancel = () => stopTrip();
 
   function climb(): void {
     const spot = world.canClimb(player.feet);
@@ -1497,15 +1639,21 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     for (const s of world.stations) {
       // Only the stations near the player need fresh boards; the rest update when they come into view.
       if (Math.abs(s.cx - player.feet.x) > 1500) continue;
-      if (s.platformTracks.every((pt) => lineLive[pt.line])) { updateRealDepartures(s); continue; }
+      // Each track as its line runs: SL's departures where SL drives it, the timetable's elsewhere, as its trains do.
+      const live = s.platformTracks.map((pt) => lineLive[pt.line]);
+      if (live.every(Boolean)) { updateRealDepartures(s); continue; }
+      const mixed = live.some(Boolean);
       // Each track's next two trains, as the boards over the platform list them.
-      const arrivals = s.platformTracks.map((pt) => ({ track: pt.track, number: pt.number, next: operations.nextArrivals(time, s.index, pt.track, BOARD_ROWS, undefined, s.platforms.length > 1 ? pt.line : undefined) }));
-      const soonest = Math.min(...arrivals.map(({ next }) => next[0]?.eta ?? Infinity));
-      if (!open && soonest > 15 * 60) {
+      const arrivals = s.platformTracks.map((pt, i) => ({ pt, track: pt.track, number: pt.number, live: live[i],
+        next: live[i] ? [] : operations.nextArrivals(time, s.index, pt.track, BOARD_ROWS, undefined, s.platforms.length > 1 ? pt.line : undefined) }));
+      const soonest = Math.min(...arrivals.filter((a) => !a.live).map(({ next }) => next[0]?.eta ?? Infinity));
+      // The night's notice and the last trains are the timetable's: only where no line follows SL.
+      if (!mixed && !open && soonest > 15 * 60) {
         s.setDepartures([], { title: text.clock.lastTrainGone, detail: Number.isFinite(soonest) ? `${text.clock.firstTrain} ${formatClock(time + soonest)}` : '' });
         continue;
       }
-      const rows: DepartureRow[] = arrivals.flatMap(({ track, number, next }) => {
+      const rows: DepartureRow[] = arrivals.flatMap(({ pt, track, number, next, live: sl }) => {
+        if (sl) return realRows(s, pt);
         if (!next.length) return [{ track: number, line: '', destination: text.clock.lastTrainGone, eta: '' }];
         // A train that ends its run here takes no one further: one row says so.
         const tt = operations.timetableOf(next[0].service);
@@ -1521,7 +1669,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
       // In the evening the boards say when the last trains leave.
       const hours = stockholm(time).hours;
       let lastTrain: string | undefined;
-      if (open && (hours >= 21 || hours < 1)) {
+      if (!mixed && open && (hours >= 21 || hours < 1)) {
         const last = arrivals.map(({ track }) => lastTrainAt(s.index, track));
         if (last.every((t) => t !== null)) lastTrain = format(text.clock.lastTrainAt, { times: last.map((t) => formatClock(t!)).join(' · ') });
       }
@@ -1529,14 +1677,33 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     }
   }
 
-  /** Boards in real mode show SL's own countdown to departure, for each line's platforms. */
+  /**
+   * Seconds until a real journey's train is in at a station, as its board counts: SL's departure, but none once the
+   * train stands there (it waits at the platform for that departure) or is moments from it.
+   */
+  function realArrival(journey: Journey, departs: number, station: number, track: 1 | 2): number {
+    const svc = services.find((v) => v.active && v.state && v.journey?.id === journey.id);
+    if (!svc?.state) return departs;
+    const k = svc.timetable.stopIndex(station, track);
+    const st = svc.state;
+    if (k < 0) return departs;
+    if (st.phase !== 'moving' && st.stop === k) return 0;
+    if (st.phase === 'moving' && st.next === k) return Math.min(departs, svc.timetable.secondsUntil(svc.clock, k) / Math.max(0.1, svc.rate));
+    return departs;
+  }
+
+  /** Boards in real mode show SL's own countdown to departure, for each line's platforms, and "Nu" once the train is in. */
   function updateRealDepartures(s: (typeof world.stations)[number]): void {
-    s.setDepartures(s.platformTracks.flatMap((pt): DepartureRow[] => {
-      const next = real.schedules[pt.line].nextDepartures(s.index, pt.track, time, BOARD_ROWS).filter((d) => d.departs <= 60 * 60);
-      if (!next.length) return [{ track: pt.number, line: '', destination: text.real.noTrains, eta: '' }];
-      if (isLineTerminal(net, s.index, pt.track)) return [{ track: pt.number, line: '', destination: 'Slutstation', eta: boardEta(next[0].departs, 30) }];
-      return next.map((d) => ({ track: pt.number, line: d.journey.line, destination: d.journey.destination, eta: boardEta(d.departs, 30) }));
-    }), null, banner(s.index));
+    s.setDepartures(s.platformTracks.flatMap((pt) => realRows(s, pt)), null, banner(s.index));
+  }
+
+  /** One track's rows from SL, on a line SL drives. */
+  function realRows(s: (typeof world.stations)[number], pt: (typeof s.platformTracks)[number]): DepartureRow[] {
+    const next = real.schedules[pt.line].nextDepartures(s.index, pt.track, time, BOARD_ROWS).filter((d) => d.departs <= 60 * 60);
+    if (!next.length) return [{ track: pt.number, line: '', destination: text.real.noTrains, eta: '' }];
+    const eta = (d: (typeof next)[number]) => boardEta(realArrival(d.journey, d.departs, s.index, pt.track), 30);
+    if (isLineTerminal(net, s.index, pt.track)) return [{ track: pt.number, line: '', destination: 'Slutstation', eta: eta(next[0]) }];
+    return next.map((d) => ({ track: pt.number, line: d.journey.line, destination: d.journey.destination, eta: eta(d) }));
   }
 
   /** A countdown as the boards show it: "Nu" once the train is in, minutes, or the clock time for one far off. */
@@ -2116,6 +2283,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     if (departuresTimer <= 0) {
       departuresTimer = 1;
       updateDepartures();
+      updateTrip();
       const clock = stockholm(time);
       // Only clocks the player could see get their second hand redrawn.
       for (const s of world.stations) if (Math.abs(s.cx - player.feet.x) < CLOCK_REACH) s.setTime(clock);
@@ -2461,7 +2629,10 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     welcomeBack = format(text.continued, { station: place.station });
     player.teleport(new Vector3(place.x, place.y, place.z), place.yaw);
   }
-  if (diveTo >= 0) {
+  if (divePlan) {
+    const at = legPlatform(divePlan.legs[0]);
+    player.teleport(at.feet, at.yaw);
+  } else if (diveTo >= 0) {
     const s = world.stations[diveTo];
     player.teleport(s.spawn, s.exitDir > 0 ? -Math.PI / 2 : Math.PI / 2);
   }
@@ -2547,10 +2718,11 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   if (options.life || params.has('liv')) startLife();
   // A dive goes straight onto the platform, not to the pause menu. The click that picked the station is long gone by
   // now, so the browser may refuse the mouse: then the game runs anyway and the next click on it takes the mouse.
+  if (divePlan) startTrip(divePlan.from, divePlan.to);
   if (diveTo >= 0 && !debug) {
     audio.start();
     setPaused(false);
-    hud.say(format(touchMode ? text.intro.platform : text.intro.platformLook, { station: stationName(diveTo) }), 6);
+    if (!divePlan) hud.say(format(touchMode ? text.intro.platform : text.intro.platformLook, { station: stationName(diveTo) }), 6);
     if (!touchMode && typeof canvas.requestPointerLock === 'function') {
       try { void (canvas.requestPointerLock() as Promise<void> | undefined)?.catch(() => {}); } catch { /* Next click. */ }
     }

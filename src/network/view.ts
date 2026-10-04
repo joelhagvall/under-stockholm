@@ -82,8 +82,8 @@ const PENTATONIC = [1, 9 / 8, 5 / 4, 3 / 2, 5 / 3];
 const LINE_BASE = [220, 293.66, 329.63];
 
 export interface NetworkOptions {
-  /** Go down to a station: start the game there. */
-  dive(station: string): void;
+  /** Go down to a station: start the game there, on a trip to `to` if one was picked. */
+  dive(station: string, to?: string): void;
   close(): void;
 }
 
@@ -171,6 +171,11 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
       </div>
       <label class="net-morph"><span>${text.geo}</span><input type="range" min="0" max="1" step="0.01" value="0" aria-label="${text.morph}"><span>${text.schematic}</span></label>
       <label class="net-pick"><span>${text.pick}</span><select name="station"><option value="">${text.pickNone}</option></select></label>
+      <div class="net-trip" role="group" aria-label="${text.trip}">
+        <label><span>${text.tripFrom}</span><select name="from"><option value="">${text.pickNone}</option></select></label>
+        <label><span>${text.tripTo}</span><select name="to"><option value="">${text.pickNone}</option></select></label>
+        <button type="button" class="net-trip-go" disabled>${text.tripGo}</button>
+      </div>
       <p class="net-hint" role="status">${text.hint}</p>
       </div>
       <p class="net-credit">${text.heights} · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">${text.buildings}</a></p>
@@ -742,15 +747,18 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
     downAt = null;
     if (moved > 6) return;
     const i = pick(e);
-    if (i >= 0) dive(i);
+    if (i < 0) return;
+    // With a trip begun, a station clicked is where it goes.
+    if (tripFrom.value) { tripTo.value = STATIONS[i].name; tripReady(); tripGo.focus({ preventScroll: true }); return; }
+    dive(i);
   });
 
   // The dive: the camera drops to the station and on down into it, then the game takes over there.
-  let flight: { from: Vector3; to: Vector3; lookFrom: Vector3; lookTo: Vector3; t: number; station: number } | null = null;
-  function dive(i: number): void {
-    if (flight) return;
+  let flight: { from: Vector3; to: Vector3; lookFrom: Vector3; lookTo: Vector3; t: number; station: number; trip?: string } | null = null;
+  function dive(i: number, trip?: string): void {
+    if (flight || i < 0) return;
     const p = stationPos[i];
-    flight = { from: camera.position.clone(), to: p.clone().add(new Vector3(0, 1.2, 4)), lookFrom: controls.target.clone(), lookTo: p.clone(), t: 0, station: i };
+    flight = { from: camera.position.clone(), to: p.clone().add(new Vector3(0, 1.2, 4)), lookFrom: controls.target.clone(), lookTo: p.clone(), t: 0, station: i, trip };
     controls.enabled = false;
     labels[i].classList.add('is-target');
     q<HTMLElement>('.net-hint').textContent = format(text.dive, { station: STATIONS[i].name });
@@ -769,6 +777,24 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
     pickSelect.append(option);
   }
   pickSelect.addEventListener('change', () => { if (pickSelect.value) dive(Number(pickSelect.value)); });
+  // A trip: from one station to another, picked in the lists or the second by a click, and down into the first.
+  const tripFrom = q<HTMLSelectElement>('.net-trip select[name="from"]');
+  const tripTo = q<HTMLSelectElement>('.net-trip select[name="to"]');
+  const tripGo = q<HTMLButtonElement>('.net-trip-go');
+  for (const select of [tripFrom, tripTo]) {
+    for (const name of [...byName.keys()].sort((a, b) => a.localeCompare(b, 'sv'))) {
+      const option = new Option(name, name);
+      option.translate = false;
+      select.append(option);
+    }
+  }
+  const tripReady = () => {
+    tripGo.disabled = !tripFrom.value || !tripTo.value || tripFrom.value === tripTo.value;
+    q<HTMLElement>('.net-hint').textContent = tripFrom.value && !tripTo.value ? text.tripHint : text.hint;
+  };
+  tripFrom.addEventListener('change', tripReady);
+  tripTo.addEventListener('change', tripReady);
+  tripGo.addEventListener('click', () => { if (!tripGo.disabled) dive(byName.get(tripFrom.value) ?? -1, tripTo.value); });
   // Escape leaves the view, unless it closed the poster first.
   const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !e.defaultPrevented && posterBox.hidden && !flight) options.close(); };
   document.addEventListener('keydown', onKey);
@@ -969,8 +995,9 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
       if (flight.t > 0.8) fade.classList.add('is-on');
       if (flight.t >= 1) {
         const name = STATIONS[flight.station].name;
+        const to = flight.trip;
         flight = null;
-        options.dive(name);
+        options.dive(name, to);
         return;
       }
     } else controls.update();

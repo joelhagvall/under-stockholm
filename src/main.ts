@@ -49,7 +49,7 @@ function game(): void {
   // The game (three.js + Rapier) is imported only once the player asks for it;
   // fetching its files ahead never executes them on the landing page.
   // The tour opens the same game in showcase mode, which plays on its own until you take over.
-  const launch = async (showcase: boolean, again = false, station?: string, life = false) => {
+  const launch = async (showcase: boolean, again = false, station?: string, life = false, to?: string) => {
     const since = performance.now();
     // Disabling the buttons drops the focus; it goes back where it was if the game cannot start.
     const focused = document.activeElement as HTMLElement | null;
@@ -69,7 +69,7 @@ function game(): void {
       menu.hidden = true;
       game.hidden = false;
       document.body.classList.add('is-playing');
-      await startGame(game, { showcase, physicsReady, resume: again, station, life, since });
+      await startGame(game, { showcase, physicsReady, resume: again, station, life, since, trip: station && to ? { from: station, to } : undefined });
     } catch (err) {
       console.error(err);
       // A page left open across a deploy: the new build opens the game instead.
@@ -122,7 +122,7 @@ function game(): void {
   if (new URLSearchParams(location.search).has('liv')) void launch(false, false, undefined, true);
 
   // The whole network (`?natet`), its own lazily loaded chunk, full screen over the landing page. A click on a station in the network goes down into the game there.
-  type View = (root: HTMLElement, options: { close(): void; dive(station: string): void }) => Promise<() => void>;
+  type View = (root: HTMLElement, options: { close(): void; dive(station: string, to?: string): void }) => Promise<() => void>;
   const views: Record<string, [HTMLButtonElement, () => Promise<View>]> = {
     natet: [network, () => import('./network/view').then((m) => m.mountNetwork)],
   };
@@ -147,7 +147,7 @@ function game(): void {
       param(name, true);
       const leave = () => { close(); view.remove(); param(name, false); };
       const close = await mount(view, {
-        dive: (station) => { leave(); void launch(false, false, station); },
+        dive: (station, to) => { leave(); void launch(false, false, station, false, to); },
         close: () => { leave(); done(true); button.focus(); },
       });
       statusEl.textContent = '';

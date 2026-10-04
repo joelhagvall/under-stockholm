@@ -8,6 +8,7 @@ import { realTrainsAvailable } from './sl';
 import type { Explored } from './explore';
 import { keyName, settings, type Action } from './settings';
 import { composeNote, GAP, PHRASES, STATIONS, THINGS } from './notePhrases';
+import { planTrip, tripSummary } from './trip';
 
 /** Writes `message` into `el`, a leading key (`E · Sätt upp en lapp`) drawn as a key cap. */
 function keyCap(el: HTMLElement, message: string): void {
@@ -69,6 +70,15 @@ export class Hud {
   private driving = false;
   private past = false;
   private readonly showCard: HTMLDivElement;
+  readonly tripButton: HTMLButtonElement;
+  private readonly tripPanel: HTMLDivElement;
+  private readonly tripFrom: HTMLSelectElement;
+  private readonly tripTo: HTMLSelectElement;
+  private readonly tripCancel: HTMLButtonElement;
+  private readonly tripLine: HTMLParagraphElement;
+  /** A trip picked in the pause menu: from and to, by station name. */
+  onTrip: ((from: string, to: string) => void) | null = null;
+  onTripCancel: (() => void) | null = null;
   private readonly book: HTMLDivElement;
   private readonly bookBack: HTMLButtonElement;
   private readonly foundCard: HTMLDivElement;
@@ -101,7 +111,7 @@ export class Hud {
     this.root = document.createElement('div');
     this.root.className = 'hud';
     this.root.innerHTML = `
-      <div class="hud-status"><p class="hud-line">${text.line}</p><p class="hud-title" aria-live="polite"></p><p class="hud-sub" aria-live="polite"></p><p class="hud-ghosts" hidden></p></div>
+      <div class="hud-status"><p class="hud-line">${text.line}</p><p class="hud-title" aria-live="polite"></p><p class="hud-sub" aria-live="polite"></p><p class="hud-trip" hidden></p><p class="hud-ghosts" hidden></p></div>
       <div class="hud-notice" role="status" hidden><p class="hud-notice-title"></p><p class="hud-notice-body"></p></div>
       <div class="hud-found" role="status" hidden><p class="hud-found-label" data-t="discover.found"></p><p class="hud-found-body"></p></div>
       <div class="hud-driver" hidden aria-live="off">
@@ -158,6 +168,7 @@ export class Hud {
         <section class="pause-modes" aria-labelledby="pause-modes-title">
           <h3 id="pause-modes-title" data-t="modes"></h3>
           <div class="pause-mode-list">
+            <button type="button" class="pause-option pause-trip" aria-expanded="false" aria-controls="pause-trip" data-t="trip.button"></button>
             <button type="button" class="pause-option pause-driver" data-key="drive"></button>
             <button type="button" class="pause-option pause-show" data-t="show.button"></button>
             <button type="button" class="pause-option pause-life" data-t="life"></button>
@@ -179,6 +190,22 @@ export class Hud {
         </div>
         <p class="pause-book-intro" data-t="discover.intro"></p>
         <div class="pause-book-groups"></div>
+      </div>
+      <div class="pause-card pause-book-panel pause-trip-panel" id="pause-trip" hidden>
+        <div class="panel-head">
+          <button type="button" class="panel-back pause-trip-back"><span aria-hidden="true">←</span> <span data-t="discover.back"></span></button>
+          <h2 data-t="trip.button"></h2>
+        </div>
+        <p class="pause-book-intro" data-t="trip.intro"></p>
+        <form class="trip-form">
+          <label><span data-t="trip.from"></span><select name="from" translate="no"></select></label>
+          <label><span data-t="trip.to"></span><select name="to" translate="no"></select></label>
+          <p class="trip-plan" aria-live="polite"></p>
+          <div class="trip-actions">
+            <button type="submit" class="pause-resume trip-go" data-t="trip.go"></button>
+            <button type="button" class="pause-option trip-cancel" data-t="trip.cancel" hidden></button>
+          </div>
+        </form>
       </div>
       <div class="pause-card pause-book-panel pause-settings-panel" id="pause-settings" hidden>
         <section class="settings-section settings-toggles" aria-labelledby="settings-game-title">
@@ -233,6 +260,28 @@ export class Hud {
     this.settingsButton.addEventListener('click', (event) => { event.stopPropagation(); this.showSettings(true); });
     this.bookButton.addEventListener('click', (event) => { event.stopPropagation(); this.showBook(true); });
     this.bookBack.addEventListener('click', (event) => { event.stopPropagation(); this.showBook(false); });
+    this.tripButton = this.pause.querySelector('.pause-trip')!;
+    this.tripPanel = this.pause.querySelector('.pause-trip-panel')!;
+    this.tripPanel.addEventListener('click', (event) => event.stopPropagation());
+    this.tripButton.addEventListener('click', (event) => { event.stopPropagation(); this.showTrip(true); });
+    this.tripPanel.querySelector('.pause-trip-back')!.addEventListener('click', (event) => { event.stopPropagation(); this.showTrip(false); });
+    const form = this.tripPanel.querySelector('form')!;
+    [this.tripFrom, this.tripTo] = [...form.querySelectorAll('select')];
+    // Every station once, by name: a station two lines share, or two of one name joined by a walkway, is one place to the player.
+    const names = [...new Set(net.stations.map((s) => s.name))].sort((a, b) => a.localeCompare(b, 'sv'));
+    for (const select of [this.tripFrom, this.tripTo]) for (const name of names) select.add(new Option(name, name));
+    this.tripTo.value = names.find((n) => n !== this.tripFrom.value) ?? '';
+    for (const select of [this.tripFrom, this.tripTo]) select.addEventListener('change', () => this.planPreview());
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!planTrip(this.net, this.tripFrom.value, this.tripTo.value)) return;
+      // Back to the menu first: if the browser refuses the mouse, the game stays paused there, the trip under way.
+      this.showTrip(false, false);
+      this.onTrip?.(this.tripFrom.value, this.tripTo.value);
+    });
+    this.tripCancel = form.querySelector('.trip-cancel')!;
+    this.tripCancel.addEventListener('click', (event) => { event.stopPropagation(); this.onTripCancel?.(); });
+    this.tripLine = q('.hud-trip');
     this.ticket = this.pause.querySelector('.pause-ticket')!;
     this.lineLabel = q('.hud-line');
     this.ghostsLine = q('.hud-ghosts');
@@ -299,6 +348,7 @@ export class Hud {
     }
     this.setEra(this.past);
     this.setDriverButton(this.driving);
+    if (this.tripPanel) this.planPreview();
   }
 
   /** A card in the middle of the view, e.g. a ticket inspection. */
@@ -357,6 +407,7 @@ export class Hud {
   showBook(open: boolean, focus = true): void {
     this.book.hidden = !open;
     this.settingsPanel.hidden = true;
+    this.tripPanel.hidden = true;
     this.pause.querySelector<HTMLElement>('.pause-card:not(.pause-book-panel)')!.hidden = open;
     this.bookButton.setAttribute('aria-expanded', String(open));
     if (open) this.book.scrollTop = 0;
@@ -366,14 +417,54 @@ export class Hud {
   showSettings(open: boolean, focus = true): void {
     this.settingsPanel.hidden = !open;
     this.book.hidden = true;
+    this.tripPanel.hidden = true;
     this.pause.querySelector<HTMLElement>('.pause-card:not(.pause-book-panel)')!.hidden = open;
     this.settingsButton.setAttribute('aria-expanded', String(open));
     if (open) this.settingsPanel.scrollTop = 0;
     if (focus) (open ? this.settingsPanel.querySelector<HTMLElement>('input, button') : this.settingsButton)?.focus({ preventScroll: true });
   }
 
-  /** Closes the discovery book or the settings if one is open, back to the pause menu. */
+  /** Opens the trip planner, from the station the player is at (`here`), or closes it. */
+  showTrip(open: boolean, focus = true): void {
+    this.tripPanel.hidden = !open;
+    this.book.hidden = true;
+    this.settingsPanel.hidden = true;
+    this.pause.querySelector<HTMLElement>('.pause-card:not(.pause-book-panel)')!.hidden = open;
+    this.tripButton.setAttribute('aria-expanded', String(open));
+    if (open) {
+      // From where the player is; at the end of a trip, back again.
+      if (this.tripHere === this.tripTo.value) this.tripTo.value = this.tripFrom.value;
+      if (this.tripHere) this.tripFrom.value = this.tripHere;
+      this.planPreview();
+      this.tripPanel.scrollTop = 0;
+    }
+    if (focus) (open ? this.tripTo : this.tripButton).focus({ preventScroll: true });
+  }
+
+  /** The station the player is at, where the planner starts from. */
+  private tripHere: string | null = null;
+  setTripHere(station: string | null): void {
+    this.tripHere = station;
+  }
+
+  /** The way between the two stations picked, as it will be ridden. */
+  private planPreview(): void {
+    const plan = planTrip(this.net, this.tripFrom.value, this.tripTo.value);
+    const line = this.tripPanel.querySelector('.trip-plan')!;
+    line.textContent = plan ? tripSummary(this.net, plan) : this.tripFrom.value === this.tripTo.value ? text.trip.same : text.trip.none;
+    this.tripPanel.querySelector<HTMLButtonElement>('.trip-go')!.disabled = !plan;
+  }
+
+  /** The trip under the station's name, or null when there is none; and the planner's way to cancel it. */
+  setTrip(line: string | null): void {
+    this.tripLine.hidden = line === null;
+    if (line !== null && this.tripLine.textContent !== line) this.tripLine.textContent = line;
+    this.tripCancel.hidden = line === null;
+  }
+
+  /** Closes the discovery book, the settings or the trip planner if one is open, back to the pause menu. */
   closePanel(): boolean {
+    if (!this.tripPanel.hidden) { this.showTrip(false); return true; }
     if (!this.settingsPanel.hidden) { this.showSettings(false); return true; }
     if (!this.book.hidden) { this.showBook(false); return true; }
     return false;
@@ -516,6 +607,7 @@ export class Hud {
     if (!paused && was) for (const intro of this.pause.querySelectorAll<HTMLElement>('.pause-intro')) intro.hidden = true;
     if (!paused && !this.book.hidden) this.showBook(false, false);
     if (!paused && !this.settingsPanel.hidden) this.showSettings(false, false);
+    if (!paused && !this.tripPanel.hidden) this.showTrip(false, false);
   }
 
   /** Asks for a note for the board, put together from the fixed parts in `notePhrases.ts`. Null if cancelled. */

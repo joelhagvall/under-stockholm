@@ -151,6 +151,20 @@
 .pause-book-groups li span { font-size: 12px; line-height: 1.4; color: var(--muted); }
 .pause-book-groups li.is-found { background: #d8e53a14; border-left-color: #d8e53a; }
 .pause-book-groups li.is-found strong { color: #fff; }
+/* The trip planner: two stations, the way between them, and off. */
+.pause-trip-panel { width: min(520px, 100%); }
+.trip-form label { display: grid; gap: 6px; margin-top: 12px; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #9fc3ea; }
+.trip-form select {
+  min-height: 44px; padding: 8px 10px; border: 1px solid #ffffff38; border-radius: 3px;
+  background: #10202d; color: #fff; font: 600 16px system-ui, sans-serif; text-transform: none; cursor: pointer;
+}
+.trip-form select:focus-visible { outline: 3px solid #ffb444; outline-offset: 2px; }
+.trip-plan { min-height: 3em; margin: 14px 0 0; padding: 10px 12px; border-left: 3px solid #ffb444; border-radius: 3px; background: #ffffff0d; font-size: 14px; line-height: 1.45; }
+.trip-actions { display: grid; gap: 8px; }
+.trip-actions .pause-resume:disabled { opacity: 0.5; cursor: default; filter: none; }
+.trip-actions .pause-option { width: 100%; border-color: #ffffff38; background: transparent; color: #fff; font-weight: 500; }
+/* The trip, under the station's name in the status bar. */
+.hud-trip { margin-top: 6px; padding-top: 6px; border-top: 1px solid #10202d1f; color: #1d3a5a; font-size: 12px; font-weight: 600; }
 /* A panel's header: back on the left, the title in the middle, and it stays put while the card scrolls. */
 .panel-head {
   --pad-y: 26px; --pad-x: 30px;
