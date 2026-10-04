@@ -389,6 +389,11 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   let lineLive = net.lines.map(() => false);
   let realOn = false;
   let realFailShown = false;
+  /**
+   * The player has just switched real trains on or off: the next change is told. Real trains are on from the start, and
+   * a line handed between SL and the timetable on its own is nothing the player needs telling.
+   */
+  let realAsked = false;
   const routeIndex = (number: string) => Math.max(0, net.routes.findIndex((r) => r.number === number));
 
   const ghostRoute = line.routes.findIndex((r) => r.number === line.ghost!.route);
@@ -841,6 +846,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     event.stopPropagation();
     realWanted = !realWanted;
     realFailShown = false;
+    realAsked = realWanted;
     real.setEnabled(realWanted);
     hud.setOption(hud.realButton, realWanted);
     hud.say(realWanted ? text.real.loading : text.real.off, 3);
@@ -1826,7 +1832,10 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     realOn = live.some(Boolean);
     updateTrains(false);
     for (const s of services) if (changed[s.line]) s.train.place(s.train.position.x, s.train.position.z, s.train.position.y - s.train.baseY);
-    if (realOn !== wasOn) hud.say(realOn ? text.real.on : realWanted ? text.real.failed : text.real.off, 5);
+    if (realOn !== wasOn && realAsked) {
+      realAsked = false;
+      if (realOn || realWanted) hud.say(realOn ? text.real.on : text.real.failed, 5);
+    }
     if (aboard && !respawning) {
       respawning = true;
       void hud.blackout(() => {
@@ -1950,8 +1959,9 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     const wantLive = net.lines.map((_, li) => realWanted && real.live(li));
     if (wantLive.some((on, li) => on !== lineLive[li])) switchTrains(wantLive);
     if (stageWaiting) stageArrival();
-    if (realWanted && !realOn && real.failed && !realFailShown) {
+    if (realWanted && realAsked && !realOn && real.failed && !realFailShown) {
       realFailShown = true;
+      realAsked = false;
       hud.say(text.real.failed, 6);
     }
 
