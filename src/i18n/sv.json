@@ -25,7 +25,6 @@
     "geo": "Verklighet",
     "schematic": "Linjekarta",
     "sound": "Ljud",
-    "real": "Riktiga tåg",
     "realNote": "Tågen är SL:s, i realtid. Var de är mellan stationerna räknas fram ur avgångstiderna.",
     "realLoading": "Frågar SL var tågen är …",
     "onlyNow": "SL:s tåg finns bara för just nu, så det här är spelets tidtabell.",

@@ -4,7 +4,6 @@ import { FEEDBACK_MAIL } from './crash';
 import type { Network } from './line';
 import type { DriverReadout } from './driver';
 import { networkMapLayout } from './world/station';
-import { realTrainsAvailable } from './sl';
 import type { Explored } from './explore';
 import { keyName, settings, type Action } from './settings';
 import { composeNote, GAP, PHRASES, STATIONS, THINGS } from './notePhrases';
@@ -55,7 +54,6 @@ export class Hud {
   readonly ghostButton: HTMLButtonElement;
   readonly voiceButton: HTMLButtonElement;
   readonly driverButton: HTMLButtonElement;
-  readonly realButton: HTMLButtonElement;
   readonly saverButton: HTMLButtonElement;
   readonly loopButton: HTMLButtonElement;
   readonly eraButton: HTMLButtonElement;
@@ -212,7 +210,6 @@ export class Hud {
           <h3 id="settings-game-title" data-t="settings.game"></h3>
           <div class="settings-switches">
             <button type="button" class="pause-option pause-sound" aria-pressed="true"><span data-t="touch.sound"></span> <strong></strong></button>
-            <button type="button" class="pause-option pause-real" aria-pressed="false" data-t-title="real.hint"><span data-t="real.toggle"></span> <strong></strong></button>
             <button type="button" class="hud-crowd pause-crowd" aria-pressed="false" data-key="passengers"><span data-t="passengers"></span> <strong></strong> <kbd></kbd></button>
             <button type="button" class="pause-option pause-ghosts" aria-pressed="true" data-key="ghosts"><span data-t="ghosts.toggle"></span> <strong></strong></button>
             <button type="button" class="pause-option pause-voices" aria-pressed="false" data-t-title="voices.hint"><span data-t="voices.toggle"></span> <strong></strong></button>
@@ -238,7 +235,6 @@ export class Hud {
     this.ghostButton = this.pause.querySelector('.pause-ghosts')!;
     this.voiceButton = this.pause.querySelector('.pause-voices')!;
     this.driverButton = this.pause.querySelector('.pause-driver')!;
-    this.realButton = this.pause.querySelector('.pause-real')!;
     this.saverButton = this.pause.querySelector('.pause-saver')!;
     this.loopButton = this.pause.querySelector('.pause-loop')!;
     this.eraButton = this.pause.querySelector('.pause-era')!;
@@ -582,7 +578,6 @@ export class Hud {
     this.past = past;
     this.eraButton.setAttribute('aria-pressed', String(past));
     this.eraButton.querySelector('strong')!.textContent = past ? '1975' : text.era.now;
-    this.realButton.hidden = past || !realTrainsAvailable();
   }
 
   /** The showcase's title card: what the scene shows, and when. */

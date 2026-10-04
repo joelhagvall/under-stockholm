@@ -216,12 +216,6 @@
     "hint": "People around you speak their lines aloud in the browser’s Swedish voice. The captions show either way."
   },
   "real": {
-    "toggle": "Real trains (SL)",
-    "hint": "The trains follow SL’s service live. A line SL sends no data for runs on the game’s own timetable.",
-    "loading": "Fetching SL’s metro live…",
-    "on": "The trains now follow SL live.",
-    "off": "The trains follow the game’s own timetable.",
-    "failed": "SL is not answering right now. The game’s own timetable is used meanwhile.",
     "moved": "The service changes over. You are on the platform."
   },
   "festive": {
@@ -536,7 +530,6 @@
       "artDone": ["The whole art walk", "Every station along the blue line."],
       "perfect": ["Perfect stop", "In driver mode, a few centimetres from the sign."],
       "era": ["1975", "The time machine in the pause menu."],
-      "real": ["Real trains", "Let SL’s real trains drive the game’s trains."],
       "powerCut": ["The power cut", "A couple of times a year the power goes, for everyone at once."],
       "regular-walker": ["The woman with the walker", "Västra skogen, weekdays just before a quarter to eight."],
       "regular-guitar": ["The guy with the guitar case", "Solna centrum, weekday mornings."],

@@ -174,7 +174,6 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
       <div class="net-buttons">
         <button type="button" class="net-day">${text.day}</button>
         <button type="button" class="net-toggle net-sound" aria-pressed="false">${text.sound}</button>
-        <button type="button" class="net-toggle net-real" aria-pressed="false" hidden>${text.real}</button>
         <button type="button" class="net-toggle net-cut" aria-pressed="true">${text.cut}</button>
         <button type="button" class="net-toggle net-scale" aria-pressed="false">${text.trueScale}</button>
         <button type="button" class="net-exposure">${text.exposure}</button>
@@ -218,7 +217,6 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
   const timeOut = q<HTMLOutputElement>('.net-time output');
   const dayButton = q<HTMLButtonElement>('.net-day');
   const soundButton = q<HTMLButtonElement>('.net-sound');
-  const realButton = q<HTMLButtonElement>('.net-real');
   const morphInput = q<HTMLInputElement>('.net-morph input');
   const fade = q<HTMLDivElement>('.net-fade');
   // On a phone everything but the clock folds away, so the bar leaves the network in view (network.css).
@@ -537,15 +535,14 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
   describeMorph();
   morphInput.addEventListener('input', () => { morphWanted = Number(morphInput.value); describeMorph(); });
 
-  // Real trains, from the relay's copy of SL's departures: on wherever there is a relay, as in the game (`?debug` keeps
-  // to the timetable, so scripted views repeat). SL only knows now: a clock run through the day or scrubbed shows the
+  // Real trains, from the relay's copy of SL's departures: on wherever there is a relay, as in the game (`?tidtabell`
+  // keeps to the timetable, and `?debug` does unless `?sl`, so scripted views repeat). SL only knows now: a clock run through the day or scrubbed shows the
   // timetable, Silverpilen with it, until it is back.
   const reals = LINES.map((_, li) => new RealTrains(li));
-  let realOn = realTrainsAvailable() && !new URLSearchParams(location.search).has('debug');
+  const search = new URLSearchParams(location.search);
+  const realOn = realTrainsAvailable() && !search.has('tidtabell') && (!search.has('debug') || search.has('sl'));
   let realLoaded = false;
   let pollTimer = 0;
-  realButton.hidden = !realTrainsAvailable();
-  realButton.setAttribute('aria-pressed', String(realOn));
   const showingReal = () => realOn && realLoaded && mode === 'live' && offset === 0;
   // What the dots are, in a line: SL's trains and how they are placed, or the timetable.
   const sourceEl = q<HTMLElement>('.net-source');
@@ -564,13 +561,6 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
     drawSource();
     pollTimer = window.setTimeout(() => void poll(), 30_000);
   };
-  realButton.addEventListener('click', () => {
-    realOn = !realOn;
-    realButton.setAttribute('aria-pressed', String(realOn));
-    window.clearTimeout(pollTimer);
-    if (realOn) { setDay(false); offset = 0; mode = 'live'; void poll(); }
-    drawSource();
-  });
   if (realOn) void poll();
   drawSource();
 

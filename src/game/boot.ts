@@ -378,22 +378,13 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     slots: REAL_SLOTS[li],
     stations: net.stations.map((s) => s.lines.includes(li)),
   })), net.stations.map((s) => s.sl ?? 0));
-  // SL drives the trains unless the player chose the timetable. Debug keeps to the timetable unless asked, so scripted scenes repeat.
-  let realWanted = false;
-  if (realTrainsAvailable()) {
-    let chosen: string | null = null;
-    try { chosen = localStorage.getItem('under-stockholm:real'); } catch { /* No choice saved. */ }
-    realWanted = debug ? chosen === 'on' : chosen !== 'off';
-  }
+  // SL drives the trains wherever there is a relay, each line falling back to the timetable on its own. `?tidtabell`
+  // keeps to the timetable; debug does unless `?sl`, so scripted scenes repeat.
+  const realDefault = realTrainsAvailable() && !params.has('tidtabell') && (!debug || params.has('sl'));
+  let realWanted = realDefault;
   /** Which lines SL drives right now; the others keep to the timetable. */
   let lineLive = net.lines.map(() => false);
   let realOn = false;
-  let realFailShown = false;
-  /**
-   * The player has just switched real trains on or off: the next change is told. Real trains are on from the start, and
-   * a line handed between SL and the timetable on its own is nothing the player needs telling.
-   */
-  let realAsked = false;
   const routeIndex = (number: string) => Math.max(0, net.routes.findIndex((r) => r.number === number));
 
   const ghostRoute = line.routes.findIndex((r) => r.number === line.ghost!.route);
@@ -617,11 +608,14 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     }
     rideLight.reset();
     hud.setEra(era.past);
-    if (era.past && realWanted) { realWanted = false; real.setEnabled(false); hud.setOption(hud.realButton, false); }
+    // 1975 has no SL to follow.
+    if (era.past && realWanted) { realWanted = false; real.setEnabled(false); }
   };
   hud.eraButton.addEventListener('click', (event) => {
     event.stopPropagation();
     era.set(era.past ? 'now' : '1975');
+    // Back in the present, the trains follow SL again (the tour and a life put it back themselves).
+    if (!era.past && realDefault && !realWanted && !loopOffset) { realWanted = true; real.setEnabled(true); }
     hud.say(era.past ? text.era.to1975 : text.era.toNow, 5);
   });
   era.on(applyEra);
@@ -839,19 +833,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     if (driving) stopDriving(); else startDriving();
     resume();
   });
-  hud.realButton.hidden = !realTrainsAvailable();
-  hud.setOption(hud.realButton, realWanted);
   real.setEnabled(realWanted);
-  hud.realButton.addEventListener('click', (event) => {
-    event.stopPropagation();
-    realWanted = !realWanted;
-    realFailShown = false;
-    realAsked = realWanted;
-    real.setEnabled(realWanted);
-    hud.setOption(hud.realButton, realWanted);
-    hud.say(realWanted ? text.real.loading : text.real.off, 3);
-    try { localStorage.setItem('under-stockholm:real', realWanted ? 'on' : 'off'); } catch { /* Session only. */ }
-  });
   canvas.addEventListener('click', () => { if (!touchMode) resume(); });
   /** While writing a note the mouse is free, and that must not pause the game. */
   let typing = false;
@@ -1824,7 +1806,6 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   /** Hands lines' trains between the timetable and SL. A rider on a line that changes is set down on the nearest platform first. */
   function switchTrains(live: boolean[]): void {
     const changed = live.map((on, li) => on !== lineLive[li]);
-    const wasOn = realOn;
     const underFeet = trainUnderFeet();
     const aboard = services.some((s) => changed[s.line] && s.train === underFeet);
     if (live[0] && !lineLive[0]) realSilver.adopt(time);
@@ -1832,10 +1813,6 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     realOn = live.some(Boolean);
     updateTrains(false);
     for (const s of services) if (changed[s.line]) s.train.place(s.train.position.x, s.train.position.z, s.train.position.y - s.train.baseY);
-    if (realOn !== wasOn && realAsked) {
-      realAsked = false;
-      if (realOn || realWanted) hud.say(realOn ? text.real.on : text.real.failed, 5);
-    }
     if (aboard && !respawning) {
       respawning = true;
       void hud.blackout(() => {
@@ -1878,7 +1855,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
       player.teleport(new Vector3(s.cx + 9, PLATFORM_Y, 0.8), -Math.PI / 2);
       player.pitch = -0.1;
       if (ghostsOn) ghosts.setEnabled(false);
-      if (realWanted) { realWanted = false; real.setEnabled(false); hud.setOption(hud.realButton, false); }
+      if (realWanted) { realWanted = false; real.setEnabled(false); }
       hud.loopButton.hidden = false;
       hud.say(text.loop.wake, 9);
     }).then(() => (respawning = false));
@@ -1888,6 +1865,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     loopOffset = 0;
     jumpTime(Date.now() / 1000 + (ghosts.clockOffset ?? 0));
     if (ghostsOn) ghosts.setEnabled(ghosts.available);
+    if (realDefault && !era.past) { realWanted = true; real.setEnabled(true); }
     hud.loopButton.hidden = true;
     hud.say(text.loop.back, 5);
   }
@@ -1959,11 +1937,6 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     const wantLive = net.lines.map((_, li) => realWanted && real.live(li));
     if (wantLive.some((on, li) => on !== lineLive[li])) switchTrains(wantLive);
     if (stageWaiting) stageArrival();
-    if (realWanted && realAsked && !realOn && real.failed && !realFailShown) {
-      realFailShown = true;
-      realAsked = false;
-      hud.say(text.real.failed, 6);
-    }
 
     // Who is the player riding, judged before the trains move this frame?
     riding = trainUnderFeet();

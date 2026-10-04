@@ -93,7 +93,6 @@ export const DISCOVERIES: Discovery[] = [
   { id: 'artDone', group: 'modes', texts: ['art.done'] },
   { id: 'perfect', group: 'modes', texts: ['driver.perfect'] },
   { id: 'era', group: 'modes', texts: ['era.to1975'] },
-  { id: 'real', group: 'modes', texts: ['real.on'] },
 ];
 
 export const GROUPS: Group[] = ['platform', 'hall', 'aboard', 'depths', 'mystery', 'regulars', 'modes'];

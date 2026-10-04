@@ -337,12 +337,6 @@
     "hint": "Folk omkring dig säger sina repliker högt med webbläsarens svenska röst. Texten syns ändå."
   },
   "real": {
-    "toggle": "Riktiga tåg (SL)",
-    "hint": "Tågen följer SL:s trafik i realtid. En linje som SL inte skickar data för går på spelets egen tidtabell.",
-    "loading": "Hämtar SL:s tunnelbana i realtid …",
-    "on": "Tågen följer nu SL i realtid.",
-    "off": "Tågen följer spelets egen tidtabell.",
-    "failed": "SL svarar inte just nu. Spelets egen tidtabell används så länge.",
     "moved": "Tågtrafiken byter. Du står på perrongen.",
     "noTrains": "Inga tåg just nu"
   },
@@ -792,7 +786,6 @@
       "artDone": ["Hela konstvandringen", "Varje station längs blå linjen."],
       "perfect": ["Perfekt stopp", "I förarläget, några centimeter från skylten."],
       "era": ["1975", "Tidsmaskinen i pausmenyn."],
-      "real": ["Riktiga tåg", "Låt SL:s riktiga tåg köra spelets tåg."],
       "powerCut": ["Strömavbrottet", "Ett par gånger om året går strömmen, för alla på samma gång."],
       "regular-walker": ["Kvinnan med rollatorn", "Västra skogen, vardagar strax före kvart i åtta."],
       "regular-guitar": ["Killen med gitarrfodralet", "Solna centrum, vardagsmorgnar."],
