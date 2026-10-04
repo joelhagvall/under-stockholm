@@ -4,47 +4,49 @@
 //   /notes       the shared notes on the staff room boards (GET, POST, DELETE with NOTES_ADMIN_TOKEN)
 //   /perf        anonymous performance reports (POST) and what they sum up to (GET, a page in a browser)
 //   /errors      errors players met (POST), grouped (GET, a page in a browser)
-//   /feeds/<n>   the open data feeds, fetched from their sources only while someone asks (server/feedCore.ts), SL's
-//                from GTFS Regional when the Trafiklab keys are set as secrets (server/gtfsFeed.ts)
-// One object for the whole game keeps SL's quota and the notes in one place. Notes, reports and the GTFS timetable
-// are kept in its SQLite storage, everything else in memory: when it sleeps, nobody is playing.
+// The feeds (/feeds/<name>) have an object of their own (worker/feeds.ts). One hub for the whole game keeps the notes
+// in one place. Notes and reports are kept in its SQLite storage, everything else in memory: when it sleeps, nobody is
+// playing.
 //
 // Requests to Durable Objects are billed, WebSocket messages counted 20 to one. The hub counts what it spends in two
 // budgets, so one cannot spend the other: GHOST_BUDGET for other players (sockets and their messages; near it the
 // hub closes their sockets until midnight UTC, the game plays on without them and the client waits for midnight) and
-// DATA_BUDGET for the feeds, notes and reports (near it they answer 503 until midnight). `off` works for either, but
-// leaves no ceiling on that part of the bill. Each address, and each IPv6 /48, also has a share of the day
-// (ADDRESS_DAY, BLOCK_DAY in server/limits.ts): past it, the hub refuses it and says so in `x-spent-until`, and the
-// Worker (worker/index.ts) then turns it away itself until midnight, so what it sends after costs the hub nothing.
+// DATA_BUDGET for the notes and reports (near it they answer 503 until midnight). `off` works for either, but leaves
+// no ceiling on that part of the bill. Each address, and each IPv6 /48, also has a share of the day (ADDRESS_DAY,
+// BLOCK_DAY in server/limits.ts): past it, the hub refuses it and says so in `x-spent-until`, and the Worker
+// (worker/index.ts) then turns it away itself until midnight, so what it sends after costs the hub nothing.
 
 import { DurableObject } from 'cloudflare:workers';
 import { cleanNote } from '../src/game/notePhrases';
 import { alertFor, ERROR_EVERY_MS, ERROR_KEPT, errorsPage, groupErrors, readError, sendAlert, type AlertLog, type ErrorAggregate, type ErrorReport } from '../server/errorCore';
-import { createFeeds, type Feeds } from '../server/feedCore';
-import type { Timetable } from '../server/gtfs';
-import { gtfsDepartures, type TimetableStore } from '../server/gtfsFeed';
 import { aggregate, PERF_EVERY_MS, PERF_KEPT, perfPage, readPerf, type BudgetUse, type PerfAggregate, type PerfReport } from '../server/perfCore';
-import { ADDRESS_DAY, addressKey, AGGREGATE_MS, BLOCK_DAY, blockKey, CachedBuild, Cooldown, DayCap, HOUR_MS, NOTE_EVERY_MS, NOTES_PER_HOUR, readBody, untilMidnight, utcDay } from '../server/limits';
+import { addressKey, AGGREGATE_MS, CachedBuild, Cooldown, HOUR_MS, NOTE_EVERY_MS, NOTES_PER_HOUR, readBody } from '../server/limits';
 import { CLOSE_FLOOD, CLOSE_FULL, CLOSE_SPENT, flooding, hear, IDLE_MS, newPlayer, refill, refused, snapshots, spendMessage, TICK_MS, type Player } from '../server/pose';
+import { Budget, budgetOf, log, Shares, spentAddress, spentBudget, spentUntil } from './budget';
+import { feedUse, type FeedHub } from './feeds';
 
 export interface Env {
   ASSETS: Fetcher;
   HUB: DurableObjectNamespace;
-  /** Per address, for what reaches the hub (worker/index.ts). Absent where the plan has no rate limiting. */
+  /** The feeds' own object (worker/feeds.ts). */
+  FEEDS: DurableObjectNamespace<FeedHub>;
+  /** Per address, for what reaches the hub or the feeds (worker/index.ts). Absent where the plan has no rate limiting. */
   LIMIT?: RateLimit;
   /** Requests a day other players may spend, or `off` (no ceiling on the bill). */
   GHOST_BUDGET?: string;
-  /** Requests a day the feeds, notes and reports may spend, or `off` (unset: no ceiling, as on the free plan). */
+  /** Requests a day the notes and reports may spend, or `off` (unset: no ceiling, as on the free plan). */
   DATA_BUDGET?: string;
+  /** Requests a day the feeds may spend at their own object, or `off` (unset: no ceiling, as on the free plan). */
+  FEED_BUDGET?: string;
   /** Each address's and each IPv6 /48's share of the day, when not ADDRESS_DAY and BLOCK_DAY: set small by `scripts/worker-check.ts`. */
   ADDRESS_DAY?: string;
   BLOCK_DAY?: string;
   /** Set with `bunx wrangler secret put NOTES_ADMIN_TOKEN` to be able to take notes down. */
   NOTES_ADMIN_TOKEN?: string;
-  /** Trafiklab's GTFS Regional keys, as secrets: without them the blue line alone follows SL's Transport API. */
+  /** Trafiklab's GTFS Regional keys, as secrets: without them no line follows SL. */
   TRAFIKLAB_RT_KEY?: string;
   TRAFIKLAB_STATIC_KEY?: string;
-  /** Where a fatal error not seen for a week is posted as plain text (an ntfy.sh topic), as a secret: unset, none is. */
+  /** Where a fatal error not seen for a week, and an outage of SL's feed, is posted as plain text (an ntfy.sh topic), as a secret: unset, none is. */
   ALERT_URL?: string;
 }
 
@@ -52,56 +54,6 @@ const MAX_NOTES = 200;
 const SHOWN_NOTES = 24;
 /** Without GHOST_BUDGET: what other players may spend of the free plan's 100 000 requests a day, the rest left to the feeds and the notes. */
 const FREE_BUDGET = 90_000;
-/** The GTFS timetable is a few MB of JSON; a row holds at most 2 MB. */
-const CHUNK = 500_000;
-
-const log = (message: string) => console.warn(message);
-
-/** The header the hub answers with once an address has spent its share of the day: when it may come back (epoch ms). */
-export const SPENT_HEADER = 'x-spent-until';
-/** ...and whose share it was: `address`, or `block` when its whole IPv6 /48 has spent the block's share. */
-export const SPENT_SCOPE_HEADER = 'x-spent-scope';
-
-/** One of the hub's daily budgets: what it has spent today, written to storage now and then so a restart remembers. */
-class Budget {
-  private day = '';
-  used = 0;
-  private saved = 0;
-
-  constructor(private readonly key: string, private readonly label: string, readonly limit: number, private readonly storage: DurableObjectStorage) {}
-
-  async load(): Promise<void> {
-    const saved = await this.storage.get<{ day: string; used: number }>(this.key);
-    if (saved && saved.day === utcDay()) { this.day = saved.day; this.used = this.saved = saved.used; }
-  }
-
-  /** Counts `n` billed requests, and says whether there is still room today. */
-  spend(n: number): boolean {
-    const day = utcDay();
-    if (day !== this.day) { this.day = day; this.used = this.saved = 0; }
-    const before = this.used;
-    this.used += n;
-    // A line in Workers Logs as the day passes 80% and 100% of the budget.
-    for (const share of [0.8, 1]) {
-      const mark = this.limit * share;
-      if (before < mark && this.used >= mark) log(`budget: ${share * 100}% of ${this.limit} ${this.label} requests spent on ${day}`);
-    }
-    if (this.used - this.saved >= 200) {
-      this.saved = this.used;
-      void this.storage.put(this.key, { day, used: this.used });
-    }
-    return this.used < this.limit;
-  }
-
-  get spent(): boolean {
-    return this.day === utcDay() && this.used >= this.limit;
-  }
-
-  /** Today's spending, for the /perf page. */
-  get use(): BudgetUse {
-    return { used: this.day === utcDay() ? this.used : 0, limit: this.limit };
-  }
-}
 
 /** A socket accepted and closed at once as spent for the day, with a reason the client reads, so it waits for midnight. */
 export function spentSocket(headers: Record<string, string> = {}): Response {
@@ -111,13 +63,10 @@ export function spentSocket(headers: Record<string, string> = {}): Response {
   return new Response(null, { status: 101, webSocket: pair[0], headers });
 }
 
-const budgetOf = (value: string | undefined, unset: number) => (value === 'off' ? Infinity : Number(value) || unset);
-
 export class Hub extends DurableObject<Env> {
   private readonly clients = new Map<WebSocket, Player>();
   private nextId = 1;
   private ticker: ReturnType<typeof setInterval> | null = null;
-  private readonly feeds: Feeds;
   private readonly lastNote = new Cooldown(NOTE_EVERY_MS);
   private readonly lastReport = new Cooldown(PERF_EVERY_MS);
   private readonly lastError = new Cooldown(ERROR_EVERY_MS);
@@ -126,9 +75,7 @@ export class Hub extends DurableObject<Env> {
   private readonly errorAggregate = new CachedBuild<ErrorAggregate>(AGGREGATE_MS);
   private readonly players: Budget;
   private readonly data: Budget;
-  // Each address's and each IPv6 block's share of the day, kept in memory: a restart forgets it, which only forgives.
-  private readonly perAddress: DayCap;
-  private readonly perBlock: DayCap;
+  private readonly shares: Shares;
   /** When each group of errors was last alerted, in storage so a restart does not send them again. */
   private readonly alerts: AlertLog;
 
@@ -136,50 +83,23 @@ export class Hub extends DurableObject<Env> {
     super(ctx, env);
     // The first keeps its old storage key, so today's spending carries over.
     this.players = new Budget('budget', 'other players', budgetOf(env.GHOST_BUDGET, FREE_BUDGET), ctx.storage);
-    this.data = new Budget('data-budget', 'feeds, notes and reports', budgetOf(env.DATA_BUDGET, Infinity), ctx.storage);
-    this.perAddress = new DayCap(Number(env.ADDRESS_DAY) || ADDRESS_DAY);
-    this.perBlock = new DayCap(Number(env.BLOCK_DAY) || BLOCK_DAY);
+    this.data = new Budget('data-budget', 'notes and reports', budgetOf(env.DATA_BUDGET, Infinity), ctx.storage);
+    this.shares = new Shares(env);
     const sql = ctx.storage.sql;
-    const store: TimetableStore = {
-      read: async () => {
-        const parts = sql.exec<{ data: string }>('SELECT data FROM blobs WHERE name = ? ORDER BY part', 'gtfs').toArray();
-        return parts.length ? JSON.parse(parts.map((p) => p.data).join('')) as Timetable : null;
-      },
-      write: async (timetable) => {
-        const text = JSON.stringify(timetable);
-        sql.exec('DELETE FROM blobs WHERE name = ?', 'gtfs');
-        for (let i = 0; i * CHUNK < text.length; i++) sql.exec('INSERT INTO blobs (name, part, data) VALUES (?, ?, ?)', 'gtfs', i, text.slice(i * CHUNK, (i + 1) * CHUNK));
-      },
-    };
     this.alerts = {
       last: (key) => sql.exec<{ at: number }>('SELECT at FROM alerts WHERE key = ?', key).toArray()[0]?.at ?? 0,
       mark: (key, at) => void sql.exec('INSERT OR REPLACE INTO alerts (key, at) VALUES (?, ?)', key, at),
     };
-    const keys = env.TRAFIKLAB_RT_KEY && env.TRAFIKLAB_STATIC_KEY ? { realtime: env.TRAFIKLAB_RT_KEY, static: env.TRAFIKLAB_STATIC_KEY } : null;
-    this.feeds = createFeeds({ log, gtfs: keys ? gtfsDepartures(keys, store, log) : undefined, waitUntil: (task) => ctx.waitUntil(task) });
     void ctx.blockConcurrencyWhile(async () => {
       sql.exec('CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, at INTEGER NOT NULL)');
       sql.exec('CREATE TABLE IF NOT EXISTS perf (at INTEGER NOT NULL, report TEXT NOT NULL)');
       sql.exec('CREATE TABLE IF NOT EXISTS errors (at INTEGER NOT NULL, report TEXT NOT NULL)');
       sql.exec('CREATE TABLE IF NOT EXISTS alerts (key TEXT PRIMARY KEY, at INTEGER NOT NULL)');
-      sql.exec('CREATE TABLE IF NOT EXISTS blobs (name TEXT NOT NULL, part INTEGER NOT NULL, data TEXT NOT NULL, PRIMARY KEY (name, part))');
+      // The GTFS timetable the hub kept while it served the feeds, now kept by their own object (worker/feeds.ts).
+      sql.exec('DROP TABLE IF EXISTS blobs');
       await this.players.load();
       await this.data.load();
     });
-  }
-
-  /** Counts `n` billed requests to an address and its block, and says whose share is spent, if either is. */
-  private charge(address: string, n = 1): 'address' | 'block' | null {
-    const block = blockKey(address);
-    const mine = this.perAddress.spend(address, n);
-    if (block !== null && !this.perBlock.spend(block, n)) return 'block';
-    return mine ? null : 'address';
-  }
-
-  /** Whether an address, or its block, has spent today's share. */
-  private overShare(address: string): boolean {
-    const block = blockKey(address);
-    return this.perAddress.spent(address) || (block !== null && this.perBlock.spent(block));
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -187,19 +107,15 @@ export class Hub extends DurableObject<Env> {
     const ip = addressKey(request.headers.get('cf-connecting-ip') ?? '?');
     const ghosts = url.pathname === '/ghosts';
     const within = (ghosts ? this.players : this.data).spend(1);
-    const over = this.charge(ip);
-    if (over) {
-      // Past its share of the day: refused, and the Worker told to turn it away itself until midnight.
-      const until = { [SPENT_HEADER]: String(Date.now() + untilMidnight()), [SPENT_SCOPE_HEADER]: over };
-      if (ghosts) return spentSocket(until);
-      return new Response('Too many requests today', { status: 429, headers: { ...until, 'retry-after': String(Math.ceil(untilMidnight() / 1000)) } });
-    }
-    if (!within && !ghosts) return new Response('Spent for today', { status: 503, headers: { 'retry-after': String(Math.ceil(untilMidnight() / 1000)) } });
+    const over = this.shares.charge(ip);
+    // Past its share of the day: refused, and the Worker told to turn it away itself until midnight.
+    if (over) return ghosts ? spentSocket(spentUntil(over)) : spentAddress(over);
+    if (!within && !ghosts) return spentBudget();
     if (ghosts) return this.ghosts(request, within, ip);
     if (url.pathname === '/notes' || url.pathname.startsWith('/notes/')) return this.notes(request, url, ip);
-    if (url.pathname === '/perf') return this.perf(request, ip);
+    if (url.pathname === '/perf') return this.perf(request, url, ip);
     if (url.pathname === '/errors') return this.errors(request, ip);
-    return (await this.feeds.handle(url)) ?? new Response('Not found', { status: 404 });
+    return new Response('Not found', { status: 404 });
   }
 
   // Other players.
@@ -217,7 +133,7 @@ export class Hub extends DurableObject<Env> {
     server.send(JSON.stringify({ t: 'hello', id: me.id, now: Date.now() }));
     server.addEventListener('message', (event) => {
       // Twenty messages bill as one request, to the budget and to the address; one past its share is closed at the tick.
-      if (++me.sent % 20 === 0) { this.players.spend(1); this.charge(ip); }
+      if (++me.sent % 20 === 0) { this.players.spend(1); this.shares.charge(ip); }
       if (!spendMessage(me)) {
         // Dropped messages are billed all the same, so a socket that floods is closed rather than ignored.
         if (flooding(me) && this.clients.delete(server)) { try { server.close(CLOSE_FLOOD, 'flood'); } catch { /* Already gone. */ } }
@@ -237,7 +153,7 @@ export class Hub extends DurableObject<Env> {
     const now = Date.now();
     const spent = this.players.spent;
     for (const [ws, c] of this.clients) {
-      const over = spent || this.overShare(c.address);
+      const over = spent || this.shares.over(c.address);
       if (over || now - c.seen > IDLE_MS) {
         try { ws.close(over ? CLOSE_SPENT : 1000, over ? 'budget' : 'idle'); } catch { /* Already gone. */ }
         this.clients.delete(ws);
@@ -295,17 +211,18 @@ export class Hub extends DurableObject<Env> {
 
   // Performance reports.
 
-  private async perf(request: Request, ip: string): Promise<Response> {
+  private async perf(request: Request, url: URL, ip: string): Promise<Response> {
     const sql = this.ctx.storage.sql;
     if (request.method === 'GET') {
       const data = this.perfAggregate.get(() => {
         const reports = sql.exec<{ report: string }>('SELECT report FROM perf ORDER BY at ASC').toArray().map((r) => JSON.parse(r.report) as PerfReport);
         return aggregate(reports);
       });
-      const budgets = { players: this.players.use, data: this.data.use };
+      const feeds = await feedUse(this.env, url.origin);
+      const budgets = { players: this.players.use, data: this.data.use, ...(feeds ? { feeds } : {}) };
       if (request.headers.get('accept')?.includes('text/html')) return new Response(perfPage(data, budgets), { headers: { 'content-type': 'text/html; charset=utf-8' } });
       const json = ({ used, limit }: BudgetUse) => ({ used, limit: Number.isFinite(limit) ? limit : null });
-      return Response.json({ ...data, budget: json(budgets.players), dataBudget: json(budgets.data) });
+      return Response.json({ ...data, budget: json(budgets.players), dataBudget: json(budgets.data), feedBudget: feeds ? json(feeds) : null });
     }
     if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
     const now = Date.now();

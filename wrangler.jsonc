@@ -16,12 +16,13 @@
     // Only these reach the Worker; every other path is a file. The same paths as the Bun relay in development.
     "run_worker_first": ["/ghosts", "/feeds/*", "/notes", "/notes/*", "/perf", "/errors"]
   },
-  // The hub: other players, notes, performance and error reports and the live feeds, one object for everyone (worker/hub.ts).
+  // The hub: other players, notes, performance and error reports, one object for everyone (worker/hub.ts). The live
+  // feeds have one of their own, so their downloads never hold up other players (worker/feeds.ts).
   "durable_objects": {
-    "bindings": [{ "name": "HUB", "class_name": "Hub" }]
+    "bindings": [{ "name": "HUB", "class_name": "Hub" }, { "name": "FEEDS", "class_name": "FeedHub" }]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Hub"] }],
-  // Per address, on what would reach the hub: sockets, notes and reports (worker/index.ts). A player uses a few a
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Hub"] }, { "tag": "v2", "new_sqlite_classes": ["FeedHub"] }],
+  // Per address, on what would reach the hub or the feeds: sockets, notes, reports and feeds (worker/index.ts). A player uses a few a
   // minute; this leaves room for a school or a mobile operator's shared address.
   "ratelimits": [{ "name": "LIMIT", "namespace_id": "1001", "simple": { "limit": 120, "period": 60 } }],
   "vars": {
@@ -29,13 +30,14 @@
     // the plan's included million a month (docs/DRIFT.md, section 3). Keep a number rather than `off`, which leaves no
     // ceiling on the bill.
     "GHOST_BUDGET": "1000000",
-    // Requests a day the feeds, notes and reports may spend, apart from the players' budget so neither can spend the
-    // other: at most about $0.05 a day. Each data center's cache answers most feeds, so the hub sees few of them.
-    "DATA_BUDGET": "300000"
+    // Requests a day the notes and reports may spend, apart from the players' budget so neither can spend the other.
+    "DATA_BUDGET": "100000",
+    // Requests a day the feeds may spend at their own object. Each data center's cache answers most feeds, so it sees
+    // few of them. With DATA_BUDGET at most about $0.05 a day.
+    "FEED_BUDGET": "200000"
   },
   // Secrets, set once with `bunx wrangler secret put <name>`: TRAFIKLAB_RT_KEY and TRAFIKLAB_STATIC_KEY (GTFS Regional,
-  // every line follows SL; without them the blue line alone, from the Transport API), NOTES_ADMIN_TOKEN (to take a
-  // note down).
+  // every line follows SL; without them none does), NOTES_ADMIN_TOKEN (to take a note down).
   // The game's address, with www too; the pages name the bare domain as canonical. www is sent on to the bare domain
   // (301, path and query kept) by a Redirect Rule in the zone's dashboard, not here: static files never run the
   // Worker. The domain's DNS is on Cloudflare (registered at Spaceship, name servers pointed here). workers.dev stays
@@ -45,6 +47,6 @@
     { "pattern": "www.understockholm.com", "custom_domain": true }
   ],
   "workers_dev": true,
-  // Logs from the hub (a source failing, the GTFS timetable loading), kept a few days.
+  // Logs from the hub and the feeds (a source failing, the GTFS timetable loading), kept a few days.
   "observability": { "enabled": true }
 }

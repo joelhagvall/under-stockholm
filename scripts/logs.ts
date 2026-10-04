@@ -3,7 +3,8 @@
 //   1. Players: the error groups on /errors seen since then, and /perf for the newest build against the one before it.
 //      Both pages are public, so this part always runs.
 //   2. The Worker's own logs (Workers Logs): outcomes, what the errors and warnings say and where they happen.
-//   3. Usage over the last 7 days, projected to a month, against what Workers Paid includes, and the data center the hub runs in.
+//   3. Usage over the last 7 days, projected to a month, against what Workers Paid includes, and where each Durable Object
+//      runs and how long it was awake.
 //   4. Traffic through the zone over the last 7 days, a day at a time: requests, page views, visitors, data, cache, countries.
 //
 // Parts 2 to 4 need a Cloudflare API token in CF_OBS_TOKEN (in `.env.local`, which git ignores and Bun reads by itself)
@@ -50,7 +51,7 @@ interface Build { build: string; battery: boolean; last: number; desktop?: Kind;
 
 const [errors, perf] = await Promise.all([
   fetch(`${SITE}/errors`).then((r) => r.json() as Promise<{ groups: ErrorGroup[] }>),
-  fetch(`${SITE}/perf`).then((r) => r.json() as Promise<{ builds: Build[]; budget: { used: number; limit: number }; dataBudget: { used: number; limit: number } }>),
+  fetch(`${SITE}/perf`).then((r) => r.json() as Promise<{ builds: Build[]; budget: { used: number; limit: number }; dataBudget: { used: number; limit: number }; feedBudget?: { used: number; limit: number | null } | null }>),
 ]);
 const builds = perf.builds.filter((b) => !b.battery && b.build).sort((a, b) => b.last - a.last);
 const [newest, previous] = builds;
@@ -73,7 +74,8 @@ for (const kind of ['desktop', 'touch'] as const) {
   const was = (pick: (k: Kind) => number) => (b ? ` (${pick(b)})` : '');
   console.log(`  ${kind.padEnd(7)} n ${a.n}${was((k) => k.n)}  fps ${a.fps.median}${was((k) => k.fps.median)}, p10 ${a.fps.p10}${was((k) => k.fps.p10)}  load ${a.loadS.median}${was((k) => k.loadS.median)} s, p90 ${a.loadS.p90}${was((k) => k.loadS.p90)} s  hitches/min ${a.hitchesPerMinute}${was((k) => k.hitchesPerMinute)}`);
 }
-console.log(`  today's budgets: players ${fmt(perf.budget.used)} / ${fmt(perf.budget.limit)}, data ${fmt(perf.dataBudget.used)} / ${fmt(perf.dataBudget.limit)}`);
+const feeds = perf.feedBudget ? `, feeds ${fmt(perf.feedBudget.used)} / ${perf.feedBudget.limit === null ? 'no limit' : fmt(perf.feedBudget.limit)}` : '';
+console.log(`  today's budgets: players ${fmt(perf.budget.used)} / ${fmt(perf.budget.limit)}, notes and reports ${fmt(perf.dataBudget.used)} / ${fmt(perf.dataBudget.limit)}${feeds}`);
 
 if (!token) {
   console.log('\nCF_OBS_TOKEN is not set (see the top of scripts/logs.ts): no Worker logs or usage.');
@@ -114,7 +116,7 @@ async function logs(title: string, filters: object[], groupBys: string[]): Promi
 }
 
 // Every player's socket that drops (a closed tab, a phone asleep) shows up as an exception, `Network connection lost.`, and
-// lands on whatever request the hub is serving then, often a feed: read the messages first, the paths after.
+// lands on whatever request the object is serving then: read the messages first, the paths after.
 if (await logs('outcomes', [], ['$workers.outcome'])) {
   await logs('errors by message', [level('error')], ['$metadata.message']);
   await logs('warnings by message (budget lines among them)', [level('warn')], ['$metadata.message']);
@@ -173,8 +175,9 @@ for (const [name, used, included] of usage) {
   console.log(`  ${name.padEnd(38)} week ${fmt(used).padStart(12)}  month ~${fmt(month).padStart(13)} of ${fmt(included).padStart(14)}  ${share.toFixed(share < 1 ? 2 : 0).padStart(5)}%${share > 100 ? '  OVER' : ''}`);
 }
 
-// Where the hub lives: a Durable Object settles near whoever first asks for it and stays there, so every player's socket
-// and every feed miss travels to that one data center.
+// Where the objects live, the hub and the feeds': a Durable Object settles near whoever first asks for it (or its
+// location hint) and stays there, so every player's socket and every feed miss travels to that one data center. The
+// hub is awake while anyone plays; the feeds' object hibernates between requests.
 if (periodic) {
   const query = `query($a: String!, $from: Time!, $to: Time!) { viewer { accounts(filter: { accountTag: $a }) {
     rows: durableObjectsPeriodicGroups(limit: 100, filter: { datetime_geq: $from, datetime_leq: $to }) { dimensions { coloCode objectId } sum { activeTime } } } } }`;
@@ -185,7 +188,8 @@ if (periodic) {
     const key = `${dimensions.coloCode} (object ${dimensions.objectId.slice(0, 8)})`;
     where.set(key, (where.get(key) ?? 0) + sum.activeTime);
   }
-  console.log(`  hub runs in: ${[...where].sort((a, b) => b[1] - a[1]).map(([k]) => k).join(', ') || '?'}`);
+  const awake = [...where].sort((a, b) => b[1] - a[1]).map(([k, us]) => `${k} ${fmt(us / 1e6 * 0.125)} GB-s`);
+  console.log(`  objects, most awake first: ${awake.join(', ') || '?'}`);
 }
 
 // 4. Traffic through the zone over the same week, a day at a time: everything Cloudflare served, the cached static build too.

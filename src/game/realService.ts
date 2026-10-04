@@ -274,8 +274,7 @@ export interface RealLine {
 
 /**
  * Polls SL while real trains are wanted, once for every line, and says which lines have data fresh enough to drive
- * the game. A line SL sends nothing for (the relay's Transport API fallback only covers the blue line) keeps to the
- * timetable.
+ * the game. A line SL sends nothing for (no feed from the relay, or too few of its stations) keeps to the timetable.
  */
 export class RealTrains {
   readonly schedules: RealSchedule[];

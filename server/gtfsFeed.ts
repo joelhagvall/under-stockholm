@@ -25,7 +25,7 @@ export interface TimetableStore {
   write(timetable: Timetable): Promise<void>;
 }
 
-/** Every station's departures from GTFS, or null until a timetable is in (the caller then uses the Transport API). */
+/** Every station's departures from GTFS, or null until a timetable is in (the feed is unavailable until then). */
 export function gtfsDepartures(keys: GtfsKeys, store: TimetableStore, log: (message: string) => void): () => Promise<Record<number, unknown> | null> {
   let timetable: Timetable | null = null;
   let stored: Promise<void> | null = null;

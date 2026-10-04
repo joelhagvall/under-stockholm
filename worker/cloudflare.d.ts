@@ -24,7 +24,8 @@ interface DurableObjectState {
 }
 interface DurableObjectId { toString(): string }
 interface DurableObjectStub { fetch(request: Request): Promise<Response> }
-interface DurableObjectNamespace { idFromName(name: string): DurableObjectId; get(id: DurableObjectId): DurableObjectStub }
+// The class it names is only for the reader: stubs are reached by fetch, not RPC.
+interface DurableObjectNamespace<T = unknown> { idFromName(name: string): DurableObjectId; get(id: DurableObjectId, options?: { locationHint?: string }): DurableObjectStub }
 interface Fetcher { fetch(request: Request): Promise<Response> }
 interface ExecutionContext { waitUntil(promise: Promise<unknown>): void }
 declare class WebSocketPair { 0: WebSocket; 1: WebSocket }

@@ -154,10 +154,10 @@ export function aggregate(reports: PerfReport[], now = Date.now()): PerfAggregat
   return { since: reports[0]?.at ?? null, count: reports.length, all: by(reports), day: by(reports.filter((r) => now - r.at < 86_400_000)), builds };
 }
 
-/** Today's requests to the hub against one of its daily budgets, in production only. */
+/** Today's requests to the hub or the feeds' object against one of the daily budgets, in production only. */
 export type BudgetUse = { used: number; limit: number };
-/** The hub's two budgets: other players (`GHOST_BUDGET`), and the feeds, notes and reports (`DATA_BUDGET`). */
-export type Budgets = { players: BudgetUse; data: BudgetUse };
+/** The daily budgets: other players (`GHOST_BUDGET`), notes and reports (`DATA_BUDGET`), and feeds (`FEED_BUDGET`, left out when their object did not answer). */
+export type Budgets = { players: BudgetUse; data: BudgetUse; feeds?: BudgetUse };
 
 /** The aggregate as a plain page, for a browser, with today's budgets when the relay keeps them. */
 export function perfPage(data: PerfAggregate, budgets?: Budgets): string {
@@ -172,7 +172,7 @@ export function perfPage(data: PerfAggregate, budgets?: Budgets): string {
   return `<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><title>Under Stockholm | performance</title>
 <style>body{font:14px/1.5 system-ui;margin:2em;color:#222}table{border-collapse:collapse;margin:1em 0}td,th{border:1px solid #ccc;padding:4px 10px;text-align:right}td:first-child,th:first-child{text-align:left}</style>
 <h1>Under Stockholm: how it runs for players</h1>
-${budgets ? budgetLine('Other players', budgets.players, 'other players are paused') + budgetLine('Feeds, notes and reports', budgets.data, 'they wait') : ''}<p>${data.count} reports since ${data.since ? new Date(data.since).toISOString().slice(0, 10) : 'never'}. One per visit, after two minutes of play. Medians unless said otherwise.</p>
+${budgets ? budgetLine('Other players', budgets.players, 'other players are paused') + budgetLine('Notes and reports', budgets.data, 'they wait') + (budgets.feeds ? budgetLine('Feeds', budgets.feeds, 'they wait') : '') : ''}<p>${data.count} reports since ${data.since ? new Date(data.since).toISOString().slice(0, 10) : 'never'}. One per visit, after two minutes of play. Medians unless said otherwise.</p>
 <table>${headings}
 ${row('desktop, all', data.all.desktop)}${row('touch, all', data.all.touch)}${row('desktop, last day', data.day.desktop)}${row('touch, last day', data.day.touch)}</table>
 <h2>By build and battery saver</h2><p>The 12 most recently seen build and mode groups, over all kept reports. Unknown includes older clients and visits whose battery saver changed.</p>

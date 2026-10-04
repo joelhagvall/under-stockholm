@@ -19,7 +19,7 @@ export type { Theme } from './lines/theme';
 
 export interface StationDef extends StationData {
   name: string;
-  /** Site id in SL's Transport API, for real trains (`sl.ts`). Only the blue line runs real trains. */
+  /** SL's site id, which the relay's departures are keyed by, for real trains (`sl.ts`). */
   sl?: number;
   /** Where the station sits on the network map: 0 to 1 across (west to east) and down (north to south). */
   map: [number, number];

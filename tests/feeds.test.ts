@@ -1,8 +1,5 @@
 import { afterAll, afterEach, expect, setSystemTime, test } from 'bun:test';
-import { createFeeds, SourceError } from '../server/feedCore';
-import { LINES } from '../src/landing/lines';
-
-const STATIONS = LINES[0].stations;
+import { createFeeds, SL_ALERT_MS, SourceError } from '../server/feedCore';
 
 const realFetch = globalThis.fetch;
 afterEach(async () => { await settle(); globalThis.fetch = realFetch; });
@@ -24,7 +21,6 @@ const ask = async (name: string) => {
   await settle();
   return response;
 };
-const stations = async () => Object.keys(((await (await ask('sl'))!.json()) as { data: Record<string, unknown> }).data).length;
 
 function countingFetch(body: (url: string) => unknown) {
   const calls: string[] = [];
@@ -37,53 +33,37 @@ function countingFetch(body: (url: string) => unknown) {
   return calls;
 }
 
-test('a crowd of players costs SL no more than one budget of requests', async () => {
-  const calls = countingFetch(() => ({ departures: [{ line: { designation: '11' }, journey: { id: 7 }, direction_code: 1, expected: '2026-09-24T08:48:00', destination: 'Akalla', deviations: ['dropped'] }] }));
-  const answers = await Promise.all(Array.from({ length: 200 }, () => ask('sl')));
-  expect(calls.length).toBe(12);
-  const body = (await answers[0]!.json()) as { at: number; data: Record<string, { departures: Array<Record<string, unknown>> }> };
-  expect(Object.keys(body.data).length).toBe(12);
-  // Only the fields the game reads are passed on.
-  expect(Object.values(body.data)[0].departures[0].deviations).toBeUndefined();
+test('without GTFS keys SL is never asked: the feed is unavailable and the game keeps to the timetable', async () => {
+  const calls = countingFetch(() => ({ departures: [] }));
+  expect((await ask('sl'))!.status).toBe(502);
+  advance(60);
+  expect((await ask('sl'))!.status).toBe(502);
+  expect(calls.length).toBe(0);
+});
+
+test('a crowd of players costs GTFS one fetch', async () => {
+  let calls = 0;
+  const every = { 9001: { departures: [{ line: { designation: '11' }, journey: { id: 7 }, direction_code: 1, expected: '2026-09-24T08:48:00', destination: 'Akalla' }] } };
+  const feeds = createFeeds({ gtfs: async () => { calls++; await new Promise((r) => setTimeout(r, 5)); return every; }, waitUntil });
+  const answers = await Promise.all(Array.from({ length: 200 }, () => feeds.handle(new URL('http://relay/feeds/sl'))));
+  await settle();
+  expect(calls).toBe(1);
+  const body = (await answers[0]!.json()) as { data: Record<string, unknown> };
+  expect(Object.keys(body.data)).toEqual(['9001']);
   expect(answers[0]!.headers.get('cache-control')).toMatch(/max-age=\d+/);
-  // Still fresh: nobody else reaches SL.
-  await ask('sl');
-  expect(calls.length).toBe(12);
 });
 
-test('however often players ask, SL gets at most 12 requests a minute and every station stays fresh', async () => {
-  const calls = countingFetch(() => ({ departures: [] }));
-  const lastAsked = new Map<string, number>();
-  let worstGap = 0;
-  for (let step = 0; step < 10 * 60; step++) {
-    advance(1);
-    await ask('sl');
-    for (const url of calls.splice(0)) {
-      const site = /sites\/(\d+)\//.exec(url)![1];
-      if (lastAsked.has(site)) worstGap = Math.max(worstGap, clock - lastAsked.get(site)!);
-      lastAsked.set(site, clock);
-      lastAsked.set(`n${step}`, (lastAsked.get(`n${step}`) ?? 0) + 1);
-    }
-  }
-  // Any 60 s window, not just whole minutes.
-  const sent = Array.from({ length: 600 }, (_, s) => lastAsked.get(`n${s}`) ?? 0);
-  const windows = Array.from({ length: 541 }, (_, start) => sent.slice(start, start + 60).reduce((a, b) => a + b));
-  expect(Math.max(...windows)).toBeLessThanOrEqual(12);
-  expect(worstGap).toBeLessThanOrEqual(120_000);
-  expect(await stations()).toBe(STATIONS.length);
-});
-
-test('one station failing keeps its last list instead of failing the whole line', async () => {
-  const broken = STATIONS[3].site;
-  const calls = countingFetch(() => ({ departures: [] }));
-  const counting = globalThis.fetch;
-  globalThis.fetch = (async (input: RequestInfo | URL) => (String(input).includes(`/sites/${broken}/`) ? new Response('oops', { status: 500 }) : counting(input))) as typeof fetch;
-  for (let i = 0; i < 24; i++) {
-    advance(5);
-    expect((await ask('sl'))!.status).toBe(200);
-  }
-  expect(calls.length).toBeGreaterThan(0);
-  expect(await stations()).toBe(STATIONS.length);
+test('until the GTFS timetable is in, the feed is unavailable, and asked again after a pause', async () => {
+  let ready = false;
+  let calls = 0;
+  const feeds = createFeeds({ gtfs: async () => { calls++; return ready ? { 1: { departures: [] } } : null; }, log: () => {}, waitUntil });
+  const sl = async () => { const r = (await feeds.handle(new URL('http://relay/feeds/sl')))!; await settle(); return r.status; };
+  expect(await sl()).toBe(502);
+  expect(await sl()).toBe(502);
+  expect(calls).toBe(1);
+  ready = true;
+  advance(20);
+  expect(await sl()).toBe(200);
 });
 
 test('SMHI is asked once and only Stockholms län is passed on; unknown feeds are refused', async () => {
@@ -131,7 +111,7 @@ test('SR news reaches the papers through the relay, parsed and twice an hour at 
   expect(calls).toBe(1);
 });
 
-test('a short GTFS outage keeps every line from the last copy; a long one falls back to the blue line', async () => {
+test('a short GTFS outage keeps every line from the last copy; a long one makes the feed unavailable, with nothing else asked', async () => {
   let gtfsUp = true;
   const every = { 1: { departures: [] }, 2: { departures: [] }, 3: { departures: [] } };
   const feeds = createFeeds({
@@ -143,23 +123,21 @@ test('a short GTFS outage keeps every line from the last copy; a long one falls 
   const sl = async () => {
     const response = (await feeds.handle(new URL('http://relay/feeds/sl')))!;
     await settle();
-    return ((await response.json()) as { data: Record<string, unknown> }).data;
+    return response.status === 200 ? Object.keys(((await response.json()) as { data: Record<string, unknown> }).data) : response.status;
   };
-  expect(Object.keys(await sl())).toEqual(['1', '2', '3']);
+  expect(await sl()).toEqual(['1', '2', '3']);
   gtfsUp = false;
   advance(20);
-  // The copy from before, SL not asked.
-  expect(Object.keys(await sl())).toEqual(['1', '2', '3']);
-  expect(calls.length).toBe(0);
-  // Still down once the copy is too old: the Transport API, for the blue line.
+  // The copy from before.
+  expect(await sl()).toEqual(['1', '2', '3']);
+  // Still down once the copy is too old: unavailable, every line to the timetable at once.
   advance(5 * 60);
-  expect(Object.keys(await sl()).length).toBe(12);
-  expect(calls.length).toBe(12);
+  expect(await sl()).toBe(502);
+  expect(calls.length).toBe(0);
   // Back up: every line again.
   gtfsUp = true;
   advance(20);
-  expect(Object.keys(await sl()).length).toBe(12);
-  expect(Object.keys(await sl())).toEqual(['1', '2', '3']);
+  expect(await sl()).toEqual(['1', '2', '3']);
 });
 
 test('usable SL data answers a crowd immediately while one refresh runs, without extending its age', async () => {
@@ -219,4 +197,50 @@ test('a failed background refresh is logged once, respects Retry-After and never
   expect((await feeds.handle(url))!.status).toBe(502);
   expect(calls).toBe(2);
   expect(logs.length).toBe(1);
+});
+
+test('an SL outage past its last copy is told once, after a quarter of an hour, and once more when it is back', async () => {
+  let up = true;
+  const alerts: string[] = [];
+  const feeds = createFeeds({
+    gtfs: async () => { if (!up) throw new SourceError('opendata.samtrafiken.se 503', 503, 0); return { 1: { departures: [] } }; },
+    alert: (title) => alerts.push(title),
+    log: () => {},
+    waitUntil,
+  });
+  const sl = async () => { await feeds.handle(new URL('http://relay/feeds/sl')); await settle(); };
+  await sl();
+  up = false;
+  // Asked every 20 s through the outage, as players would: quiet until a quarter of an hour has passed.
+  for (let t = 0; t < SL_ALERT_MS / 1000 - 40; t += 20) { advance(20); await sl(); }
+  expect(alerts).toEqual([]);
+  for (let t = 0; t < 10 * 60; t += 20) { advance(20); await sl(); }
+  expect(alerts).toEqual(['Under Stockholm: SL feed down']);
+  up = true;
+  advance(20);
+  await sl();
+  advance(20);
+  await sl();
+  expect(alerts).toEqual(['Under Stockholm: SL feed down', 'Under Stockholm: SL feed back']);
+});
+
+test('a short SL outage, and a relay without keys, tell nobody', async () => {
+  let up = true;
+  const alerts: string[] = [];
+  const feeds = createFeeds({
+    gtfs: async () => { if (!up) throw new SourceError('opendata.samtrafiken.se 503', 503, 0); return { 1: { departures: [] } }; },
+    alert: (title) => alerts.push(title),
+    log: () => {},
+    waitUntil,
+  });
+  const sl = async (f = feeds) => { await f.handle(new URL('http://relay/feeds/sl')); await settle(); };
+  await sl();
+  up = false;
+  for (let t = 0; t < 6 * 60; t += 20) { advance(20); await sl(); }
+  up = true;
+  advance(20);
+  await sl();
+  const keyless = createFeeds({ alert: (title) => alerts.push(title), log: () => {}, waitUntil });
+  for (let t = 0; t < 30 * 60; t += 60) { advance(60); await sl(keyless); }
+  expect(alerts).toEqual([]);
 });

@@ -7,17 +7,16 @@
 //
 // Every answer is { at, data }, `at` being when the relay fetched it (epoch ms):
 //   GET /feeds/sl          data: { [site]: { departures } }   SL departures at every metro station from GTFS Regional
-//                          with Trafiklab keys (server/gtfs.ts), else at the blue line's from SL's Transport API
-//                          (also when GTFS has failed for longer than its last copy keeps)
+//                          (server/gtfs.ts), with Trafiklab's keys; without them, or once GTFS has failed for longer
+//                          than its last copy keeps, unavailable, and the game keeps every line to its timetable
 //   GET /feeds/deviations  data: SL's traffic information, as SL sends it
 //   GET /feeds/weather     data: Open-Meteo's answer, as it sends it
 //   GET /feeds/warnings    data: SMHI's warnings for Stockholms län only
 //   GET /feeds/news        data: [{ title, published }]   P4 Stockholm's news, for the newspapers
 
-import { SL_DEVIATIONS, slDepartures, SMHI_WARNINGS, SR_NEWS, WEATHER } from '../src/game/feeds';
+import { SL_DEVIATIONS, SMHI_WARNINGS, SR_NEWS, WEATHER } from '../src/game/feeds';
 import { parseHeadlines } from '../src/game/news';
 import { forStockholm } from '../src/game/warnings';
-import { LINES } from '../src/landing/lines';
 
 const TIMEOUT_MS = 8000;
 /** After a failed fetch, wait this long before asking the source again, or longer when it says so with Retry-After. */
@@ -53,44 +52,20 @@ export async function source(url: string, timeout = TIMEOUT_MS): Promise<Respons
 
 const json = async (url: string): Promise<unknown> => (await source(url)).json();
 
-interface Departure {
-  direction_code?: number;
-  destination?: string;
-  expected?: string;
-  scheduled?: string;
-  state?: string;
-  journey?: { id?: number };
-  line?: { designation?: string };
-}
-type DepartureList = { departures: Departure[] };
-
-/** Only the fields the game reads, so a poll of every station stays small. */
-const trim = (d: Departure): Departure => ({
-  direction_code: d.direction_code,
-  destination: d.destination,
-  expected: d.expected,
-  scheduled: d.scheduled,
-  state: d.state,
-  journey: { id: d.journey?.id },
-  line: { designation: d.line?.designation },
-});
-
-/**
- * SL's keyless Transport API has no published quota but asks for restraint, and Trafiklab support has named 12
- * requests a minute. The relay keeps to that however many play: at most 12 in any 60 s, spent on the stations whose
- * lists are oldest, so each station is refreshed every 100 s on average and every two minutes at most. Trains still
- * move smoothly, from SL's expected times.
- */
-const SL_PER_MINUTE = 12;
-/** Without GTFS the Transport API covers the blue line only: its quota would not reach every station. */
-const STATIONS = LINES[0].stations;
-/** Seconds a station's list stays usable: a few rounds of the line, so one failing station does not vanish. */
+/** Seconds SL's last copy stays usable while GTFS fails: a short outage is never seen, a longer one hands every line back to the timetable at once. */
 const SL_KEEP = 5 * 60;
+/**
+ * How long SL's feed may fail before the relay says so (`FeedOptions.alert`): its last copy's five minutes, then ten
+ * with every line on the timetable. Once per outage, and once more when it is back.
+ */
+export const SL_ALERT_MS = 15 * 60_000;
 
 export interface FeedOptions {
-  /** Every metro station's departures from GTFS Regional, or null while there is none (the Bun relay, with keys). */
+  /** Every metro station's departures from GTFS Regional, or null until its timetable is in. Without it (no keys), no SL feed. */
   gtfs?: () => Promise<Record<number, unknown> | null>;
   log?: (message: string) => void;
+  /** Tells someone (ALERT_URL) that SL's feed has been down for SL_ALERT_MS, and that it is back. */
+  alert?: (title: string, text: string) => void;
   /** Keeps a refresh alive after the response, where the host needs it (the Durable Object). */
   waitUntil?: (task: Promise<unknown>) => void;
 }
@@ -108,56 +83,40 @@ export interface Feeds {
 /** A feed cache with its own state: one per relay, so the quotas hold for everyone it serves. */
 export function createFeeds(options: FeedOptions = {}): Feeds {
   const log = options.log ?? ((message: string) => console.warn(message));
-  /** Each station's last good list. */
-  const lastLists = new Map<number, { list: DepartureList; at: number }>();
-  /** When each request to SL in the last minute was sent. */
-  const slSent: number[] = [];
-  /** When GTFS Regional last answered with every line's departures. */
-  let gtfsAt = 0;
-
-  /** Takes up to `want` requests from SL's budget. */
-  function slBudget(want: number): number {
+  /** Since when SL's feed has failed, and whether that was told: kept in memory, so a restart starts the count again. */
+  let slDown: { since: number; told: boolean; reason: string } | null = null;
+  const minutes = (ms: number) => Math.round(ms / 60_000);
+  const slFailed = (err: unknown) => {
     const now = Date.now();
-    while (slSent.length && now - slSent[0] >= 60_000) slSent.shift();
-    const n = Math.max(0, Math.min(want, SL_PER_MINUTE - slSent.length));
-    for (let i = 0; i < n; i++) slSent.push(now);
-    return n;
-  }
+    slDown ??= { since: now, told: false, reason: '' };
+    slDown.reason = err instanceof Error ? err.message : String(err);
+    if (slDown.told || now - slDown.since < SL_ALERT_MS) return;
+    slDown.told = true;
+    options.alert?.('Under Stockholm: SL feed down', `GTFS has failed for ${minutes(now - slDown.since)} min (${slDown.reason}). Every line keeps to the timetable until it is back.`);
+  };
+  const slBack = () => {
+    if (slDown?.told) options.alert?.('Under Stockholm: SL feed back', `GTFS answers again after ${minutes(Date.now() - slDown.since)} min. The lines follow SL again.`);
+    slDown = null;
+  };
 
   const FEEDS: Record<FeedName, Feed> = {
-    // The game's real trains and the landing map poll every 30 s. With GTFS one fetch covers the line, as often as
-    // SL updates it; without, each load spends what the Transport API's budget allows.
+    // The game's real trains and the landing map poll every 30 s; one GTFS fetch covers every line, as often as SL
+    // updates it. A failure keeps the last copy for SL_KEEP, then the feed is unavailable and asked again after the
+    // usual pause: every line keeps to the timetable meanwhile, never some lines on SL and others not.
     sl: {
-      ttl: options.gtfs ? 15 : 5, keep: SL_KEEP,
+      ttl: 15, keep: SL_KEEP,
       load: async () => {
-        if (options.gtfs) {
-          try {
-            const lists = await options.gtfs();
-            if (lists) { gtfsAt = Date.now(); return lists; }
-          } catch (err) {
-            // A short outage keeps the last copy, every line's, for as long as it keeps (SL_KEEP), and asks GTFS again
-            // after the usual pause: the Transport API would narrow it to the blue line. Only a longer one falls back.
-            if (Date.now() - gtfsAt < SL_KEEP * 1000) throw err;
-            log(`feed sl (GTFS), using the Transport API: ${err instanceof Error ? err.message : err}`);
-          }
+        // Without keys there is nothing to ask: not again for a long while.
+        if (!options.gtfs) throw new SourceError('no GTFS keys', 503, MAX_RETRY_MS);
+        try {
+          const lists = await options.gtfs();
+          if (!lists) throw new SourceError('GTFS timetable not in yet', 503, 0);
+          slBack();
+          return lists;
+        } catch (err) {
+          slFailed(err);
+          throw err;
         }
-        const age = (site: number) => lastLists.get(site)?.at ?? 0;
-        const due = [...STATIONS].sort((a, b) => age(a.site) - age(b.site));
-        const batch = due.slice(0, slBudget(due.length));
-        const results = await Promise.allSettled(batch.map(async (s) => {
-          const body = (await json(slDepartures(s.site))) as { departures?: Departure[] };
-          lastLists.set(s.site, { list: { departures: (body.departures ?? []).map(trim) }, at: Date.now() });
-        }));
-        const failures = results.flatMap((r) => (r.status === 'rejected' ? [r.reason] : []));
-        const lists: Record<number, DepartureList> = {};
-        for (const s of STATIONS) {
-          const last = lastLists.get(s.site);
-          if (last && Date.now() - last.at < SL_KEEP * 1000) lists[s.site] = last.list;
-        }
-        // Being rate limited, or having nothing to show, pauses the whole feed.
-        const limited = failures.find((e) => e instanceof SourceError && e.status === 429);
-        if (limited || (failures.length && !Object.keys(lists).length)) throw limited ?? failures[0];
-        return lists;
       },
     },
     deviations: { ttl: 120, keep: 15 * 60, load: () => json(SL_DEVIATIONS) },

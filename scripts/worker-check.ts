@@ -1,8 +1,8 @@
-// The Worker and the hub together, as Cloudflare runs them: `bun scripts/worker-check.ts`, part of `bun run check`'s
-// quick gates (after the build, which the Worker's static assets need). It starts `wrangler dev` with each address's
-// share of the day and both budgets set small, and walks what docs/DRIFT.md section 3 promises: an address past its share
-// is refused by the hub, which says so, and then by the Worker alone; sockets and their messages count; an IPv6 /48
-// is one block; and the players' budget and the feeds', notes' and reports' cannot spend each other.
+// The Worker, the hub and the feeds' object together, as Cloudflare runs them: `bun scripts/worker-check.ts`, part of
+// `bun run check`'s quick gates (after the build, which the Worker's static assets need). It starts `wrangler dev` with
+// each address's share of the day and the three budgets set small, and walks what docs/DRIFT.md section 3 promises: an
+// address past its share is refused by the hub, which says so, and then by the Worker alone; sockets and their messages
+// count; an IPv6 /48 is one block; and the players' budget, the notes' and reports' and the feeds' cannot spend each other.
 // Every scenario uses addresses of its own, as the counts are kept per address for the whole run.
 import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -15,7 +15,7 @@ const port = probe.port!;
 probe.stop(true);
 const base = `http://localhost:${port}`;
 const state = mkdtempSync(join(tmpdir(), 'worker-check-'));
-const vars = { ADDRESS_DAY: 3, BLOCK_DAY: 4, GHOST_BUDGET: 40, DATA_BUDGET: 60 };
+const vars = { ADDRESS_DAY: 3, BLOCK_DAY: 4, GHOST_BUDGET: 40, DATA_BUDGET: 60, FEED_BUDGET: 3 };
 const wrangler = Bun.spawn(
   ['bunx', 'wrangler', 'dev', '--port', String(port), '--ip', '127.0.0.1', '--persist-to', state, '--show-interactive-dev-session=false', '--log-level', 'warn',
     ...Object.entries(vars).flatMap(([k, v]) => ['--var', `${k}:${v}`])],
@@ -119,14 +119,24 @@ try {
   expect('and another /64 of it by the Worker', again.status === 429 && again.scope === null, true);
   expect('another block is let through', (await get('/notes', '2001:db8:a:1::1')).status, 200);
 
-  console.log('the two budgets');
+  console.log('the feeds\' own budget');
+  // Three feeds that do not need the Trafiklab keys, each a miss in the data center's cache: the first two reach the
+  // object (an answer, or 502 if the source is down), the third is past FEED_BUDGET.
+  expect('a feed is answered', (await get('/feeds/weather', '198.18.3.1')).status !== 503, true);
+  expect('another feed is answered', (await get('/feeds/warnings', '198.18.3.2')).status !== 503, true);
+  expect('feeds stop once their budget is spent', (await get('/feeds/news', '198.18.3.3')).status, 503);
+  expect('...while notes go on', (await get('/notes', '198.18.3.4')).status, 200);
+  const spentFeeds = await (await fetch(`${base}/perf`, { headers: { accept: 'application/json', 'cf-connecting-ip': '198.18.3.5' } })).json() as { feedBudget?: { used: number; limit: number } };
+  expect('/perf shows the feeds\' budget from their object', `${spentFeeds.feedBudget?.used} of ${spentFeeds.feedBudget?.limit}`, '3 of 3');
+
+  console.log('the players\' and the notes\' budgets');
   let spent = '';
   for (let i = 0; i < 60 && spent !== '4000'; i++) spent = await socket(`198.51.100.${i + 1}`);
   expect('other players stop once their budget is spent', spent, '4000');
   expect('...while notes go on', (await get('/notes', '198.18.0.1')).status, 200);
   let status = 200;
   for (let i = 0; i < 80 && status === 200; i++) status = (await get('/notes', `198.18.1.${i + 1}`)).status;
-  expect('notes stop once the feeds\', notes\' and reports\' budget is spent', status, 503);
+  expect('notes stop once the notes\' and reports\' budget is spent', status, 503);
   const perf = await (await fetch(`${base}/perf`, { headers: { accept: 'application/json', 'cf-connecting-ip': '198.18.2.1' } })).json().catch(() => null);
   // Past its budget /perf answers 503 too; the page itself is checked in tests/perf.test.ts.
   expect('/perf is spent with the rest', perf, null);
@@ -144,4 +154,4 @@ if (failures.length) {
   console.log(`\n${failures.length} of the Worker's promises broken.`);
   process.exit(1);
 }
-console.log('\nThe Worker and the hub keep every limit.');
+console.log('\nThe Worker, the hub and the feeds keep every limit.');

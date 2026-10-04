@@ -2,8 +2,9 @@ import { stockholmEpoch } from './clock';
 import { relayFeed, relayUrl } from './relay';
 
 /**
- * SL's open Transport API (no key, CORS enabled): real-time metro departures
- * per station. SL publishes departures, not positions, so what we keep is,
+ * SL's real-time metro departures per station, from the relay's GTFS
+ * Regional feed, in the shape of SL's Transport API (`server/gtfs.ts`).
+ * SL publishes departures, not positions, so what we keep is,
  * per journey, the expected departure from each station on our stretch.
  * Times from earlier polls are kept, so a train that has just left a station
  * still knows when it did. Shared by the landing map and the game's real mode,

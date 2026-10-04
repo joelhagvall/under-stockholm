@@ -47,7 +47,9 @@ test('the aggregate gives medians per class of device and per GPU', () => {
   const data = { used: 3_000, limit: 300_000 };
   expect(perfPage(all)).not.toContain('Other players today');
   expect(perfPage(all, { players: { used: 12_400, limit: 1_000_000 }, data })).toContain('Other players today: 12,400 of 1,000,000 requests (1%).');
-  expect(perfPage(all, { players: { used: 12_400, limit: 1_000_000 }, data })).toContain('Feeds, notes and reports today: 3,000 of 300,000 requests (1%).');
+  expect(perfPage(all, { players: { used: 12_400, limit: 1_000_000 }, data })).toContain('Notes and reports today: 3,000 of 300,000 requests (1%).');
+  expect(perfPage(all, { players: { used: 12_400, limit: 1_000_000 }, data })).not.toContain('Feeds today');
+  expect(perfPage(all, { players: { used: 12_400, limit: 1_000_000 }, data, feeds: { used: 2_000, limit: 200_000 } })).toContain('Feeds today: 2,000 of 200,000 requests (1%).');
   expect(perfPage(all, { players: { used: 1_000_000, limit: 1_000_000 }, data })).toContain('other players are paused until midnight UTC');
   expect(perfPage(all, { players: { used: 5, limit: 10 }, data: { used: 300_000, limit: 300_000 } })).toContain('Spent: they wait until midnight UTC');
   expect(perfPage(all, { players: { used: 5, limit: Infinity }, data })).toContain('no daily budget');

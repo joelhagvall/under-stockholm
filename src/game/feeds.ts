@@ -2,12 +2,10 @@ import { STOCKHOLM } from './clock';
 
 /**
  * The open data the game reads, all without keys. Only the relay polls them
- * (`server/feeds.ts`); clients read its shared copy (`relay.ts`).
+ * (`server/feeds.ts`); clients read its shared copy (`relay.ts`). SL's
+ * departures come from GTFS Regional, with keys (`server/gtfs.ts`).
  * No three.js here: the relay and the landing page import it.
  */
-
-/** SL's Transport API: real-time metro departures for one site. */
-export const slDepartures = (site: number) => `https://transport.integration.sl.se/v1/sites/${site}/departures?transport=METRO&forecast=30`;
 
 /** SL's deviations API: traffic information for the blue line. */
 export const SL_DEVIATIONS = 'https://deviations.integration.sl.se/v1/messages?future=false&transport_mode=METRO&line=10&line=11';

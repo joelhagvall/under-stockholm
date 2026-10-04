@@ -142,10 +142,12 @@ export function alertFor(r: ErrorReport, log: AlertLog): string | null {
   return `${r.message}\n${frameOf(r)}\n${r.where || '(no station)'}, ${r.kind}, build ${r.build || '(unknown)'}`;
 }
 
-/** Posts an alert, linking to the errors page. Never throws: a failed alert is only logged. */
-export async function sendAlert(url: string, text: string, page: string, log: (message: string) => void): Promise<void> {
+/** Posts an alert, linking to a page when there is one (the errors page). Never throws: a failed alert is only logged. */
+export async function sendAlert(url: string, text: string, page: string | null, log: (message: string) => void, title = 'Under Stockholm: the game stopped for a player'): Promise<void> {
   try {
-    const response = await fetch(url, { method: 'POST', body: text, headers: { title: 'Under Stockholm: the game stopped for a player', click: page }, signal: AbortSignal.timeout(8000) });
+    const headers: Record<string, string> = { title };
+    if (page) headers.click = page;
+    const response = await fetch(url, { method: 'POST', body: text, headers, signal: AbortSignal.timeout(8000) });
     if (!response.ok) log(`alert: ${response.status}`);
   } catch (err) {
     log(`alert: ${err instanceof Error ? err.message : err}`);
