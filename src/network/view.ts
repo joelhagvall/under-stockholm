@@ -129,6 +129,16 @@ function worldToNet(x: number, morph: number, points: LinePoints): NetPoint | nu
   return Math.abs(layout.x[near] - x) < 800 ? pointOf(near) : null;
 }
 
+/** Within this far of a station along x a player is at it, on its platform, in its halls or up on its street. */
+const AT_STATION = 160;
+
+/** The station nearest `x` along the corridor, by global index. */
+function nearestStation(x: number): number {
+  let near = 0;
+  layout.x.forEach((sx, i) => { if (Math.abs(sx - x) < Math.abs(layout.x[near] - x)) near = i; });
+  return near;
+}
+
 /** The ground's heights, or none if they could not be fetched: then the city lies flat. */
 async function loadTerrain(): Promise<Terrain | null> {
   try {
@@ -354,6 +364,12 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
   const breath = riders.map((r) => Math.min(2.2, Math.sqrt(r / riderMid)));
   STATIONS.forEach((s, i) => stationMesh.setColorAt(i, new Color(s.lines.length > 1 ? '#ffffff' : GLOW[LINES[s.lines[0]].id]).lerp(new Color('#ffffff'), 0.3).multiplyScalar(0.7)));
   const stationPos = STATIONS.map(() => new Vector3());
+  /** Each global station index's place in STATIONS, which has every name once. */
+  const stationOf = layout.x.map((_, g) => {
+    const li = layout.lineOf[g];
+    const name = LINES[li].stations[layout.global[li].indexOf(g)].name;
+    return STATIONS.findIndex((s) => s.name === name);
+  });
 
   let morph = 0;
   let routes = allRoutes(0, points);
@@ -364,6 +380,9 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
   // where it meets the other, dipping under both (see `CONNECTORS`), where the game has its switch and branch.
   const linkMat = new MeshBasicMaterial({ color: '#b8c2d0', transparent: true, opacity: 0.4, blending: AdditiveBlending, depthWrite: false });
   let linkMesh: Mesh | null = null;
+  const ghostLabel = document.createElement('span');
+  ghostLabel.className = 'net-ghost';
+  labelLayer.append(ghostLabel);
   const linkLabel = document.createElement('span');
   linkLabel.textContent = text.link;
   linkLabel.className = 'net-link';
@@ -604,6 +623,10 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
   // The view has no pose to send, so it says it is watching (WATCH in server/pose.ts) while shown; hidden, the relay
   // lets the socket go after a minute, and it opens again when the view is shown.
   let ghosts: number[][] = [];
+  /** Where each firefly was drawn this frame, for pointing at it. */
+  const ghostSpots: Array<{ id: number; station: number; at: boolean; pos: Vector3 }> = [];
+  /** The player under the mouse, by id. */
+  let hoveredGhost: number | null = null;
   let online = 0;
   let socket: WebSocket | null = null;
   let dozing = false;
@@ -734,10 +757,25 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
     });
     return best;
   };
+  /** The firefly under the pointer, by id, or null. */
+  const pickGhost = (e: PointerEvent): number | null => {
+    const rect = canvas.getBoundingClientRect();
+    pointer.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+    raycaster.setFromCamera(pointer, camera);
+    let best: number | null = null;
+    let bestD = Infinity;
+    for (const spot of ghostSpots) {
+      const d = raycaster.ray.distanceSqToPoint(spot.pos);
+      const reach = (1.2 + camera.position.distanceTo(spot.pos) * 0.01) ** 2;
+      if (d < reach && d < bestD) { bestD = d; best = spot.id; }
+    }
+    return best;
+  };
   canvas.addEventListener('pointerdown', (e) => { downAt = { x: e.clientX, y: e.clientY }; });
   canvas.addEventListener('pointermove', (e) => {
     if (e.pointerType !== 'mouse' || flight) return;
     hovered = pick(e);
+    hoveredGhost = pickGhost(e);
     labelOrder = hovered >= 0 ? [hovered, ...byPriority.filter((i) => i !== hovered)] : byPriority;
     canvas.style.cursor = hovered >= 0 ? 'pointer' : '';
   });
@@ -970,17 +1008,24 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
     });
     stationMesh.instanceMatrix.needsUpdate = true;
 
-    // Fireflies: the players online, at their place in the tunnels.
+    // Fireflies: the players online, at the station they are at (its platform, halls or street), or on the track in a
+    // tunnel. Only x says where someone is along the line: a hall or a street drawn by the track would float off it.
     const gpos = ghostGeo.getAttribute('position') as BufferAttribute;
     let g = 0;
     for (const row of ghosts) {
       if (g >= MAX_GHOSTS || row.length < 4) continue;
-      const p = worldToNet(row[1], morph, points);
-      if (!p) continue;
-      toScene(p, v);
-      const drift = still ? 0 : Math.sin(t0 / 400 + row[0]) * 0.4;
-      gpos.setXYZ(g++, v.x + drift, v.y + 1 + (still ? 0 : Math.cos(t0 / 530 + row[0]) * 0.4), v.z);
+      const near = nearestStation(row[1]);
+      const at = Math.abs(layout.x[near] - row[1]) < AT_STATION;
+      if (at) v.copy(stationPos[stationOf[near]]);
+      else {
+        const p = worldToNet(row[1], morph, points);
+        if (!p) continue;
+        toScene(p, v);
+      }
+      ghostSpots[g] = { id: row[0], station: stationOf[near], at, pos: (ghostSpots[g]?.pos ?? new Vector3()).set(v.x, v.y + 0.6, v.z) };
+      gpos.setXYZ(g++, v.x, v.y + 0.6, v.z);
     }
+    ghostSpots.length = g;
     ghostGeo.setDrawRange(0, g);
     gpos.needsUpdate = true;
     (fireflies.material as PointsMaterial).opacity = still ? 0.85 : 0.7 + 0.3 * Math.sin(t0 / 180);
@@ -1020,6 +1065,15 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
       if (!show) continue;
       placed.push([x, y, width]);
       el.style.transform = `translate(${x}px, ${y}px)`;
+    }
+
+    // The firefly under the mouse says who it is.
+    const ghost = hoveredGhost === null ? undefined : ghostSpots.find((s) => s.id === hoveredGhost);
+    ghostLabel.classList.toggle('is-on', !!ghost);
+    if (ghost) {
+      ghostLabel.textContent = format(ghost.at ? text.playerAt : text.playerNear, { station: STATIONS[ghost.station].name });
+      v.copy(ghost.pos).project(camera);
+      ghostLabel.style.transform = `translate(${((v.x + 1) / 2) * w + 10}px, ${((1 - v.y) / 2) * h - 22}px)`;
     }
 
     v.copy(linkMid).project(camera);

@@ -37,6 +37,9 @@
 .net-clock strong { color: #ffb444; }
 .net-clock, .net-players { font-variant-numeric: tabular-nums; }
 .net-players { color: #ffd27a !important; }
+/* The firefly as a key to the count of players. */
+.net-players::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: #ffd27a; box-shadow: 0 0 6px #ffd27a; vertical-align: 1px; }
+.net-labels span.net-ghost { font-size: 12px; color: #ffd27a; }
 .net-lead { margin-top: 8px !important; }
 .net-source { font-size: 13px !important; color: #9fc3ea !important; }
 

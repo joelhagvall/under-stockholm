@@ -37,6 +37,8 @@
     "dive": "Åker till {station} …",
     "trains": "{count} tåg i trafik",
     "players": "{count} spelare i tunneln",
+    "playerAt": "En spelare vid {station}",
+    "playerNear": "En spelare i tunneln nära {station}",
     "exposureTitle": "Dagens exponering",
     "exposureLead": "Varje tur under ett dygn, som ett enda fotografi med lång slutartid. Samma bild för alla, en ny varje dag.",
     "date": "Datum",

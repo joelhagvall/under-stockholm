@@ -37,6 +37,8 @@
     "dive": "Going to {station}…",
     "trains": "{count} trains running",
     "players": "{count} players in the tunnels",
+    "playerAt": "A player at {station}",
+    "playerNear": "A player in the tunnel near {station}",
     "exposureTitle": "Today’s exposure",
     "exposureLead": "Every run of a day as one long-exposure photograph. The same image for everyone, a new one every day.",
     "date": "Date",
