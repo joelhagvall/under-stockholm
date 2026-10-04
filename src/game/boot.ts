@@ -1417,7 +1417,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     const at = (seconds: number): Wait => ({ seconds, clock: formatClock(time + seconds) });
     if (lineLive[leg.line]) {
       const numbers = new Set(leg.routes.map((r) => net.routes[r].number));
-      const next = real.schedules[leg.line].nextDepartures(leg.from, leg.track, time, 6).find((d) => numbers.has(d.journey.line) && d.departs <= 60 * 60);
+      const next = real.schedules[leg.line].nextDepartures(leg.from, leg.track, cutClock(time), 6).find((d) => numbers.has(d.journey.line) && d.departs <= 60 * 60);
       if (!next) return null;
       // As the board says it: "Nu" from half a minute before (`updateRealDepartures`).
       const seconds = realArrival(next.journey, next.departs, leg.from, leg.track);
@@ -1474,11 +1474,12 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   function updateTrip(): void {
     // Not while the view cuts to the trip's start (the platform left behind is not a stop on the way), nor paused.
     if (!trip || respawning || paused) return;
+    // The way, and on foot how long until the next train that takes it: said with whatever the guide says first.
+    let intro: string | null = null;
     if (tripIntro) {
-      // The way, and on foot how long until the next train that takes it.
       const wait = tripIntro.waiting ? legWait(trip.current) : null;
       const start = format(text.trip.start, { station: trip.trip.to, way: tripSummary(net, trip.trip) });
-      hud.say(wait ? `${start} ${format(text.trip.nextTrain, { when: waitText(wait) })}` : start, 9);
+      intro = wait ? `${start} ${format(text.trip.nextTrain, { when: waitText(wait) })}` : start;
       tripIntro = null;
     }
     if (trip.done) {
@@ -1503,7 +1504,8 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     const here = world.locate(player.feet);
     const update = trip.step({ aboard, elsewhere: !!riding && !svc, station: here.station, platform: here.area === 'platform' && !here.label, wait: riding ? null : legWait(trip.current) });
     hud.setTrip(update.status);
-    if (update.say) hud.say(update.say, 7);
+    if (intro) hud.say(update.say ? `${intro} ${update.say}` : intro, 11);
+    else if (update.say) hud.say(update.say, 7);
     if (update.done) tripGone = time + 8;
   }
   hud.onTrip = (from, to) => {
@@ -1687,7 +1689,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
 
   /** One track's rows from SL, on a line SL drives. */
   function realRows(s: (typeof world.stations)[number], pt: (typeof s.platformTracks)[number]): DepartureRow[] {
-    const next = real.schedules[pt.line].nextDepartures(s.index, pt.track, time, BOARD_ROWS).filter((d) => d.departs <= 60 * 60);
+    const next = real.schedules[pt.line].nextDepartures(s.index, pt.track, cutClock(time), BOARD_ROWS).filter((d) => d.departs <= 60 * 60);
     if (!next.length) return [{ track: pt.number, line: '', destination: text.real.noTrains, eta: '' }];
     const eta = (d: (typeof next)[number]) => boardEta(realArrival(d.journey, d.departs, s.index, pt.track), 30);
     if (isLineTerminal(net, s.index, pt.track)) return [{ track: pt.number, line: '', destination: 'Slutstation', eta: eta(next[0]) }];
@@ -1726,10 +1728,11 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     for (const svc of services) {
       let active: boolean;
       if (lineLive[svc.line]) {
-        const c = real.schedules[svc.line].slot(svc.slot, time);
+        // SL's trains stand through a power cut too: their journeys run on the cut's clock, as the timetable's do.
+        const c = real.schedules[svc.line].slot(svc.slot, cutClock(time));
         active = c !== null;
         svc.journey = c?.journey ?? null;
-        if (c) { svc.clock = c.clock; svc.rate = c.rate; svc.route = routeIndex(c.journey.line); svc.timetable = lineServices[svc.line].timetables[c.route]; }
+        if (c) { svc.clock = c.clock; svc.rate = c.rate * cutRate(time); svc.route = routeIndex(c.journey.line); svc.timetable = lineServices[svc.line].timetables[c.route]; }
       } else {
         // After an emergency stop the train runs late until it can catch up, out of sight in a turnback.
         if (svc.brake && time >= svc.brake.arrive) {
@@ -1933,7 +1936,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     }
 
     // Real trains take over (or hand back) line by line, once SL has answered for it, or when its data goes stale.
-    if (realWanted) for (const schedule of real.schedules) schedule.update(time);
+    if (realWanted) for (const schedule of real.schedules) schedule.update(cutClock(time));
     const wantLive = net.lines.map((_, li) => realWanted && real.live(li));
     if (wantLive.some((on, li) => on !== lineLive[li])) switchTrains(wantLive);
     if (stageWaiting) stageArrival();
@@ -2552,7 +2555,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   const blink = (t: number) => (Math.sin(t * 41) + Math.sin(t * 17.3) > 0.4 ? 1 : 0.2);
   function updatePower(open: number): void {
     const out = audio.output;
-    const cut = realOn || era.past ? null : powerOut(time);
+    const cut = era.past ? null : powerOut(time);
     let level = 0;
     if (cut) {
       const t = time - cut.start;

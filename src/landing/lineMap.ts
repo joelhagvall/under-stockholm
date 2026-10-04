@@ -1,5 +1,6 @@
 import sv from '../i18n/sv.json';
 import en from '../i18n/en.json';
+import { cutClock } from '../game/powerCut';
 import { realTrainsAvailable } from '../game/sl';
 import { LINES } from './lines';
 import { fetchSightings, RealTrains } from './realTrains';
@@ -276,7 +277,8 @@ export function mountLineMap(root: HTMLElement): void {
   const real = (now: number): boolean => relay && reals[line].live(now);
 
   function trains(now: number): MapTrain[] {
-    return real(now) ? reals[line].trains(now) : gameTrains(line, now);
+    // A power cut holds SL's trains as it does the timetable's (`cutClock`).
+    return real(now) ? reals[line].trains(cutClock(now)) : gameTrains(line, now);
   }
 
   function drawMarkers(current: MapTrain[]): void {
@@ -329,7 +331,7 @@ export function mountLineMap(root: HTMLElement): void {
 
   function drawStrip(now: number): void {
     if (!strip) return;
-    const deps = real(now) ? reals[line].nextDepartures(now, 0) : nextDepartures(now, line, 0);
+    const deps = real(now) ? reals[line].nextDepartures(cutClock(now), 0) : nextDepartures(now, line, 0);
     const rows: StripRow[] = deps.length ? deps.map((d) => [d.line, d.destination, formatWhen(d.seconds)]) : stripDefault(line);
     const key = JSON.stringify(rows);
     if (key !== stripShown) {

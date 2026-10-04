@@ -8,6 +8,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import sv from '../i18n/sv.json';
 import en from '../i18n/en.json';
 import { busyness, formatClock, stockholm, stockholmEpoch } from '../game/clock';
+import { cutClock } from '../game/powerCut';
 import { CONNECTORS, NETWORK } from '../game/line';
 import { ghostUrl } from '../game/relay';
 import { realTrainsAvailable } from '../game/sl';
@@ -857,7 +858,8 @@ export async function mountNetwork(root: HTMLElement, options: NetworkOptions): 
     const out: Array<{ train: MapTrain; line: number; opacity: number }> = [];
     const real = showingReal();
     LINES.forEach((_, li) => {
-      const list = real ? reals[li].trains(t) : gameTrains(li, t);
+      // A power cut holds SL's trains as it does the timetable's (`cutClock`).
+      const list = real ? reals[li].trains(cutClock(t)) : gameTrains(li, t);
       for (const train of list) out.push({ train, line: li, opacity: 1 });
     });
     if (!real) {

@@ -243,7 +243,7 @@ export class TripGuide {
         return this.update(text.trip.arrivedShort, format(text.trip.arrived, { station: this.trip.to }));
       }
       this.leg++;
-      return this.update(format(text.trip.board, { trains: legTrains(this.net, this.current) }), this.changeText());
+      return this.update(this.boardText(here, this.current), this.changeText());
     }
     // Off somewhere else on the way, or out of it: the way on from here.
     if (here !== null && view.platform && this.name(here) !== this.name(leg.from)) {
@@ -256,11 +256,15 @@ export class TripGuide {
       }
     }
     if (here !== null && this.name(here) === this.name(leg.from)) {
-      // At a station the line shares with another, walked over from one of the same name: which line is the one to take.
-      const other = this.net.stations[here].line !== leg.line && !this.net.stations[here].lines.includes(leg.line);
-      const board = other ? format(text.trip.walk, { line: lineName(this.net, leg.line), trains: legTrains(this.net, leg) }) : format(text.trip.board, { trains: legTrains(this.net, leg) });
+      const board = this.boardText(here, leg);
       return this.update(view.wait ? `${board} · ${waitText(view.wait)}` : board);
     }
     return this.update(format(text.trip.goTo, { station: this.name(leg.from) }));
+  }
+
+  /** What to do at `here`, a station of `leg.from`'s name: take its trains, or walk over to its line first. */
+  private boardText(here: number, leg: Leg): string {
+    const other = this.net.stations[here].line !== leg.line && !this.net.stations[here].lines.includes(leg.line);
+    return other ? format(text.trip.walk, { line: lineName(this.net, leg.line), trains: legTrains(this.net, leg) }) : format(text.trip.board, { trains: legTrains(this.net, leg) });
   }
 }
