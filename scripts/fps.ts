@@ -86,11 +86,14 @@ async function measure(page: Page, seconds: number, travel = 0): Promise<Result>
     } catch { /* Not supported. */ }
     let last = performance.now();
     const end = last + seconds * 1000;
-    const player = (window as unknown as { __us: { player: { feet: { x: number; clone(): { setX(x: number): unknown } }; teleport(p: unknown): void } } }).__us.player;
+    const player = (window as unknown as { __us: { player: { feet: { x: number; y: number; clone(): { setX(x: number): { setY(y: number): unknown } } }; teleport(p: unknown): void } } }).__us.player;
+    // Travelling keeps the height it starts at, as from a train: left to the walker, the capsule dragged through walls
+    // fell through the air or was pushed up an escalator, and the scene timed wherever that took it.
+    const height = player.feet.y;
     await new Promise<void>((done) => {
       const tick = (t: number) => {
         deltas.push(t - last);
-        if (travel) player.teleport(player.feet.clone().setX(player.feet.x + (travel * (t - last)) / 1000));
+        if (travel) player.teleport(player.feet.clone().setX(player.feet.x + (travel * (t - last)) / 1000).setY(height));
         last = t;
         if (t < end) requestAnimationFrame(tick);
         else done();
