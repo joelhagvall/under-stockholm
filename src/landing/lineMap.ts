@@ -197,10 +197,19 @@ export function mountLineMap(root: HTMLElement): void {
   let stripShown = '';
   let lastList = 0;
 
-  // Runs only while the map is on screen: scrolled past, or under the game, it rests.
+  // Runs only while the map or the hero's strip is on screen: scrolled past both, or under the game, it rests. The
+  // strip is watched on its own: going by the map alone, a map below the fold left the strip blank until a scroll.
   let onScreen = true;
-  new IntersectionObserver(([entry]) => { onScreen = entry.isIntersecting; }).observe(root);
-  const visible = () => !document.hidden && onScreen;
+  let stripOnScreen = true;
+  const watch = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.target === root) onScreen = entry.isIntersecting;
+      else stripOnScreen = entry.isIntersecting;
+    }
+  });
+  watch.observe(root);
+  if (strip) watch.observe(strip);
+  const visible = () => !document.hidden && (onScreen || stripOnScreen);
   // With less motion asked for, the trains step once a second instead of gliding.
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -376,10 +385,10 @@ export function mountLineMap(root: HTMLElement): void {
     }
     lastMove = ms;
     const current = trains(Date.now() / 1000);
-    if (!still) drawMarkers(current);
+    if (!still && onScreen) drawMarkers(current);
     if (!lastList || ms - lastList > 1000) {
       lastList = ms;
-      if (still) drawMarkers(current);
+      if (still && onScreen) drawMarkers(current);
       drawList(current);
       drawStrip(Date.now() / 1000);
       drawNote(Date.now() / 1000);
@@ -388,6 +397,8 @@ export function mountLineMap(root: HTMLElement): void {
   }
 
   drawLine();
+  // The strip shows at once, whatever is on screen when the map's chunk arrives.
+  drawStrip(Date.now() / 1000);
   // SL is asked once the page has settled, so the question never holds up its first paint.
   if (relay) {
     window.setTimeout(() => {

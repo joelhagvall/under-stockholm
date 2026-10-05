@@ -210,7 +210,9 @@ export class Player {
       this.vy = JUMP;
       this.grounded = false;
     } else {
-      this.vy = this.grounded ? -2 : this.vy - GRAVITY * dt;
+      // No push into the floor while standing: the controller's cast then met the floor at once and stopped a step
+      // dead about once a second. Snapping to the ground keeps the feet on stairs and slopes going down.
+      this.vy = this.grounded ? 0 : this.vy - GRAVITY * dt;
     }
     this.jumpQueued = false;
     const desired = { x: move.x * dt, y: this.vy * dt, z: move.z * dt };
