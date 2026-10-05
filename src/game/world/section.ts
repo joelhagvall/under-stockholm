@@ -16,6 +16,7 @@ import { bakeLighting, MeshBuilder, prepareLighting, type BakeLight, type Fold }
 import type { RGB } from '../gfx/color';
 import { detailTexture, floorTexture, glowTexture, tactileTexture } from '../gfx/textures';
 import { torchify } from '../powerLights';
+import { snowify } from '../gfx/snow';
 
 let shared: Record<'detail' | 'floor' | 'tactile' | 'unlit', MeshBasicMaterial> | null = null;
 
@@ -50,7 +51,8 @@ let daylight = 1;
 function openMaterials() {
   if (!open) {
     const w = worldMaterials();
-    open = { detail: torchify(w.detail.clone()), floor: torchify(w.floor.clone()), tactile: torchify(w.tactile.clone()), unlit: w.unlit };
+    // Snow lies on the ground, roofs and streets out here; the platforms' slabs are kept clear (see `snowify`).
+    open = { detail: snowify(torchify(w.detail.clone())), floor: torchify(w.floor.clone()), tactile: torchify(w.tactile.clone()), unlit: w.unlit };
     for (const m of [open.detail, open.floor, open.tactile]) m.color.setScalar(daylight);
   }
   return open;

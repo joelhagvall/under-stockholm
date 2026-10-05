@@ -6,12 +6,36 @@ import { ESC_ANGLE, ESC_DESIGN as E, ESC_LANDING, ESC_RISE, ESC_SPEED, PLATFORM_
 const ESC_RUN = escalatorRun(ESC_RISE);
 import { Physics, loadRapier } from '../src/game/physics';
 import { Section } from '../src/game/world/section';
-import { buildEscalators } from '../src/game/world/escalator';
+import { buildEscalators, escalatorSteps } from '../src/game/world/escalator';
 import { World } from '../src/game/world/world';
 
 const speed = ESC_SPEED * Math.cos(ESC_ANGLE);
 
 describe('escalator transport', () => {
+  test('layout keeps the same colliders and belt without discarded animated steps', () => {
+    for (const rise of [7, ESC_RISE, 33]) for (const dir of [-1, 1] as const) for (const tall of [true, false]) {
+      const build = (dry: boolean) => {
+        const colliders: unknown[] = [];
+        const physics = {
+          box: (...args: unknown[]) => colliders.push(structuredClone(args)),
+          tiltedBox: (...args: unknown[]) => colliders.push(structuredClone(args)),
+        } as unknown as Physics;
+        const section = new Section('escalator-layout-test', [1, 1, 1], dry);
+        const steps = escalatorSteps(section, physics, 123, dir, rise, tall, -5);
+        let result = steps.next();
+        while (!result.done) result = steps.next();
+        const { update, ...belt } = result.value;
+        update(10, 123);
+        return { colliders, belt, section };
+      };
+      const dry = build(true), drawn = build(false);
+      expect(dry.colliders).toEqual(drawn.colliders);
+      expect(dry.belt).toEqual(drawn.belt);
+      expect(dry.section.extras.children).toHaveLength(0);
+      expect(drawn.section.extras.children).toHaveLength(2);
+    }
+  });
+
   test('landings are level and meet the platform and ticket hall', () => {
     expect(escalatorHeight(0, ESC_RISE)).toBe(PLATFORM_Y);
     expect(escalatorHeight(ESC_LANDING, ESC_RISE)).toBe(PLATFORM_Y);

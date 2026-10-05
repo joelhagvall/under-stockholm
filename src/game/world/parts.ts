@@ -44,6 +44,7 @@ const TUNNEL_LAMP = rgb(0xffd9a0);
 
 /** Rails, sleepers or slab, and the third rail on the outer side. */
 export function addTrack(s: Section, x0: number, x1: number, zc: number, sleepers: boolean): void {
+  if (s.dry) return;
   const outer = Math.sign(zc) || 1;
   if (sleepers) {
     for (let x = x0 + 0.4; x < x1; x += 0.75) {

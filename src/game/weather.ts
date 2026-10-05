@@ -21,7 +21,8 @@ import {
 import { hash01, season, stockholm, sunElevation } from './clock';
 import { fetchWeather, isWet, seasonalWeather, type WeatherKind, type WeatherState } from './weatherFeed';
 import { isCold } from './calendar';
-import { glowTexture } from './gfx/textures';
+import { glowTexture, puffTexture } from './gfx/textures';
+import { setSnowCover } from './gfx/snow';
 import { loopNoise, Spatial, type AudioOut } from './sfx';
 import type { HallInfo, StationInfo } from './world/station';
 
@@ -53,6 +54,16 @@ function floorAt(e: HallInfo['exit'], d: number, z: number): number {
   const hall = e.sillY - 3.4;
   if (d < 0 && e.cut > 0) return e.sillY + (e.top - e.sillY) * Math.min(1, -d / e.cut);
   return Math.abs(z) > 2.5 ? hall : d < 6 ? e.sillY : hall + 3.4 * Math.max(0, 1 - (d - 6) / 7);
+}
+
+/** Rain's streaks: pale against the dark at night, darker than a bright sky by day, where pale ones vanish. */
+const RAIN_NIGHT = new Color(0xaab8c8);
+const RAIN_DAY = new Color(0x6f7b87);
+function tintRain(rain: LineSegments, time: number): void {
+  const m = rain.material as LineBasicMaterial;
+  const day = daylight(time);
+  m.color.lerpColors(RAIN_NIGHT, RAIN_DAY, day);
+  m.opacity = 0.45 + 0.2 * day;
 }
 
 const RAIN = 260;
@@ -148,7 +159,17 @@ export class Weather {
 
     const mistGeo = new BufferGeometry();
     mistGeo.setAttribute('position', new BufferAttribute(this.mistData, 3).setUsage(DynamicDrawUsage));
-    this.mist = new Points(mistGeo, new PointsMaterial({ size: 3.4, map: glowTexture(), color: 0xeef2f5, transparent: true, opacity: 0.22, depthWrite: false }));
+    const mistMaterial = new PointsMaterial({ size: 3.4, map: puffTexture(), color: 0xeef2f5, transparent: true, opacity: 0.18, depthWrite: false });
+    // Haze is seen from a distance, not from inside it: a puff fades as it nears the eye, or it reads as a ball.
+    mistMaterial.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying float vMistNear;')
+        .replace('#include <project_vertex>', '#include <project_vertex>\nvMistNear = smoothstep(2.0, 7.0, -mvPosition.z);');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying float vMistNear;')
+        .replace('#include <alphatest_fragment>', 'diffuseColor.a *= vMistNear;\n#include <alphatest_fragment>');
+    };
+    this.mist = new Points(mistGeo, mistMaterial);
     this.mist.frustumCulled = false;
     this.mist.visible = false;
     this.mist.name = 'stair-mist';
@@ -189,6 +210,7 @@ export class Weather {
     // The street's lit windows and lamp come on as it gets dark; snow lies on it while it snows.
     const lights = 1 - daylight(time);
     const snow = this.state.kind === 'snow' ? 1 : this.state.kind === 'sleet' ? 0.5 : 0;
+    setSnowCover(snow);
     for (const s of this.stations) for (const { exit } of s.halls) {
       const street = exit.street;
       if (street?.snow) {
@@ -205,6 +227,7 @@ export class Weather {
     const showRain = station !== null && (kind === 'rain' || kind === 'sleet');
     const showSnow = station !== null && (kind === 'snow' || kind === 'sleet');
     this.rain.visible = showRain;
+    if (showRain) tintRain(this.rain, time);
     this.snow.visible = showSnow;
     this.prints.visible = station !== null && this.wet;
     this.drift.visible = station !== null && kind === 'snow';
@@ -385,7 +408,8 @@ export class OpenAirWeather {
     this.rain.visible = false;
     const snowGeo = new BufferGeometry();
     snowGeo.setAttribute('position', new BufferAttribute(this.snowData, 3).setUsage(DynamicDrawUsage));
-    this.snow = new Points(snowGeo, new PointsMaterial({ color: 0xffffff, size: 0.07, transparent: true, opacity: 0.85, depthWrite: false }));
+    // Soft round flakes, as at the exits: a bare point is a square, and one falling past the eye fills a block of the view.
+    this.snow = new Points(snowGeo, new PointsMaterial({ size: 0.09, map: glowTexture(), color: 0xf4f8ff, transparent: true, depthWrite: false, blending: AdditiveBlending }));
     this.snow.frustumCulled = false;
     this.snow.visible = false;
     for (let i = 0; i < OPEN_RAIN; i++) this.rainData[i * 6 + 1] = -1e4;
@@ -402,6 +426,7 @@ export class OpenAirWeather {
     const kind = weather.kind;
     const k = weather.intensity * Math.min(1, open * 1.5);
     this.rain.visible = k > 0.02 && (kind === 'rain' || kind === 'sleet');
+    if (this.rain.visible) tintRain(this.rain, time);
     this.snow.visible = k > 0.02 && (kind === 'snow' || kind === 'sleet');
     const respawn = (o: number, data: Float32Array, top: boolean) => {
       data[o] = eye.x + (Math.random() * 2 - 1) * OPEN_BOX.x;

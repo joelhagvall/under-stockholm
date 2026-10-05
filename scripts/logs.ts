@@ -7,17 +7,18 @@
 //      runs and how long it was awake.
 //   4. Traffic through the zone over the last 7 days, a day at a time: requests, page views, visitors, data, cache, countries.
 //
-// Parts 2 to 4 need a Cloudflare API token in CF_OBS_TOKEN (in `.env.local`, which git ignores and Bun reads by itself)
-// with "Workers Observability: Read" for the logs, "Account Analytics: Read" for the usage and "Zone: Read" and "Zone Analytics:
-// Read" on understockholm.com for the traffic. Bun leaves a variable already set in the shell as it is, so a CF_OBS_TOKEN
-// exported there wins over `.env.local`. Make it a user token (My Profile, API Tokens): an account-owned token reads the logs
+// Parts 2 to 4 need a Cloudflare API token in CF_OBS_TOKEN (in `.env.local`, which git ignores) with "Workers Observability:
+// Read" for the logs, "Account Analytics: Read" for the usage and "Zone: Read" and "Zone Analytics: Read" on
+// understockholm.com for the traffic. The one in `.env.local` wins over a CF_OBS_TOKEN exported in the shell (Bun would keep
+// the shell's), which is used only when the file has none. Make it a user token (My Profile, API Tokens): an account-owned token reads the logs
 // but is refused by the GraphQL analytics. Without it, or without one of the permissions, that part says so and the rest still
 // runs. The last deploy's time comes from `wrangler deployments`.
 import { $ } from 'bun';
 
 const SITE = 'https://understockholm.com';
 const SCRIPT = 'under-stockholm';
-const token = process.env.CF_OBS_TOKEN;
+const local = await Bun.file(new URL('../.env.local', import.meta.url)).text().catch(() => '');
+const token = local.match(/^CF_OBS_TOKEN=["']?([^"'\s]+)/m)?.[1] ?? process.env.CF_OBS_TOKEN;
 const now = Date.now();
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');

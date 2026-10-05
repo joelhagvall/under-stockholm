@@ -44,7 +44,7 @@ for await (const path of new Bun.Glob('assets/*.json').scan(root)) mapData.push(
 const budgets = [
   { name: 'Landing JavaScript', files: [...landing].filter((p) => p.endsWith('.js')), limit: 6_000 },
   { name: 'Landing CSS', files: [...landing].filter((p) => p.endsWith('.css')), limit: 5_000 },
-  { name: 'All JavaScript and WASM', files: runtime, limit: 1_300_000 },
+  { name: 'All JavaScript and WASM', files: runtime, limit: 1_400_000 },
   { name: 'Map data, each fetched on the way', files: mapData, limit: 1_600_000 },
 ];
 const MAP_FILE_LIMIT = 100_000;

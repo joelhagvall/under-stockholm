@@ -386,7 +386,7 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
     corridor(start, TAIL_TUBE, 0);
     zone(start, TAIL_TUBE, -0.5, 3, CORRIDOR.halfWidth + 0.1, sv.service.corridor);
     const sign = textSign(sv.service.turnback, 768, 112, '#f2f2f2', '#10325f');
-    place(s, sign, 1.6, 0.23, new Vector3(X(0.4), 2.25, -CORRIDOR.halfWidth + 0.02), new Vector3(0, 0, 1));
+    place(s, sign, 1.6, 0.23, new Vector3(X(start + 1), 2.25, -CORRIDOR.halfWidth + 0.02), new Vector3(0, 0, 1));
     if (clue === 'scratches') {
       const scratched = clueNote(sv.mystery.clues.scratches[1].split(': ')[1].replace(/[”"]/g, ''), true);
       scratched.material.transparent = true;

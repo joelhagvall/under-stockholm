@@ -84,7 +84,8 @@ function railGeometries(rise: number): { casing: BufferGeometry; rubber: BufferG
 }
 
 let stepGeometry: BufferGeometry | null = null;
-const stepMaterial = torchify(new MeshBasicMaterial({ vertexColors: true }));
+// A flight that starts out on the platform has the floor under its landing, level with the treads: they win.
+const stepMaterial = torchify(new MeshBasicMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
 function treadGeometry(): BufferGeometry {
   if (stepGeometry) return stepGeometry;
   const b = new MeshBuilder();
@@ -141,7 +142,7 @@ export function* escalatorSteps(s: Section, physics: Physics, wx: number, e: 1 |
   const truss = tall ? 0 : 0.9;
   // The ceiling and the walls up to it: straight between the steps' joints and where the ceiling levels out.
   const top = (a: number, z: number) => point(a, shaftCeiling(a, rise, tall, base), z);
-  const breaks = [...new Set([...joints, ...(tall ? ceilingBends(rise, RUN) : [])])].filter((a) => a >= 0 && a <= RUN).sort((a, b) => a - b);
+  const breaks = s.dry ? [] : [...new Set([...joints, ...(tall ? ceilingBends(rise, RUN) : [])])].filter((a) => a >= 0 && a <= RUN).sort((a, b) => a - b);
   for (let i = 1; i < breaks.length; i++) {
     const a = breaks[i - 1], b = breaks[i];
     inward(top(a, -ESC_HALF_W), top(b, -ESC_HALF_W), top(b, ESC_HALF_W), top(a, ESC_HALF_W), DOWN, 0xe4e5e2, 1.5);
@@ -170,16 +171,18 @@ export function* escalatorSteps(s: Section, physics: Physics, wx: number, e: 1 |
   }
 
   const { casing, rubber } = railGeometries(rise);
-  for (const lane of [-1, 1]) {
+  for (const lane of s.dry ? [] : [-1, 1]) {
     for (const side of [-1, 1]) {
       yield;
       const z = lane * E.laneCenter + side * (E.treadWidth / 2 + E.railWidth / 2);
       s.lit.geometry(casing, new Matrix4().makeScale(e, 1, 1).setPosition(wx, base, z - E.railWidth / 2), metal);
       s.lit.geometry(rubber, new Matrix4().makeScale(e, 1, 1).setPosition(wx, base, z - side * E.railWidth / 2), rgb(0x161b20));
+      // The joints and lamps stand a few millimetres proud of the casing's bevelled faces, not in their plane.
+      const outer = E.railWidth / 2 + E.panelGap + 0.004;
       // Panel joints and the brush strip along the step edge.
       for (let a = ESC_LANDING; a < RUN - ESC_LANDING; a += E.panelLength) {
         const y = height(a);
-        box(a, a + E.panelGap, y + E.skirtHeight, y + E.railHeight - E.handrailRadius, z - E.railWidth / 2 - E.panelGap, z + E.railWidth / 2 + E.panelGap, 0x839098);
+        box(a, a + E.panelGap, y + E.skirtHeight, y + E.railHeight - E.handrailRadius, z - outer, z + outer, 0x839098);
       }
       for (let i = 1; i < joints.length; i++) {
         const a = joints[i - 1], b = joints[i];
@@ -188,7 +191,7 @@ export function* escalatorSteps(s: Section, physics: Physics, wx: number, e: 1 |
       }
       for (const a of [E.railEnd, RUN - E.railEnd]) {
         const y = height(a);
-        box(a - E.indicatorRadius, a + E.indicatorRadius, y + E.skirtHeight, y + E.skirtHeight + E.indicatorRadius * 2, z - E.railWidth / 2 - E.panelGap, z + E.railWidth / 2 + E.panelGap, lane > 0 ? 0x50c48a : 0xde6751);
+        box(a - E.indicatorRadius, a + E.indicatorRadius, y + E.skirtHeight, y + E.skirtHeight + E.indicatorRadius * 2, z - outer, z + outer, lane > 0 ? 0x50c48a : 0xde6751);
       }
     }
     for (const end of [0, RUN - E.combLength]) {
@@ -201,7 +204,7 @@ export function* escalatorSteps(s: Section, physics: Physics, wx: number, e: 1 |
     }
   }
 
-  for (let a = ESC_LANDING; a < RUN; a += E.lightSpacing) {
+  for (let a = ESC_LANDING; !s.dry && a < RUN; a += E.lightSpacing) {
     const x = wx + e * a;
     // A lamp on each wall over the steps, and a light strip on the ceiling high above.
     const y = height(a) + LAMP_HEIGHT;
@@ -222,9 +225,14 @@ export function* escalatorSteps(s: Section, physics: Physics, wx: number, e: 1 |
     physics.box({ x: Math.min(wx, wx + e * low), y: base, z: z0 }, { x: Math.max(wx, wx + e * low), y: shaftTop(rise, base), z: z1 });
     if (RUN > low) physics.box({ x: Math.min(wx + e * low, wx + e * RUN), y: height(low) - E.stepDepth - 0.3, z: z0 }, { x: Math.max(wx + e * low, wx + e * RUN), y: shaftTop(rise, base), z: z1 });
   }
+  const zone: EscalatorZone = { wallX: wx, dir: e, z: 0, rise, base, run: RUN, stoppedLane: 0, update: () => {} };
+  // The layout needs the belt and colliders, but its discarded steps need no instance buffers or animation.
+  // Keep the shared geometry warm so the first streamed flight does not have to build it during play.
+  const tread = treadGeometry();
+  if (s.dry) return zone;
   const count = Math.ceil(RUN / E.stepPitch) + 2;
   const flights = [-1, 1].map((lane) => {
-    const mesh = new InstancedMesh(treadGeometry(), stepMaterial, count);
+    const mesh = new InstancedMesh(tread, stepMaterial, count);
     mesh.instanceMatrix.setUsage(DynamicDrawUsage);
     mesh.frustumCulled = false;
     // Steps are placed from the wall, so they stay precise far from the world's origin.
@@ -234,7 +242,6 @@ export function* escalatorSteps(s: Section, physics: Physics, wx: number, e: 1 |
     return { lane, mesh };
   });
   const matrix = new Matrix4();
-  const zone: EscalatorZone = { wallX: wx, dir: e, z: 0, rise, base, run: RUN, stoppedLane: 0, update: () => {} };
   zone.update = (time: number, playerX: number) => {
     for (const { lane, mesh } of flights) {
       mesh.visible = Math.abs(playerX - wx) < E.updateDistance;
@@ -242,8 +249,11 @@ export function* escalatorSteps(s: Section, physics: Physics, wx: number, e: 1 |
       const t = lane === zone.stoppedLane ? 0 : time;
       for (let i = 0; i < count; i++) {
         const along = escalatorStepAlong(i, t, lane);
-        if (along < 0 || along > RUN) matrix.makeScale(0, 0, 0);
-        else matrix.makeRotationY(e < 0 ? Math.PI : 0).setPosition(e * along, height(along), lane * E.laneCenter);
+        // A step slides in under the comb plate at either end, cut off at the flight's end rather than sticking out
+        // over the floor beyond it and then vanishing.
+        const a0 = Math.max(0, along - E.stepPitch / 2), a1 = Math.min(RUN, along + E.stepPitch / 2);
+        if (a1 <= a0) matrix.makeScale(0, 0, 0);
+        else matrix.makeScale(e * (a1 - a0) / E.stepPitch, 1, e).setPosition(e * (a0 + a1) / 2, height(along), lane * E.laneCenter);
         mesh.setMatrixAt(i, matrix);
       }
       mesh.instanceMatrix.needsUpdate = true;

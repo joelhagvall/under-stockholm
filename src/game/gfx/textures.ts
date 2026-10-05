@@ -177,6 +177,22 @@ export function glowTexture(): Texture {
   });
 }
 
+/** A soft puff with no bright core, for mist and haze: the halo's core reads as a lamp. */
+export function puffTexture(): Texture {
+  return cached('puff', () => {
+    const [c, ctx] = canvas(64, 64);
+    const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, 'rgba(255, 255, 255, 0.55)');
+    g.addColorStop(0.5, 'rgba(255, 255, 255, 0.25)');
+    g.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 64, 64);
+    const t = new CanvasTexture(c);
+    t.colorSpace = SRGBColorSpace;
+    return t;
+  });
+}
+
 /**
  * Blue botanical vines on a white painted vault: an original design in the
  * spirit of T-Centralen's blue platforms. Mapped with u along the platform

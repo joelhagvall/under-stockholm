@@ -37,11 +37,19 @@ export interface GhostPose {
   y: number;
   z: number;
   yaw: number;
-  /** Train index the player rides, or -1. */
+  /** Train index the player rides, -1 on foot, or RIDE_TRIP aboard a train SL drives (its journey in `trip`). */
   ride: number;
   lx: number;
   lz: number;
+  /** SL's journey, when `ride` is RIDE_TRIP. */
+  trip?: number;
 }
+
+/** `ride` aboard a train SL drives, which clients share by its journey (`server/pose.ts`). */
+export const RIDE_TRIP = -2;
+
+/** Whether two poses ride the same train, the same on every client. */
+const sameRide = (a: GhostPose, b: GhostPose) => a.ride === b.ride && (a.ride >= 0 || (a.ride === RIDE_TRIP && !!a.trip && a.trip === b.trip));
 
 interface Remote {
   id: number;
@@ -118,8 +126,8 @@ export class Ghosts {
         this.onCount?.(this.count);
         const seen = new Set<number>();
         for (const row of data.p) {
-          if (!Array.isArray(row) || row.length !== 8) continue;
-          const [id, x, y, z, yaw, ride, lx, lz] = row;
+          if (!Array.isArray(row) || (row.length !== 8 && row.length !== 9)) continue;
+          const [id, x, y, z, yaw, ride, lx, lz, trip] = row;
           seen.add(id);
           let remote = this.remotes.get(id);
           if (!remote) {
@@ -130,7 +138,7 @@ export class Ghosts {
             remote = { id, samples: [], slot };
             this.remotes.set(id, remote);
           }
-          remote.samples.push({ at: this.clock, pose: { x, y, z, yaw, ride, lx, lz } });
+          remote.samples.push({ at: this.clock, pose: { x, y, z, yaw, ride, lx, lz, trip } });
           if (remote.samples.length > 4) remote.samples.shift();
         }
         for (const [id, remote] of this.remotes) if (!seen.has(id)) { hideFigure(this.mesh, remote.slot); this.remotes.delete(id); }
@@ -159,8 +167,8 @@ export class Ghosts {
   private near(rows: number[][]): boolean {
     const me = this.lastPose;
     if (!me) return true;
-    return rows.some((row) => Array.isArray(row) && row.length === 8
-      && ((me[4] >= 0 && row[5] === me[4]) || Math.hypot(row[1] - me[0], row[3] - me[2]) < NEAR));
+    return rows.some((row) => Array.isArray(row) && row.length >= 8
+      && ((me[4] >= 0 && row[5] === me[4]) || (me[4] === RIDE_TRIP && row[5] === RIDE_TRIP && row[8] === me[7]) || Math.hypot(row[1] - me[0], row[3] - me[2]) < NEAR));
   }
 
   private scheduleRetry(): void {
@@ -180,9 +188,9 @@ export class Ghosts {
   }
 
   /**
-   * @param trainAt current position of train `ride` on this client, for riders
+   * @param trainAt current position on this client of train `ride`, or of SL's journey `trip`, for riders
    */
-  update(dt: number, me: GhostPose, listener: Vector3, trainAt: (ride: number) => { x: number; z: number } | null): void {
+  update(dt: number, me: GhostPose, listener: Vector3, trainAt: (ride: number, trip?: number) => { x: number; z: number } | null): void {
     this.clock += dt;
     this.sendTimer -= dt;
     if (this.dozing) { this.dozing = false; this.connect(); }
@@ -192,6 +200,8 @@ export class Ghosts {
       // The player's yaw runs on with every turn; the relay takes only a few turns' worth, so it goes as an angle.
       const yaw = Math.atan2(Math.sin(me.yaw), Math.cos(me.yaw));
       const pose = [me.x, me.y, me.z, yaw, me.ride, me.lx, me.lz].map((v) => Math.round(v * 100) / 100);
+      // The journey is a whole number of up to 53 bits: as it is, never rounded.
+      if (me.ride === RIDE_TRIP && me.trip) pose.push(me.trip);
       const message = JSON.stringify({ t: 'p', p: pose });
       if ((this.company && message !== this.lastSent) || now - this.lastSentAt >= KEEP_ALIVE_MS) {
         this.socket.send(message);
@@ -214,7 +224,7 @@ export class Ghosts {
       const k = span > 0 ? Math.min(1, Math.max(0, (at - a.at) / span)) : 1;
       const mix = (p: number, q: number) => p + (q - p) * k;
       let x: number, z: number;
-      const riding = b.pose.ride >= 0 && a.pose.ride === b.pose.ride ? trainAt(b.pose.ride) : null;
+      const riding = sameRide(a.pose, b.pose) ? trainAt(b.pose.ride, b.pose.trip) : null;
       if (riding) { x = riding.x + mix(a.pose.lx, b.pose.lx); z = riding.z + mix(a.pose.lz, b.pose.lz); }
       else { x = mix(a.pose.x, b.pose.x); z = mix(a.pose.z, b.pose.z); }
       const y = mix(a.pose.y, b.pose.y);

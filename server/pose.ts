@@ -3,18 +3,22 @@
 //
 // Protocol (JSON over a WebSocket):
 //   server -> client  { t: 'hello', id, now }                        once, on connect
-//   client -> server  { t: 'p', p: [x, y, z, yaw, ride, lx, lz] }     twice a second with anyone within 500 m, else every 5 s (src/game/ghosts.ts)
+//   client -> server  { t: 'p', p: [x, y, z, yaw, ride, lx, lz, trip?] }   twice a second with anyone within 500 m, else every 5 s (src/game/ghosts.ts)
 //   client -> server  { t: 'w' }                                     a watcher with no pose (the network view), while shown
-//   server -> client  { t: 's', now, n, p: [[id, x, y, z, yaw, ride, lx, lz], ...] }   twice a second
+//   server -> client  { t: 's', now, n, p: [[id, x, y, z, yaw, ride, lx, lz, trip?], ...] }   twice a second
 // `ride` is the index of the train the player rides (-1 on foot); lx and lz are then relative to that train, so
-// riders stay inside it despite latency. The client draws others a little behind (DELAY), between two snapshots.
+// riders stay inside it despite latency. A train SL drives has no index all clients share, only SL's journey: then
+// `ride` is RIDE_TRIP and `trip` the journey's id (`Journey.id`), which every client places its own train for. The client draws others a little behind (DELAY), between two snapshots.
 // A socket that says nothing for IDLE_MS is closed with reason 'idle': a paused game or a hidden tab. The client
 // opens it again when it plays or shows again, not at once, or a tab left open would reconnect every minute.
 // The relay closes a socket with CLOSE_SPENT when the day's budget for other players is spent, or the address has
 // spent its own share of the day (server/limits.ts; the client waits for midnight UTC either way), with CLOSE_FULL when it has MAX_CLIENTS or the address already has MAX_PER_ADDRESS (the client waits
 // a minute or two), and with CLOSE_FLOOD a socket that sends far more than any client does.
 
-export type Pose = [number, number, number, number, number, number, number];
+export type Pose = [number, number, number, number, number, number, number] | [number, number, number, number, number, number, number, number];
+
+/** `ride` for a train SL drives: the journey is in `trip`, the pose's eighth number. */
+export const RIDE_TRIP = -2;
 
 /** How often everyone gets a snapshot. Incoming messages are what Cloudflare bills, so the client sends as seldom. */
 export const TICK_MS = 500;
@@ -40,11 +44,17 @@ const finite = (v: unknown, limit: number): v is number => typeof v === 'number'
 
 /** A pose from a client, checked and rounded, or null when it is not one. */
 export function parsePose(raw: unknown): Pose | null {
-  if (!Array.isArray(raw) || raw.length !== 7) return null;
-  const [x, y, z, yaw, ride, lx, lz] = raw;
+  if (!Array.isArray(raw) || (raw.length !== 7 && raw.length !== 8)) return null;
+  const [x, y, z, yaw, ride, lx, lz, trip] = raw;
   if (!finite(x, 100000) || !finite(y, 200) || !finite(z, 200) || !finite(yaw, 100) || !finite(ride, 255) || !finite(lx, 200) || !finite(lz, 20)) return null;
   const round = (v: number) => Math.round(v * 100) / 100;
-  return [round(x), round(y), round(z), round(yaw), Math.trunc(ride), round(lx), round(lz)];
+  const pose: Pose = [round(x), round(y), round(z), round(yaw), Math.trunc(ride), round(lx), round(lz)];
+  // A journey only goes with a ride on one, and only as a whole number a client can match: else the rider is on foot.
+  if (pose[4] === RIDE_TRIP) {
+    if (Number.isSafeInteger(trip) && (trip as number) > 0) return [...pose, trip as number] as Pose;
+    pose[4] = -1;
+  }
+  return pose;
 }
 
 /** What a watcher sends, every WATCH_EVERY while its page is shown: no pose, only a sign it is still looking. */

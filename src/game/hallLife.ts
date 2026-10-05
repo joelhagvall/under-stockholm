@@ -1,7 +1,7 @@
 import { BufferAttribute, BufferGeometry, DynamicDrawUsage, Points, PointsMaterial, Vector3, type Camera, type Scene } from 'three';
 import { stockholm } from './clock';
 import { drawFigure, figureMesh, paintFigure } from './figures';
-import { glowTexture } from './gfx/textures';
+import { puffTexture } from './gfx/textures';
 import sv from './i18n/sv.json';
 import { text } from './i18n/text';
 import { kioskShift } from './world/kiosk';
@@ -60,9 +60,9 @@ export class HallLife {
 
     const geo = new BufferGeometry();
     geo.setAttribute('position', new BufferAttribute(this.puffData, 3).setUsage(DynamicDrawUsage));
-    // RGBA: each cloud fades out on its own.
+    // RGBA: each cloud fades out on its own. A soft puff of vapour, not the halo's bright core, which reads as a lamp.
     geo.setAttribute('color', new BufferAttribute(this.puffColor, 4).setUsage(DynamicDrawUsage));
-    this.puffs = new Points(geo, new PointsMaterial({ size: 0.3, map: glowTexture(), vertexColors: true, transparent: true, depthWrite: false }));
+    this.puffs = new Points(geo, new PointsMaterial({ size: 0.3, map: puffTexture(), vertexColors: true, transparent: true, depthWrite: false }));
     this.puffs.frustumCulled = false;
     this.puffs.name = 'breath';
     scene.add(this.puffs);

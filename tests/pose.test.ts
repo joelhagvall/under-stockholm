@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { flooding, hear, MAX_CLIENTS, MAX_PER_ADDRESS, MAX_SENT, MESSAGE_BUDGET, newPlayer, parsePose, readMessage, refill, refused, snapshots, spendMessage, STALE_MS, WATCH, type Player } from '../server/pose';
+import { flooding, hear, MAX_CLIENTS, MAX_PER_ADDRESS, MAX_SENT, MESSAGE_BUDGET, newPlayer, parsePose, readMessage, refill, refused, RIDE_TRIP, snapshots, spendMessage, STALE_MS, WATCH, type Player } from '../server/pose';
 
 const player = (id: number, x: number | null, seen = 0, address = `10.0.0.${id}`): Player => ({ ...newPlayer(id, address, seen), pose: x === null ? null : [x, 0, 1, 0, -1, 0, 0] });
 
@@ -77,4 +77,20 @@ test('one address cannot take the whole relay, and the relay has room for no mor
   expect(refused(same, '203.0.113.8')).toBe(false);
   const full = Array.from({ length: MAX_CLIENTS }, (_, i) => player(i + 1, 0));
   expect(refused(full, '198.51.100.1')).toBe(true);
+});
+
+test('a rider on a train SL drives sends its journey, which goes on to the others whole', () => {
+  const trip = 4_503_599_627_370_495;
+  expect(parsePose([10, 1.1, 2, 0.5, RIDE_TRIP, 3.25, 0.5, trip])).toEqual([10, 1.1, 2, 0.5, RIDE_TRIP, 3.25, 0.5, trip]);
+  // A journey only with such a ride, and only a whole number: else the rider is on foot.
+  expect(parsePose([10, 1.1, 2, 0.5, 4, 3.25, 0.5, trip])).toEqual([10, 1.1, 2, 0.5, 4, 3.25, 0.5]);
+  expect(parsePose([10, 1.1, 2, 0.5, RIDE_TRIP, 3.25, 0.5, 1.5])![4]).toBe(-1);
+  expect(parsePose([10, 1.1, 2, 0.5, RIDE_TRIP, 3.25, 0.5])![4]).toBe(-1);
+  expect(parsePose([10, 1.1, 2, 0.5, RIDE_TRIP, 3.25, 0.5, trip, 1])).toBeNull();
+  const players: Player[] = [
+    { ...newPlayer(1, '10.0.0.1', 0), pose: parsePose([10, 1.1, 2, 0.5, RIDE_TRIP, 3.25, 0.5, trip]) },
+    { ...newPlayer(2, '10.0.0.2', 0), pose: parsePose([12, 1.1, 2, 0.5, -1, 0, 0]) },
+  ];
+  const rows = (JSON.parse(snapshots(players, 1).get(2)!) as { p: number[][] }).p;
+  expect(rows.find((r) => r[0] === 1)).toEqual([1, 10, 1.1, 2, 0.5, RIDE_TRIP, 3.25, 0.5, trip]);
 });

@@ -46,7 +46,7 @@ import type { Seat } from './journey';
 import { EscalatorLife } from './escalatorLife';
 import { Fares, type FareService } from './fares';
 import { drawFigure, figureMesh, paintFigure } from './figures';
-import { Ghosts, ghostUrl, type GhostPose } from './ghosts';
+import { Ghosts, ghostUrl, RIDE_TRIP, type GhostPose } from './ghosts';
 import { relayUrl } from './relay';
 import { gpuName, Telemetry } from './telemetry';
 import { crashFacts, FEEDBACK_MAIL, reportError, watchErrors } from './crash';
@@ -2256,12 +2256,19 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     fares.update(dt, time, player.feet, fareServices.find((s) => s.train === riding) ?? null, fareServices, out);
     lap('effects');
     const me: GhostPose = { x: player.feet.x, y: player.feet.y, z: player.feet.z, yaw: player.yaw, ride: -1, lx: 0, lz: 0 };
-    // Other players follow their own trains; a real journey is not one they share by index.
-    const rideIndex = realOn ? -1 : riding === silverTrain ? SILVER_INDEX : services.findIndex((s) => s.train === riding);
-    if (riding && rideIndex >= 0) { me.ride = rideIndex; me.lx = player.feet.x - riding.position.x; me.lz = player.feet.z - riding.position.z; }
-    ghosts.update(dt, me, player.feet, (ride) => {
-      if (realOn) return null;
-      const t = ride === SILVER_INDEX ? silverTrain : services[ride]?.train;
+    // Other players see you inside the train you ride: a timetable train by its index, which every client shares, and
+    // one SL drives by SL's journey, which each client places its own train for. Silverpilen among SL's trains runs on
+    // a clock of her own (`silverReal.ts`), so a ride on her there is shared by nobody.
+    const rideSvc = riding ? services.find((s) => s.train === riding) : undefined;
+    if (riding && riding === silverTrain && !lineLive[0]) me.ride = SILVER_INDEX;
+    else if (rideSvc?.journey) { me.ride = RIDE_TRIP; me.trip = rideSvc.journey.id; }
+    else if (rideSvc) me.ride = services.indexOf(rideSvc);
+    if (me.ride !== -1) { me.lx = player.feet.x - riding!.position.x; me.lz = player.feet.z - riding!.position.z; }
+    ghosts.update(dt, me, player.feet, (ride, trip) => {
+      const t = ride === RIDE_TRIP ? services.find((s) => s.active && s.journey?.id === trip)?.train
+        : ride === SILVER_INDEX ? (lineLive[0] ? undefined : silverTrain)
+          // An index only means the same train on every client while the timetable drives it.
+          : services[ride]?.journey ? undefined : services[ride]?.train;
       return t && t.isActive ? { x: t.position.x, z: t.position.z } : null;
     });
 
