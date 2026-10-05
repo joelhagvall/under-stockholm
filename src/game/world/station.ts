@@ -676,11 +676,14 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   const innerSpans = ways.filter((w) => w.inner || w.down).map((w) => (w.inner
     ? [w.foot - w.dir * 6, w.foot + w.dir * (run + 1)]
     : [w.flight.wx - w.dir, w.foot + w.dir * 6]).sort((p, q) => p - q) as [number, number]);
-  // At a two-level station, stairs down through the upper island's floor to the lower one, each running outward.
+  // At a two-level station, stairs and escalators down through the upper island's floor to the lower one, each running
+  // outward from its top.
   const stairRun = Math.round(STACK.drop / STACK.riser) * STACK.tread;
-  const stairWells = (stacked ? STACK.stairs : []).map((dx) => {
-    const [x0, x1] = [cx + dx, cx + dx + Math.sign(dx) * stairRun].sort((p, q) => p - q);
-    return { x0, x1, top: cx + dx, dir: Math.sign(dx) as 1 | -1 };
+  const levels = stacked ? [...STACK.stairs.map((dx) => ({ dx, escalator: false })), ...STACK.escalators.map((dx) => ({ dx, escalator: true }))] : [];
+  const stairWells = levels.map(({ dx, escalator }) => {
+    const run = escalator ? escalatorRun(STACK.drop) : stairRun;
+    const [x0, x1] = [cx + dx, cx + dx + Math.sign(dx) * run].sort((p, q) => p - q);
+    return { x0, x1, top: cx + dx, dir: Math.sign(dx) as 1 | -1, run, escalator };
   });
   innerSpans.push(...stairWells.map((w) => [w.x0 - 1, w.x1 + 1] as [number, number]));
   /** Is the island clear for something `half` long either side of `x`? */
@@ -726,7 +729,8 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   // where its floor has passed it, around the escalators (and a lift beside them). A collar closes the rest.
   // In a rock cave, through the crown of the vault.
   const ceilingY = vaulted ? VAULT_TOP : tiled ? TILED_TOP : CAVE_TOP;
-  const holes = ways.filter((w) => w.inner).flatMap((w) => islands.map((zi) => {
+  // Only over the islands with escalators: at a two-level station the lower one's ceiling stays whole.
+  const holes = ways.filter((w) => w.inner).flatMap((w) => upIslands.map((zi) => {
     const a0 = ESC_LANDING + (ceilingY - 0.2 - ESC_HEADROOM - PLATFORM_Y) / Math.tan(ESC_ANGLE);
     // Past where the truss under the flight has cleared the ceiling (see `escalatorSteps`).
     const a1 = ESC_LANDING + (ceilingY + 0.2 + ESC_DESIGN.stepDepth + 0.9 - PLATFORM_Y) / Math.tan(ESC_ANGLE);
@@ -808,8 +812,15 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   // Each stage below ends with a yield, so a station built on the way stays within a frame per stage.
   yield;
   // Trackbed, tracks and the island platforms.
-  around(xa, xb, (a, b) => s.lit.box({ x: a, y: -0.5, z: -halfW }, { x: b, y: 0, z: halfW }, PAINT.ballast, ['ny']), (a, b) => {
-    for (const side of [-1, 1]) s.lit.box({ x: a, y: -0.5, z: Math.min(side * OPENING, side * halfW) }, { x: b, y: 0, z: Math.max(side * OPENING, side * halfW) }, PAINT.ballast, ['ny']);
+  const bed = (a: number, b: number, z0: number, z1: number) => s.lit.box({ x: a, y: -0.5, z: z0 }, { x: b, y: 0, z: z1 }, PAINT.ballast, ['ny']);
+  // Open over the stairs down through the upper island, its cut faces hidden in the well's walls.
+  const inWall = 0.1;
+  if (stacked) around(xa, xb, (a, b) => bed(a, b, -halfW, halfW), (a, b) => {
+    bed(a, b, -halfW, LANE - OPENING - inWall);
+    bed(a, b, LANE + OPENING + inWall, halfW);
+  }, stairWells.map((w) => ({ x0: w.dir < 0 ? w.x0 - inWall : w.x0, x1: w.dir > 0 ? w.x1 + inWall : w.x1 })));
+  else around(xa, xb, (a, b) => bed(a, b, -halfW, halfW), (a, b) => {
+    for (const side of [-1, 1]) bed(a, b, Math.min(side * OPENING, side * halfW), Math.max(side * OPENING, side * halfW));
   });
   // In the city by the water, railings and Riddarfjärden; elsewhere fences and the suburbs.
   if (outdoor && def.city) {
@@ -884,7 +895,10 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
       for (const side of [-1, 1]) physics.box({ x: a, y: -1, z: Math.min(zi + side * OPENING, zi + side * PLATFORM_HALF_W) }, { x: b, y: PLATFORM_Y, z: Math.max(zi + side * OPENING, zi + side * PLATFORM_HALF_W) });
     }, cutsHere);
     for (const o of openings) buildPlatformOpening(s, physics, o.way.flight, o.way.dir, o.a, OPENING);
-    if (stacked && zi > 0) for (const w of stairWells) buildLevelStairs(s, physics, w.top, w.dir, zi, stairRun, OPENING);
+    if (stacked && zi > 0) for (const w of stairWells) {
+      if (w.escalator) buildLevelWell(s, physics, w.top, w.dir, zi, w.run, ESC_HALF_W, OPENING + 0.2);
+      else buildLevelStairs(s, physics, w.top, w.dir, zi, w.run, OPENING);
+    }
 
     // Fence and warning at the far platform end. On a station's own island a
     // gate in the middle stands open onto steps down to the staff door.
@@ -1266,6 +1280,20 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     // A long way from the top of the escalators to the hall: a tiled passage.
     if (way.corridor > 0) buildCorridor(ws, hallPhysics, wx + way.dir * run, way.dir, way.corridor, way.hallY, way.incline);
   }
+  // At a two-level station, the escalators between its levels, after the halls' (the first is the station's own).
+  for (const w of stairWells.filter((w) => w.escalator)) {
+    const es = new Section(`${def.name}-level-escalator`, theme.ambient, dry);
+    const base = PLATFORM_Y - STACK.drop;
+    // From the lower platform at the well's far end up to its top on the upper island.
+    const foot = w.top + w.dir * w.run;
+    const zone = yield* escalatorSteps(es, shiftZ(physics, LANE), foot, -w.dir as 1 | -1, STACK.drop, true, base, true);
+    zone.z = LANE;
+    escalators.push(zone);
+    for (const a of [w.run * 0.25, w.run * 0.6, w.run * 0.9]) es.light(foot - w.dir * a, escalatorHeight(a, STACK.drop, base) + 2.6, 0, rgb(0xfff2dc), 0.8, 7);
+    const g = yield* es.finishSteps();
+    g.position.z = LANE;
+    wayGroups[0].push(g);
+  }
   const escalator = escalators[0];
   yield;
   // The same station on another line, where it lies elsewhere along x: a walkway leads there.
@@ -1555,16 +1583,24 @@ function buildLevelStairs(s: Section, physics: Physics, top: number, dir: 1 | -1
   const riser = STACK.drop / n;
   const tread = run / n;
   const low = PLATFORM_Y - STACK.drop;
-  const stone = (_p: Vector3, nv: Vector3): RGB => (nv.y > 0.5 ? rgb(0x8f8b83) : rgb(0x6c6a64));
-  const w = half - 0.15;
+  const stone = (_p: Vector3, nv: Vector3): RGB => (nv.y > 0.5 ? rgb(0x6b6862) : rgb(0x45433f));
+  // Into the walls either side, so no face of the steps lies in theirs.
+  const w = half + 0.05;
   const x = (a: number) => top + dir * a;
   const span = (a: number, b: number) => [Math.min(x(a), x(b)), Math.max(x(a), x(b))] as const;
-  for (let k = 0; k < n; k++) {
+  /** A strip along the front edge of a tread at `a` along the flight, pale or in yellow as a warning. */
+  const nosing = (a: number, y: number, warn: boolean) => {
+    const [x0, x1] = span(a - 0.05, a);
+    s.lit.box({ x: x0, y: y - 0.01, z: zi - w }, { x: x1, y: y + 0.004, z: zi + w }, warn ? rgb(0xd9b93b) : rgb(0xbdb8ad));
+  };
+  // The platform's own edge at the top, in yellow as the lowest step's.
+  nosing(0, PLATFORM_Y, true);
+  // The last tread is the lower platform's floor.
+  for (let k = 0; k < n - 1; k++) {
     const [x0, x1] = span(k * tread, (k + 1) * tread);
     const y = PLATFORM_Y - (k + 1) * riser;
     s.lit.box({ x: x0, y: low - 0.3, z: zi - w }, { x: x1, y, z: zi + w }, stone);
-    const nose = dir > 0 ? x0 : x1 - 0.05;
-    s.lit.box({ x: nose, y: y - 0.01, z: zi - w }, { x: nose + 0.05, y: y + 0.004, z: zi + w }, rgb(0xd9b93b));
+    nosing((k + 1) * tread, y, k === n - 2);
   }
   // A ramp for a steady walk down, under the steps' edges.
   const length = Math.hypot(run, STACK.drop);
@@ -1572,33 +1608,58 @@ function buildLevelStairs(s: Section, physics: Physics, top: number, dir: 1 | -1
   const mid = new Vector3(x(run / 2), PLATFORM_Y - STACK.drop / 2, zi);
   const normal = new Vector3(-Math.sin(angle), Math.cos(angle), 0);
   physics.tiltedBox(mid.addScaledVector(normal, -0.15), { x: length / 2 + 0.1, y: 0.15, z: w }, angle);
-  // The well: walls either side and at its far end, from under the lower vault's crown up to the upper floor.
-  const wall = rgb(0xdad6cc);
-  const y0 = VAULT_TOP - STACK.drop - 0.6;
-  const [a0, a1] = span(0, run);
+  // A steel handrail down each wall beside the steps.
   for (const side of [-1, 1]) {
-    const z = zi + side * half;
-    s.lit.box({ x: a0, y: y0, z: Math.min(z, z + side * 0.2) }, { x: a1, y: PLATFORM_Y - 0.02, z: Math.max(z, z + side * 0.2) }, wall, [], 1.5);
-    // A frame round the well where it comes through the lower vault, over the edge of its opening.
-    s.lit.box({ x: a0 - 0.5, y: y0, z: Math.min(z, z + side * 0.9) }, { x: a1 + 0.5, y: y0 + 0.3, z: Math.max(z, z + side * 0.9) }, wall);
+    const rail = new BoxGeometry(length, 0.05, 0.05);
+    const at = new Vector3(x(run / 2), PLATFORM_Y - STACK.drop / 2 + 0.9, zi + side * (half - 0.06));
+    s.lit.geometry(rail, new Matrix4().makeRotationZ(angle).setPosition(at), LEVEL_STEEL);
+    rail.dispose();
   }
-  const far = x(run);
-  for (const [xe, out] of [[far, dir], [top, -dir]] as const) {
-    const [e0, e1] = [xe, xe + out * 0.9].sort((p, q) => p - q);
-    s.lit.box({ x: e0, y: y0, z: zi - half - 0.9 }, { x: e1, y: y0 + 0.3, z: zi + half + 0.9 }, wall);
-  }
-  s.lit.box({ x: Math.min(far, far + dir * 0.2), y: y0, z: zi - half }, { x: Math.max(far, far + dir * 0.2), y: PLATFORM_Y - 0.02, z: zi + half }, wall, [], 1.5);
-  // Railings round the opening up on the upper island, open at the top of the stairs.
-  const rail = rgb(0x5e6468);
-  for (const side of [-1, 1]) {
-    const z = zi + side * (half + 0.05);
-    s.lit.box({ x: a0, y: PLATFORM_Y + 0.95, z: z - 0.03 }, { x: a1, y: PLATFORM_Y + 1.02, z: z + 0.03 }, rail);
-    for (let k = 0; k <= run; k += run / 6) s.lit.box({ x: x(k) - 0.03, y: PLATFORM_Y, z: z - 0.03 }, { x: x(k) + 0.03, y: PLATFORM_Y + 0.95, z: z + 0.03 }, rail);
-    physics.box({ x: a0, y: PLATFORM_Y, z: z - 0.05 }, { x: a1, y: PLATFORM_Y + 1.05, z: z + 0.05 });
-  }
-  s.lit.box({ x: far - 0.03, y: PLATFORM_Y + 0.95, z: zi - half }, { x: far + 0.03, y: PLATFORM_Y + 1.02, z: zi + half }, rail);
-  physics.box({ x: far - 0.05, y: PLATFORM_Y, z: zi - half }, { x: far + 0.05, y: PLATFORM_Y + 1.05, z: zi + half });
+  buildLevelWell(s, physics, top, dir, zi, run, half, half + 0.2);
   for (const a of [run * 0.3, run * 0.75]) s.light(x(a), PLATFORM_Y - STACK.drop * (a / run) + 2.2, zi, rgb(0xfff2dc), 0.8, 7);
+}
+
+const LEVEL_STEEL = rgb(0xaeb3b6);
+
+/**
+ * The well round a way between a two-level station's levels (`STACK`), as the real one's: walls of dark brown stone
+ * `inner` to `outer` either side of it from the lower platform up through the upper floor, standing on as a solid
+ * parapet round the opening, open at its top, with a steel handrail on it. From `top` on the upper island it runs `run`
+ * toward `dir`, down to the lower.
+ */
+function buildLevelWell(s: Section, physics: Physics, top: number, dir: 1 | -1, zi: number, run: number, inner: number, outer: number): void {
+  const low = PLATFORM_Y - STACK.drop;
+  const wall = rgb(0x46362f);
+  const y0 = VAULT_TOP - STACK.drop - 0.6;
+  const parapet = PLATFORM_Y + 1.05;
+  const far = top + dir * run;
+  const [a0, a1] = [top, far].sort((p, q) => p - q);
+  // The side walls' ends at the far end lie inside the far wall.
+  const farFace: BoxFace = dir > 0 ? 'px' : 'nx';
+  for (const side of [-1, 1]) {
+    const [z0, z1] = [zi + side * inner, zi + side * outer].sort((p, q) => p - q);
+    s.lit.box({ x: a0, y: low, z: z0 }, { x: a1, y: parapet, z: z1 }, wall, [farFace, 'ny'], 1.5);
+    physics.box({ x: a0, y: low, z: z0 }, { x: a1, y: parapet, z: z1 });
+    // A frame round the well where it comes through the lower vault, over the edge of its opening.
+    const [f0, f1] = [zi + side * (outer - 0.01), zi + side * (outer + 0.7)].sort((p, q) => p - q);
+    s.lit.box({ x: a0 - 0.5, y: y0, z: f0 }, { x: a1 + 0.5, y: y0 + 0.3, z: f1 }, wall);
+    // The handrail along the parapet's top.
+    const zr = zi + side * (inner + outer) / 2;
+    s.lit.box({ x: a0, y: parapet, z: zr - 0.035 }, { x: a1, y: parapet + 0.05, z: zr + 0.035 }, LEVEL_STEEL, ['ny']);
+  }
+  for (const [xe, out] of [[far, dir], [top, -dir]] as const) {
+    const [e0, e1] = [xe + out * 0.19, xe + out * 0.9].sort((p, q) => p - q);
+    // A hair inside the side frames where they cross, so no two faces share a plane.
+    s.lit.box({ x: e0, y: y0 + 0.005, z: zi - outer - 0.695 }, { x: e1, y: y0 + 0.295, z: zi + outer + 0.695 }, wall);
+  }
+  // Under the top, down on the lower platform, the well's back is clad as the walls are.
+  const [t0, t1] = [top + dir * 0.01, top - dir * 0.2].sort((p, q) => p - q);
+  s.lit.box({ x: t0, y: low, z: zi - outer + 0.01 }, { x: t1, y: y0, z: zi + outer - 0.01 }, wall, ['ny', 'py'], 1.5);
+  physics.box({ x: t0, y: low, z: zi - outer }, { x: t1, y: y0, z: zi + outer });
+  const [f0, f1] = [far, far + dir * 0.2].sort((p, q) => p - q);
+  s.lit.box({ x: f0, y: y0, z: zi - outer }, { x: f1, y: parapet, z: zi + outer }, wall, [], 1.5);
+  physics.box({ x: f0, y: PLATFORM_Y, z: zi - outer }, { x: f1, y: parapet, z: zi + outer });
+  s.lit.box({ x: (f0 + f1) / 2 - 0.035, y: parapet, z: zi - (inner + outer) / 2 }, { x: (f0 + f1) / 2 + 0.035, y: parapet + 0.045, z: zi + (inner + outer) / 2 }, LEVEL_STEEL, ['ny']);
 }
 
 /** @param level under a viaduct: the square lies as low as the hall, reached through its door, with no stairs up */

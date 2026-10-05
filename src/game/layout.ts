@@ -32,8 +32,12 @@ export const STACK = {
   copy: 60,
   /** In the cave, what lies under this height on track 1's side is built as the lower level. */
   top: 14,
-  /** Stairs from the upper island down to the lower, as through the real one's floor: where each starts (from the middle, running outward), step size. */
-  stairs: [-24, 24],
+  /**
+   * Stairs and escalators from the upper island down to the lower, as through the real one's floor: where each starts
+   * (from the middle, running outward), and the stairs' step size.
+   */
+  stairs: [-24],
+  escalators: [24],
   riser: 0.17,
   tread: 0.3,
 };

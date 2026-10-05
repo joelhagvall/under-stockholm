@@ -117,8 +117,10 @@ export function buildEscalators(s: Section, physics: Physics, wx: number, e: 1 |
 /**
  * @param rise how far the flight climbs to the hall (see `StationDef.rise`)
  * @param tall an underground shaft, open up to the hall's ceiling (see `shaftCeiling`)
+ * @param open no shaft of its own, only the flight and its balustrades, in a well built round it (between a two-level
+ * station's levels, `STACK`), with neither walls, ceiling nor lamps
  */
-export function* escalatorSteps(s: Section, physics: Physics, wx: number, e: 1 | -1, rise: number, tall = true, base = PLATFORM_Y): Generator<void, EscalatorZone> {
+export function* escalatorSteps(s: Section, physics: Physics, wx: number, e: 1 | -1, rise: number, tall = true, base = PLATFORM_Y, open = false): Generator<void, EscalatorZone> {
   const RUN = escalatorRun(rise);
   const height = (a: number) => escalatorHeight(a, rise, base);
   const point = (a: number, y: number, z: number) => new Vector3(wx + e * a, y, z);
@@ -142,7 +144,7 @@ export function* escalatorSteps(s: Section, physics: Physics, wx: number, e: 1 |
   const truss = tall ? 0 : 0.9;
   // The ceiling and the walls up to it: straight between the steps' joints and where the ceiling levels out.
   const top = (a: number, z: number) => point(a, shaftCeiling(a, rise, tall, base), z);
-  const breaks = s.dry ? [] : [...new Set([...joints, ...(tall ? ceilingBends(rise, RUN) : [])])].filter((a) => a >= 0 && a <= RUN).sort((a, b) => a - b);
+  const breaks = s.dry || open ? [] : [...new Set([...joints, ...(tall ? ceilingBends(rise, RUN) : [])])].filter((a) => a >= 0 && a <= RUN).sort((a, b) => a - b);
   for (let i = 1; i < breaks.length; i++) {
     const a = breaks[i - 1], b = breaks[i];
     inward(top(a, -ESC_HALF_W), top(b, -ESC_HALF_W), top(b, ESC_HALF_W), top(a, ESC_HALF_W), DOWN, 0xe4e5e2, 1.5);
@@ -170,6 +172,13 @@ export function* escalatorSteps(s: Section, physics: Physics, wx: number, e: 1 |
     }
   }
 
+  // Without a shaft's floor round its top, steel deck plates level with the landing beside the treads.
+  if (open && !s.dry) {
+    const t = E.treadWidth / 2;
+    for (const [z0, z1] of [[-ESC_HALF_W, -E.laneCenter - t], [-E.laneCenter + t, E.laneCenter - t], [E.laneCenter + t, ESC_HALF_W]]) {
+      box(RUN - ESC_LANDING, RUN, base + rise - 0.3, base + rise, z0, z1, 0x8e9599);
+    }
+  }
   const { casing, rubber } = railGeometries(rise);
   for (const lane of s.dry ? [] : [-1, 1]) {
     for (const side of [-1, 1]) {
@@ -204,7 +213,7 @@ export function* escalatorSteps(s: Section, physics: Physics, wx: number, e: 1 |
     }
   }
 
-  for (let a = ESC_LANDING; !s.dry && a < RUN; a += E.lightSpacing) {
+  for (let a = ESC_LANDING; !s.dry && !open && a < RUN; a += E.lightSpacing) {
     const x = wx + e * a;
     // A lamp on each wall over the steps, and a light strip on the ceiling high above.
     const y = height(a) + LAMP_HEIGHT;
@@ -220,7 +229,7 @@ export function* escalatorSteps(s: Section, physics: Physics, wx: number, e: 1 |
   // The shaft's walls, down to the platform by the end wall and further up only to the steps' underside: a passage can
   // cross under the flight there (see `SIDE_DOOR`).
   const low = Math.min(RUN, SIDE_DOOR.turn - 1);
-  for (const side of [-1, 1]) {
+  for (const side of open ? [] : [-1, 1]) {
     const [z0, z1] = side > 0 ? [ESC_HALF_W, ESC_HALF_W + E.railWidth] : [-ESC_HALF_W - E.railWidth, -ESC_HALF_W];
     physics.box({ x: Math.min(wx, wx + e * low), y: base, z: z0 }, { x: Math.max(wx, wx + e * low), y: shaftTop(rise, base), z: z1 });
     if (RUN > low) physics.box({ x: Math.min(wx + e * low, wx + e * RUN), y: height(low) - E.stepDepth - 0.3, z: z0 }, { x: Math.max(wx + e * low, wx + e * RUN), y: shaftTop(rise, base), z: z1 });
