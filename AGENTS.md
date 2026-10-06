@@ -4,6 +4,7 @@ Browser first-person game in a stylized Stockholm metro. Vite + TypeScript + thr
 
 ## Rules
 
+- Rules for agents go in this file. `CLAUDE.md` holds only `@AGENTS.md`: never write anything else there.
 - Use Bun for everything (`bun install`, `bun run dev`, `bunx`). Never npm, yarn or pnpm.
 - Code, comments and docs in English. The world is always Swedish: signs, boards, announcements, anything spoken and quoted speech. Everything said to the player comes in Swedish and English: menus, help, settings, the `E ·` prompts, captions of what happens (with any quoted speech left in Swedish inside the English sentence), the pause menu's status and the discovery book: `src/game/i18n/text.ts` holds the current language (`src/lang.ts` picks it: the player's choice, else Swedish), `en.json` overrides only those keys, and modules that draw the world import `sv.json` directly. The landing page exists in both languages, `index.html` and `en/index.html`, linked with `hreflang`: change them together (`tests/i18n.test.ts` checks they match).
 - Never use em-dashes in code, comments, docs or copy. Use a comma, colon or period, and `|` as a title separator.
@@ -38,6 +39,8 @@ Browser first-person game in a stylized Stockholm metro. Vite + TypeScript + thr
 
 
 ## Quality gates
+
+**Look at it in a browser too, unasked.** After any change to the game, the landing pages or the network view, check it with Claude in Chrome (Playwright when Chrome is down) before calling it done or offering to commit: tests and the gate passing are not enough, and pure refactors of code the game runs count too. Run `bun run dev` (port 5180) and open `?debug`. The automated tab often counts as hidden, so the frame loop stops: run frames with `__us.step(seconds, 30)`, move with `__us.goto(i)`, and read state through `__us` (`world.stations[i].lastDepartures` holds a board's rows and banner, `world.interactables` the `E ·` prompts). The landing map pauses in a hidden tab: import its modules through Vite instead (`await import('/src/landing/trains.ts')`). Read the console's errors after a reload, say what was checked and what could not be, and close the tab and stop the dev server afterwards.
 
 `bun run check` is the gate (`scripts/check.ts`), and nothing is done until it has passed. It comes in levels, cheap to dear, and starts the servers itself:
 
