@@ -27,8 +27,23 @@ test("a station's board shows its own messages first", () => {
     message(1, 'Avstängd hiss vid Akalla', '2026-09-20T11:00:00+02:00', '2026-10-01T12:00:00+02:00', ['Akalla'], 5),
     message(3, 'Avstängd rulltrappa vid Rådhuset', '2026-09-25T11:30:00+02:00', '2026-09-25T13:00:00+02:00', ['Rådhuset']),
   ], now);
-  expect(forStation(list, 'Rådhuset').map((d) => d.id)).toEqual([3, 1]);
-  expect(forStation(list, 'Stadshagen').map((d) => d.id)).toEqual([1, 3]);
+  expect(forStation(list, 'Rådhuset', ['10', '11']).map((d) => d.id)).toEqual([3, 1]);
+  expect(forStation(list, 'Stadshagen', ['10', '11']).map((d) => d.id)).toEqual([1, 3]);
+});
+
+test("a station's board and a train's speaker keep to their own lines", () => {
+  const on = (id: number, header: string, lines: string[], stops: string[] = []) => ({ ...message(id, header, '2026-09-25T11:00:00+02:00', '2026-09-25T13:00:00+02:00', stops), scope: { stop_areas: stops.map((name) => ({ name })), lines: lines.map((designation) => ({ designation })) } });
+  const list = parseDisruptions([
+    on(1, 'Inställd delsträcka mot Hjulsta', ['10'], ['Rådhuset']),
+    on(2, 'Försenad avgång mot Skarpnäck', ['17'], ['T-Centralen', 'Slussen']),
+    on(3, 'Entré vid Östermalmstorg stängd', ['13', '14'], ['Östermalmstorg']),
+    on(4, 'Hela tunnelbanan', []),
+  ], now);
+  const lines = (id: string) => NETWORK.lines.find((l) => l.id === id)!.routes.map((r) => r.number);
+  // Slussen has the red and green lines: no blue message there.
+  expect(forStation(list, 'Slussen', [...lines('red'), ...lines('green')]).map((d) => d.id)).toEqual([2, 3, 4]);
+  expect(forStation(list, 'Kista', lines('blue')).map((d) => d.id)).toEqual([1, 4]);
+  expect(forStation(list, 'T-Centralen', ['10', '11', '13', '14', '17', '18', '19']).map((d) => d.id)).toEqual([2, 1, 3, 4]);
 });
 
 test('long details are cut to one speakable sentence', () => {

@@ -98,7 +98,7 @@ export function parseWarnings(body: unknown, now: number): WeatherWarning[] {
 }
 
 /** A warning as traffic information, for the boards and the train speaker. */
-export const asNotice = (w: WeatherWarning): Disruption => ({ id: ID_BASE + w.id, header: w.header, summary: w.summary, stations: [], weight: LEVELS[w.level] });
+export const asNotice = (w: WeatherWarning): Disruption => ({ id: ID_BASE + w.id, header: w.header, summary: w.summary, stations: [], lines: [], weight: LEVELS[w.level] });
 
 export class Warnings {
   private list: WeatherWarning[] = [];

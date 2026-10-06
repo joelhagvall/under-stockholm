@@ -1606,9 +1606,16 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   /** The board header takes turns: the last trains, then each of SL's messages for the station and SMHI's warnings, six seconds each. */
   /** The year on the boards while a life on the blue line plays. */
   let lifeYear: number | null = null;
+  /** SL's line numbers (the routes' numbers) of these lines, by index in the network. */
+  const slLines = (lines: number[]) => lines.flatMap((li) => net.lines[li].routes.map((r) => r.number));
+  /** The lines whose traffic messages the listener hears: the train's they ride, else the station's they stand in. */
+  const listenerLines = (station: number | null) => {
+    const line = riding ? services.find((s) => s.train === riding)?.line : undefined;
+    return slLines(line !== undefined ? [line] : station !== null ? net.stations[station].lines : []);
+  };
   function banner(station: number, lastTrain?: string): string | undefined {
     if (lifeYear !== null) return String(lifeYear);
-    const texts = [...(lastTrain ? [lastTrain] : []), ...forStation(disruptions.active, net.stations[station].name).map((d) => d.header), ...warnings.notices.map((d) => d.header)];
+    const texts = [...(lastTrain ? [lastTrain] : []), ...forStation(disruptions.active, net.stations[station].name, slLines(net.stations[station].lines)).map((d) => d.header), ...warnings.notices.map((d) => d.header)];
     return texts.length ? texts[Math.floor(time / 6) % texts.length] : undefined;
   }
   /** The last train before the night break at each station and track, cached for a minute. */
@@ -2041,7 +2048,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     const candidate = listening && !document.hidden && !respawning && !driving ? announcementAt(net,
       regular.map((service) => ({ id: service.train.id, time: service.clock, state: service.state!, timetable: service.timetable })),
       { trainId: riding?.id ?? null, station: listenerLocation.station, onPlatform: listenerLocation.area === 'platform' || listenerLocation.area === 'track' },
-      disruptions.traffic[0] ?? warnings.notices[0] ?? null,
+      disruptions.traffic(listenerLines(listenerLocation.station))[0] ?? warnings.notices[0] ?? null,
     ) : null;
     const notice = announcements.update(candidate);
     if (notice.changed) {

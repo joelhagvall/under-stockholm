@@ -1,9 +1,10 @@
 import { relayFeed } from './relay';
 
 /**
- * Real traffic information for the blue line from SL's deviations API (no
- * key), read through the relay: closed lifts, extra departures, signal faults. The boards
- * show the headers and the train speaker reads them out. Messages are only
+ * Real traffic information for every metro line from SL's deviations API (no
+ * key), read through the relay: closed lifts, extra departures, signal faults. Each
+ * message names its lines, so a station's boards show only those of the lines that
+ * call there and a train's speaker reads only its own line's. Messages are only
  * trusted while polls keep succeeding; stale data shows nothing, so the game
  * never announces a fault that SL has already cleared.
  */
@@ -19,6 +20,8 @@ export interface Disruption {
   summary: string;
   /** Station names the message is about (empty for the whole line). */
   stations: string[];
+  /** SL's line numbers the message is about, such as '11' (empty for every line). */
+  lines: string[];
   /** Higher is more important. */
   weight: number;
   /** A broken escalator or lift at the stations named, rather than a traffic problem. */
@@ -30,7 +33,7 @@ interface ApiMessage {
   publish?: { from?: string; upto?: string };
   priority?: { importance_level?: number; influence_level?: number };
   message_variants?: Array<{ header?: string; details?: string; language?: string }>;
-  scope?: { stop_areas?: Array<{ name?: string }> };
+  scope?: { stop_areas?: Array<{ name?: string }>; lines?: Array<{ designation?: string }> };
   categories?: Array<{ group?: string; type?: string }>;
 }
 
@@ -66,6 +69,7 @@ export function parseDisruptions(body: unknown, now: number): Disruption[] {
       header,
       summary: firstSentence(sv.details ?? ''),
       stations: (m.scope?.stop_areas ?? []).map((a) => a.name ?? '').filter(Boolean),
+      lines: (m.scope?.lines ?? []).map((l) => l.designation ?? '').filter(Boolean),
       weight: (m.priority?.importance_level ?? 0) * 10 + (m.priority?.influence_level ?? 0),
       facility: facilityOf(m, `${header} ${sv.details ?? ''}`),
     });
@@ -73,9 +77,13 @@ export function parseDisruptions(body: unknown, now: number): Disruption[] {
   return out.sort((a, b) => b.weight - a.weight);
 }
 
-/** Messages for one station's board: its own first, then the rest of the line. */
-export function forStation(list: Disruption[], station: string): Disruption[] {
-  return [...list.filter((d) => d.stations.includes(station)), ...list.filter((d) => !d.stations.includes(station))];
+/** Whether a message is about any of these line numbers. */
+export const onLines = (d: Disruption, lines: string[]) => !d.lines.length || d.lines.some((n) => lines.includes(n));
+
+/** Messages for one station's board, of the lines (SL's numbers) that call there: its own first, then the rest of those lines. */
+export function forStation(list: Disruption[], station: string, lines: string[]): Disruption[] {
+  const ours = list.filter((d) => onLines(d, lines));
+  return [...ours.filter((d) => d.stations.includes(station)), ...ours.filter((d) => !d.stations.includes(station))];
 }
 
 export class Disruptions {
@@ -85,7 +93,7 @@ export class Disruptions {
 
   /** @param forced debug: one made-up message instead of SL's (`?disruption=...`) */
   constructor(private readonly forced: string | null) {
-    if (forced) this.list = [{ id: 0, header: forced, summary: '', stations: [], weight: 99 }];
+    if (forced) this.list = [{ id: 0, header: forced, summary: '', stations: [], lines: [], weight: 99 }];
     else void this.poll();
   }
 
@@ -94,9 +102,9 @@ export class Disruptions {
     return this.forced || Date.now() / 1000 - this.lastOk < STALE ? this.list : [];
   }
 
-  /** Traffic messages for the train speaker: not the ones about escalators and lifts. */
-  get traffic(): Disruption[] {
-    return this.active.filter((d) => !d.facility);
+  /** Traffic messages on these lines (SL's numbers) for the train speaker: not the ones about escalators and lifts. */
+  traffic(lines: string[]): Disruption[] {
+    return this.active.filter((d) => !d.facility && onLines(d, lines));
   }
 
   /** Whether SL reports an escalator out of order at a station right now. */

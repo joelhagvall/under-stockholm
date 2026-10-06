@@ -7,8 +7,8 @@ import { STOCKHOLM } from './clock';
  * No three.js here: the relay and the landing page import it.
  */
 
-/** SL's deviations API: traffic information for the blue line. */
-export const SL_DEVIATIONS = 'https://deviations.integration.sl.se/v1/messages?future=false&transport_mode=METRO&line=10&line=11';
+/** SL's deviations API: traffic information for every metro line. */
+export const SL_DEVIATIONS = 'https://deviations.integration.sl.se/v1/messages?future=false&transport_mode=METRO&line=10&line=11&line=13&line=14&line=17&line=18&line=19';
 
 /** Open-Meteo: the weather in Stockholm right now. */
 export const WEATHER = `https://api.open-meteo.com/v1/forecast?latitude=${STOCKHOLM.lat}&longitude=${STOCKHOLM.lon}&current=temperature_2m,precipitation,weather_code&timezone=Europe%2FStockholm`;
