@@ -1,9 +1,9 @@
 import { expect, test } from 'bun:test';
 import { serviceOpen, stockholm, stockholmEpoch } from '../src/game/clock';
 import { BLUE_LINE, routeTimetables } from '../src/game/line';
-import { TRAIN_COUNT } from '../src/game/operations';
 import { dateAt, daytime, silverStop, weekdayAt } from '../src/game/showcase';
 import { Silverpilen } from '../src/game/silverpilen';
+import { trunkHeadway } from './blue';
 
 // A Sunday in late September, a little after eleven at night.
 const sundayNight = stockholmEpoch(2026, 9, 27, 23, 10);
@@ -34,7 +34,7 @@ test('dates land on the day, this year', () => {
 test('the tour finds Silverpilen with its doors opening', () => {
   const timetables = routeTimetables(BLUE_LINE);
   const route = BLUE_LINE.routes.findIndex((r) => r.number === BLUE_LINE.ghost.route);
-  const silver = new Silverpilen(timetables[route], timetables[0].cycle / TRAIN_COUNT, 5000);
+  const silver = new Silverpilen(timetables[route], trunkHeadway, 5000);
   const from = stockholmEpoch(2026, 9, 28, 13, 0);
   const stop = silverStop(silver, from);
   expect(stop).not.toBeNull();

@@ -6,20 +6,11 @@ import type { Timetable } from './timetable';
  * the moment a train leaves the east turnback cavern, so trains only enter and
  * leave service out of sight. Everything here is a pure function of the clock.
  *
- * Services alternate between the routes (`service % routes`), spread evenly
- * over their common cycle, so the trunk sees a train every `cycle / TRAIN_COUNT`.
+ * Every service of the network is a slot (`serviceSlots` in `routes.ts`): its
+ * route's timetable and its clock offset, the routes of each line taking turns.
  */
 
-export const TRAIN_COUNT = 6;
-
-/** Services that rest on the summer timetable: one per route, so both branches keep a train every other slot. */
-export const SUMMER_REST = [2, 5];
-
 const mod = (a: number, n: number) => ((a % n) + n) % n;
-
-export function serviceOffset(timetable: Timetable, index: number): number {
-  return (index * timetable.cycle) / TRAIN_COUNT;
-}
 
 /** Game time when the loop containing `time` began for a train with this offset. */
 export function loopStart(timetable: Timetable, time: number, offset: number): number {
@@ -55,40 +46,20 @@ export class Operations {
   /** Every route's timetable, by route index. */
   readonly timetables: Timetable[];
 
-  /**
-   * @param timetables one line's timetables, one per route with the same
-   * cycle (`TRAIN_COUNT` services taking turns between them), or every
-   * service of the network as slots, with the routes' timetables by index
-   */
-  constructor(timetables: Timetable | Timetable[] | { slots: ServiceSlot[]; timetables: Timetable[] }) {
-    if ('slots' in timetables) {
-      this.slots = timetables.slots;
-      this.timetables = timetables.timetables;
-    } else {
-      this.timetables = Array.isArray(timetables) ? timetables : [timetables];
-      this.slots = Array.from({ length: TRAIN_COUNT }, (_, i) => ({
-        timetable: this.timetables[i % this.timetables.length],
-        offset: serviceOffset(this.timetables[0], i),
-        route: i % this.timetables.length,
-        line: 0,
-        summerRest: SUMMER_REST.includes(i),
-      }));
-    }
+  /** @param service every service of the network as slots, with the routes' timetables by route index */
+  constructor(service: { slots: ServiceSlot[]; timetables: Timetable[] }) {
+    this.slots = service.slots;
+    this.timetables = service.timetables;
     this.offsets = this.slots.map((s) => s.offset);
-  }
-
-  /** The first route's timetable. */
-  get timetable(): Timetable {
-    return this.timetables[0];
   }
 
   /** Route index of a service. */
   routeOf(service: number): number {
-    return this.slots[service]?.route ?? service % this.timetables.length;
+    return this.slots[service].route;
   }
 
   timetableOf(service: number): Timetable {
-    return this.slots[service]?.timetable ?? this.timetables[this.routeOf(service)];
+    return this.slots[service].timetable;
   }
 
   /** Whether a service runs the loop that starts at `start`. */

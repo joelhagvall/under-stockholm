@@ -6,12 +6,12 @@ import { luciaHours, luciaPose, shoeStation, studentsAboard } from '../src/game/
 import { PLATFORM_HALF_L, PLATFORM_HALF_W, TRACK_Z } from '../src/game/layout';
 import { BLUE_LINE, NETWORK, routeTimetables } from '../src/game/line';
 import { lostToday } from '../src/game/lostProperty';
-import { Operations, SUMMER_REST, TRAIN_COUNT } from '../src/game/operations';
 import { collectorPose, platformScene } from '../src/game/platformLife';
 import { layoutSignals, occupied } from '../src/game/signals';
 import { schoolTrip } from '../src/game/carriageLife';
 import { workSite } from '../src/game/trackWork';
 import { preaching } from '../src/game/preacher';
+import { blueOperations } from './blue';
 
 test('the year has its days: Lucia, graduation, weekend nights, trees and fireworks', () => {
   expect(occasion(stockholmEpoch(2026, 12, 13, 8, 0))).toBe('lucia');
@@ -68,12 +68,16 @@ test('signals guard every tunnel, red while a train is in the block', () => {
 });
 
 test('the summer timetable rests one train per route, only at the east turnback', () => {
-  const ops = new Operations(routeTimetables(BLUE_LINE));
+  const ops = blueOperations();
+  const all = ops.slots.map((_, i) => i);
+  const resting = ops.slots.filter((s) => s.summerRest).length;
+  expect(resting).toBeGreaterThan(0);
+  // Each route keeps most of its trains.
+  for (let r = 0; r < ops.timetables.length; r++) expect(ops.slots.filter((s) => s.route === r && !s.summerRest).length).toBeGreaterThan(0);
   const july = stockholmEpoch(2026, 7, 15, 12);
-  const running = Array.from({ length: TRAIN_COUNT }, (_, i) => ops.inService(july, i));
-  expect(running.filter(Boolean).length).toBe(TRAIN_COUNT - SUMMER_REST.length);
+  expect(all.filter((i) => ops.inService(july, i)).length).toBe(all.length - resting);
   const september = stockholmEpoch(2026, 9, 15, 12);
-  expect(Array.from({ length: TRAIN_COUNT }, (_, i) => ops.inService(september, i)).every(Boolean)).toBe(true);
+  expect(all.every((i) => ops.inService(september, i))).toBe(true);
 });
 
 test('the emergency brake stops the train in the tunnel, then it arrives late at the next station', () => {

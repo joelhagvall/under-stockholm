@@ -1,12 +1,14 @@
 import { expect, test } from 'bun:test';
 import { busyness, serviceOpen, stockholm, stockholmEpoch, sunElevation } from '../src/game/clock';
 import { cleanerPose, stationLight } from '../src/game/night';
-import { loopStart, Operations, referenceEpoch, serviceOffset, startTime, TRAIN_COUNT } from '../src/game/operations';
+import { loopStart, Operations, referenceEpoch, startTime } from '../src/game/operations';
 import { PLATFORM_HALF_L, TRACK_Z } from '../src/game/layout';
 import { Timetable } from '../src/game/timetable';
 
 const timetable = new Timetable([0, 500, 1000, 1500]);
-const operations = new Operations(timetable);
+/** Six trains spread evenly over the loop. */
+const offset = (i: number) => (i * timetable.cycle) / 6;
+const operations = new Operations({ slots: Array.from({ length: 6 }, (_, i) => ({ timetable, offset: offset(i), route: 0, line: 0 })), timetables: [timetable] });
 
 test('Stockholm wall time handles both summer and winter offsets', () => {
   expect(stockholm(Date.UTC(2026, 0, 14, 11, 0) / 1000).hour).toBe(12);
@@ -29,14 +31,14 @@ test('weeknights close between one and five, weekend nights run through', () => 
 
 test('trains leave and enter service only at the east turnback, out of sight', () => {
   const night = stockholmEpoch(2026, 9, 23, 0, 0);
-  for (let i = 0; i < TRAIN_COUNT; i++) {
+  for (let i = 0; i < operations.slots.length; i++) {
     let was = operations.inService(night, i);
     for (let t = night; t < night + 6 * 3600; t += 5) {
       const now = operations.inService(t, i);
       if (now !== was) {
-        const state = timetable.stateAt(t + serviceOffset(timetable, i));
+        const state = timetable.stateAt(t + offset(i));
         expect(state.u).toBeLessThan(1);
-        expect(t - loopStart(timetable, t, serviceOffset(timetable, i))).toBeLessThan(5.01);
+        expect(t - loopStart(timetable, t, offset(i))).toBeLessThan(5.01);
       }
       was = now;
     }

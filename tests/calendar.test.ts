@@ -79,7 +79,7 @@ test('the sleeper takes a seat nobody else sits on', () => {
 
 test('the evening boards know when the last train before the night break leaves', () => {
   const timetable = new Timetable([0, 500, 1000, 1500]);
-  const operations = new Operations(timetable);
+  const operations = new Operations({ slots: Array.from({ length: 6 }, (_, i) => ({ timetable, offset: (i * timetable.cycle) / 6, route: 0, line: 0 })), timetables: [timetable] });
   const k = timetable.stopIndex(1, 1);
   const evening = stockholmEpoch(2026, 9, 23, 22, 30); // Wednesday
   const eta = operations.lastArrival(evening, 1, 1)!;

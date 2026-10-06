@@ -1,13 +1,13 @@
 import { expect, test } from 'bun:test';
 import { TRACK_Z } from '../src/game/layout';
 import { BLUE_LINE, ghostX, NETWORK, routeTimetables } from '../src/game/line';
-import { TRAIN_COUNT } from '../src/game/operations';
+import { trunkHeadway } from './blue';
 import { Silverpilen } from '../src/game/silverpilen';
 import { CLEAR, HOLD, RealSilverpilen, type Rival } from '../src/game/silverReal';
 
 const routes = routeTimetables(BLUE_LINE);
 const ghostRoute = BLUE_LINE.routes.findIndex((r) => r.number === BLUE_LINE.ghost.route);
-const silver = new Silverpilen(routes[ghostRoute], routes[0].cycle / TRAIN_COUNT, ghostX(NETWORK));
+const silver = new Silverpilen(routes[ghostRoute], trunkHeadway, ghostX(NETWORK));
 const HOUR = 493000;
 const START = silver.runStart(HOUR);
 

@@ -1,15 +1,15 @@
 import { expect, test } from 'bun:test';
 import { NOSE } from '../src/game/trainModel';
 import { TRACK_Z, TRAIN_HALF_L, TRAIN_HALF_W } from '../src/game/layout';
-import { BLUE_LINE, ghostX, NETWORK, routeTimetables } from '../src/game/line';
-import { Operations, TRAIN_COUNT } from '../src/game/operations';
+import { BLUE_LINE, ghostX, NETWORK } from '../src/game/line';
 import { Silverpilen } from '../src/game/silverpilen';
+import { blue, blueOperations, trunkHeadway } from './blue';
 
-const routes = routeTimetables(BLUE_LINE);
-const operations = new Operations(routes);
+const routes = blue.timetables;
+const operations = blueOperations();
 const ghostRoute = BLUE_LINE.routes.findIndex((r) => r.number === BLUE_LINE.ghost.route);
 const kymlinge = ghostX(NETWORK);
-const silver = new Silverpilen(routes[ghostRoute], routes[0].cycle / TRAIN_COUNT, kymlinge);
+const silver = new Silverpilen(routes[ghostRoute], trunkHeadway, kymlinge);
 
 test('Silverpilen keeps well clear of every regular train on track 1, on both routes', () => {
   const clearance = 2 * (TRAIN_HALF_L + NOSE) + 20;
@@ -18,7 +18,7 @@ test('Silverpilen keeps well clear of every regular train on track 1, on both ro
     for (let t = start; t < start + silver.duration(hour); t += 0.5) {
       const s = silver.stateAt(t);
       expect(s).not.toBeNull();
-      for (let i = 0; i < TRAIN_COUNT; i++) {
+      for (let i = 0; i < operations.slots.length; i++) {
         const r = operations.timetableOf(i).stateAt(t + operations.offsets[i]);
         if (Math.abs(r.z + TRACK_Z) < 2 * TRAIN_HALF_W + 0.3) expect(Math.abs(r.x - s!.x)).toBeGreaterThan(clearance);
       }
