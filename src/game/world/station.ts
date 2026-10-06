@@ -1083,8 +1083,10 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   const pillarMap = lineMap(line, def.local);
   s.extras.userData.lineMap = pillarMap;
   const phone = textSign('Nödtelefon', 256, 64, '#1f7a3d');
+  // Off what a station's own detail stands on (claimed above), which would swallow the pillar.
+  const standingPillars = pillars.filter((d) => clear(cx + d, 0.4));
   for (const zi of islands) {
-    for (const dx of pillars) {
+    for (const dx of standingPillars) {
       const px = cx + dx;
       s.lit.box({ x: px - 0.3, y: PLATFORM_Y, z: zi - 0.3 }, { x: px + 0.3, y: PLATFORM_Y + 2.6, z: zi + 0.3 }, rgb(0x27313c));
       physics.box({ x: px - 0.3, y: PLATFORM_Y, z: zi - 0.3 }, { x: px + 0.3, y: PLATFORM_Y + 2.6, z: zi + 0.3 });
@@ -1359,7 +1361,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   yield;
   // The main hall's own floor (under the tracks, for one reached down through the island), and whether its escalators
   // start at the platform's end wall, where the notice over their foot hangs.
-  const clutter = buildClutter(s, { index, cx, exitDir: e, benches, pillars, hallX: hall.x, hallY: ways[0].hallY, hallHalfW: HALL_HALF_W, platformZ: islands[islands.length - 1], wallZ: boardZ, posters: !outdoor, endWall: !ways[0].inner && !ways[0].down });
+  const clutter = buildClutter(s, { index, cx, exitDir: e, benches, pillars: standingPillars, hallX: hall.x, hallY: ways[0].hallY, hallHalfW: HALL_HALF_W, platformZ: islands[islands.length - 1], wallZ: boardZ, posters: !outdoor, endWall: !ways[0].inner && !ways[0].down });
   yield;
 
   let departureKey = '';
@@ -1938,7 +1940,10 @@ function buildHall(s: Section, physics: Physics, line: LineDef, def: Network['st
   place(s, exit, 6.4, 0.8, new Vector3(X(18.8), Y + 5.2, 0), toward);
   const trains = textSign(`Till tågen  ·  ${line.bullets.join(' ')}`, 768, 128);
   place(s, trains, 4, 0.67, new Vector3(X(12), Y + 4.6, 0), away);
-  place(s, (s.extras.userData.lineMap as CanvasSign | undefined) ?? lineMap(line, def.local), 5.6, 2.45, new Vector3(X(6), Y + 2.6, -W + 0.02), new Vector3(0, 0, 1));
+  // On the side wall before the gates; where an escalator wing opens off that side, the wall only starts past its end
+  // (`ARM`), and a smaller map keeps clear of the wing's wall.
+  const [mapA, mapW] = wing(-1) ? [(ARM + 0.5 + ga - 0.4) / 2, ga - 0.4 - (ARM + 0.5) - 0.6] : [6, 5.6];
+  place(s, (s.extras.userData.lineMap as CanvasSign | undefined) ?? lineMap(line, def.local), mapW, mapW * 2.45 / 5.6, new Vector3(X(mapA), Y + 2.6, -W + 0.02), new Vector3(0, 0, 1));
   const booth = textSign('Spärrexpedition', 512, 96, '#1f2a36');
   place(s, booth, 2.4, 0.45, new Vector3(X(12), Y + 2.9, 7.65), new Vector3(0, 0, -1));
 

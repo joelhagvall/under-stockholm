@@ -90,7 +90,6 @@
     "turnback": "Vändspår · Obehöriga äga ej tillträde",
     "staffRoom": "Personalrum",
     "emergencyExit": "Nödutgång",
-    "exitVasagatan": "Nödutgång · Vasagatan",
     "alarmed": "Larmad dörr",
     "pushPrompt": "E · Tryck på dörren",
     "lockedExit": "Dörren är låst och larmad. Nödutgången leder upp till Vasagatan, men bara när det brinner.",

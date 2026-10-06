@@ -336,7 +336,8 @@ function spots(site: DetailSite, dxs: readonly number[], half: number, count: nu
   const keep: Array<[number, number]> = [
     ...CANOPY.postXs.map((d) => [d, 0.4] as [number, number]),
     ...lanterns.map((d) => [d, 0.4] as [number, number]),
-    ...[-40, -12, 12, 40].map((d) => [d, 0.7] as [number, number]),
+    // The information pillars, with room in front of the phone and the extinguisher on their sides.
+    ...[-40, -12, 12, 40].map((d) => [d, 1.4] as [number, number]),
     ...[-45, -9, 9, 45].map((d) => [d + 0.35, 1.6] as [number, number]),
     ...[-4.5, 4.5, 24].map((d) => [d, 0.6] as [number, number]),
     ...(def.canopy?.screens !== undefined ? [-36, -22, 22, 36].map((d) => [d, 2.1] as [number, number]) : []),

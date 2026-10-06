@@ -474,8 +474,9 @@ export function buildServiceWing(physics: Physics, index: number, cx: number, e:
     box(32.1, 32.2, 6, 8.1, -0.5, 0.5, rgb(0x5a6b58), false);
     box(32.0, 32.1, 7.05, 7.1, -0.4, 0.4, STEEL, false);
     lamp(31.2, 8.58, 0, LAMP, 0.8, 5);
-    place(s, exitSign(sv.service.exitVasagatan), 0.9, 0.34, new Vector3(X(32.08), 8.3, 0), facing(1));
-    place(s, textSign(sv.service.alarmed, 512, 96, '#f4d03f', '#1c2025'), 0.7, 0.13, new Vector3(X(32.08), 7.45, 0), facing(1));
+    // On the door, facing the stairs up to it.
+    place(s, exitSign(sv.escape.street), 0.9, 0.34, new Vector3(X(32.08), 8.3, 0), facing(-1));
+    place(s, textSign(sv.service.alarmed, 512, 96, '#f4d03f', '#1c2025'), 0.7, 0.13, new Vector3(X(32.08), 7.45, 0), facing(-1));
     const door = new Vector3(X(31.7), 7, 0);
     interactables.push({ pos: door, radius: 1.3, get prompt() { return staffKey.has ? text.key.unlockPrompt : text.service.pushPrompt; }, act: () => (staffKey.exit(door) ? undefined : text.service.lockedExit) });
   }

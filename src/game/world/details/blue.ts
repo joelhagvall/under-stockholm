@@ -230,11 +230,12 @@ const huvudsta: Detail = (site) => {
 
 /** Solna strand: white Y columns under a silver duct, and one of the sky cubes come down onto the platform, on its corner. */
 const solnaStrand: Detail = (site) => {
-  const { s, physics, cx, exitDir, free } = site;
+  const { s, physics, cx, exitDir, free, claim } = site;
   yColumns(site, rgb(0xecece8), true);
   duct(site, 0, DUCT_Y + 0.45, 0.45, rgb(0xbfc3c6));
   const x = cx - exitDir * 12, size = 1.5;
   if (!free(x, 1.5)) return;
+  claim(x, 1.5);
   const rotation = new Euler(0.62, 0.5, 0.35);
   const m = place(0, 0, 0, rotation);
   let low = Infinity;

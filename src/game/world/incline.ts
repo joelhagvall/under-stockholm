@@ -181,9 +181,10 @@ export function* inclineSteps(s: Section, physics: Physics, wx: number, e: 1 | -
   for (let a = 3; a < run - 1; a += 6) s.light(X(a), ceiling(a) - 0.5, LANE.mid, rgb(0xf2f7ff), 0.55, 7);
   // A sign over each door.
   if (!s.dry) {
+    // Narrow enough to stay clear of a rock arch round the escalators beside the lane (Rådhuset's).
     const sign = textSign('Hiss', 256, 96, '#1f2a36');
-    placeSign(s, sign, 0.8, 0.3, new Vector3(X(-0.02), PLATFORM_Y + DOOR_H + 0.3, LANE.mid), new Vector3(-e, 0, 0));
-    placeSign(s, sign, 0.8, 0.3, new Vector3(X(run + top + 0.02), PLATFORM_Y + rise + DOOR_H + 0.3, LANE.mid), new Vector3(e, 0, 0));
+    placeSign(s, sign, 0.66, 0.25, new Vector3(X(-0.02), PLATFORM_Y + DOOR_H + 0.3, LANE.mid), new Vector3(-e, 0, 0));
+    placeSign(s, sign, 0.66, 0.25, new Vector3(X(run + top + 0.02), PLATFORM_Y + rise + DOOR_H + 0.3, LANE.mid), new Vector3(e, 0, 0));
   }
   yield;
 

@@ -288,7 +288,10 @@ const slussen: Detail = (site) => {
   // Just off the face of the wall between the lines' inner tracks (see `stationSteps`).
   const face = TRACK_Z - TRAIN_HALF_W - 1.5 + 0.04;
   const [y0, y1] = [0.4, 5.4];
+  // The station's name boards on this wall hang on the tiles between screens, as at the real one, not behind them.
+  const boards = STATION_DESIGN.nameBoardDxs.map((dx) => [cx + dx - STATION_DESIGN.nameBoardHalfX - 0.3, cx + dx + STATION_DESIGN.nameBoardHalfX + 0.3]);
   for (let x = cx - CAVE_HALF_L + 4; x + 3 < cx + CAVE_HALF_L - 4; x += 3.4) {
+    if (boards.some(([b0, b1]) => x + 3 > b0 && x < b1)) continue;
     for (const side of [-1, 1]) {
       const z = side * face;
       const a = new Vector3(x, y0, z), b = new Vector3(x + 3, y0, z), c = new Vector3(x + 3, y1, z), d = new Vector3(x, y1, z);
