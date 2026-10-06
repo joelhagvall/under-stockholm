@@ -21,3 +21,5 @@ TODO.md
 # The recorded C20 announcements stay on the developer's machine (public/audio/README.md)
 public/audio/*.mp3
 .omo/
+# Slides and stills for talks: kept local
+talk/
