@@ -69,6 +69,9 @@ async function pass(answering: Promise<Response>, request: Request, ctx: Executi
   return answer;
 }
 
+/** Marks an unavailable feed's 502 kept in the data center's cache. */
+const UNAVAILABLE = 'x-feed-unavailable';
+
 async function handle(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   if (url.pathname.startsWith('/feeds/')) {
@@ -79,11 +82,20 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
     // to get past the cache.
     const key = new Request(`${url.origin}${url.pathname}`);
     const cached = await caches.default.match(key);
-    if (cached) return cached;
+    if (cached) return cached.headers.has(UNAVAILABLE) ? new Response(cached.body, { status: 502, headers: cached.headers }) : cached;
     if (await spentToday(request, url.origin)) return turnedAway(request);
     if (!(await allowed(request, env))) return tooMany();
     const answer = await pass(toFeeds(env, new Request(key, { headers: request.headers })), request, ctx, url.origin);
-    if (answer.ok && /max-age=[1-9]/.test(answer.headers.get('cache-control') ?? '')) ctx.waitUntil(caches.default.put(key, answer.clone()));
+    if (/max-age=[1-9]/.test(answer.headers.get('cache-control') ?? '')) {
+      if (answer.ok) ctx.waitUntil(caches.default.put(key, answer.clone()));
+      // An unavailable feed too, for as long as its source is paused (server/feedCore.ts). A cache keeps no 502, so it
+      // is kept as a 200 marked UNAVAILABLE and answered as the 502 it was.
+      else if (answer.status === 502) {
+        const headers = new Headers(answer.headers);
+        headers.set(UNAVAILABLE, '1');
+        ctx.waitUntil(caches.default.put(key, new Response(answer.clone().body, { status: 200, headers })));
+      }
+    }
     return answer;
   }
   if (RELAY.test(url.pathname)) {

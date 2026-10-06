@@ -120,11 +120,13 @@ try {
   expect('another block is let through', (await get('/notes', '2001:db8:a:1::1')).status, 200);
 
   console.log('the feeds\' own budget');
-  // Three feeds that do not need the Trafiklab keys, each a miss in the data center's cache: the first two reach the
-  // object (an answer, or 502 if the source is down), the third is past FEED_BUDGET.
+  // SL without the Trafiklab keys is unavailable, and the data center's cache keeps that while the source is paused,
+  // so the second ask never reaches the object. Then two feeds that are misses in the cache: the first reaches the
+  // object (an answer, or 502 if the source is down), the second is past FEED_BUDGET.
+  expect('SL without keys is unavailable', (await get('/feeds/sl', '198.18.3.6')).status, 502);
+  expect('...and kept so in the data center\'s cache', (await get('/feeds/sl', '198.18.3.7')).status, 502);
   expect('a feed is answered', (await get('/feeds/weather', '198.18.3.1')).status !== 503, true);
-  expect('another feed is answered', (await get('/feeds/warnings', '198.18.3.2')).status !== 503, true);
-  expect('feeds stop once their budget is spent', (await get('/feeds/news', '198.18.3.3')).status, 503);
+  expect('feeds stop once their budget is spent', (await get('/feeds/warnings', '198.18.3.3')).status, 503);
   expect('...while notes go on', (await get('/notes', '198.18.3.4')).status, 200);
   const spentFeeds = await (await fetch(`${base}/perf`, { headers: { accept: 'application/json', 'cf-connecting-ip': '198.18.3.5' } })).json() as { feedBudget?: { used: number; limit: number } };
   expect('/perf shows the feeds\' budget from their object', `${spentFeeds.feedBudget?.used} of ${spentFeeds.feedBudget?.limit}`, '3 of 3');

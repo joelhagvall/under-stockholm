@@ -98,6 +98,26 @@ test('Retry-After from a source is respected', async () => {
   expect(calls).toBe(2);
 });
 
+test('while a source is paused, the caches in front may keep the answer until it is asked again', async () => {
+  const feeds = createFeeds({ log: () => {}, waitUntil });
+  const ask = async () => { const r = (await feeds.handle(new URL('http://relay/feeds/warnings')))!; await settle(); return r; };
+  const maxAge = (r: Response) => Number(/max-age=(\d+)/.exec(r.headers.get('cache-control') ?? '')?.[1]);
+  globalThis.fetch = (async () => new Response('slow down', { status: 429, headers: { 'retry-after': '300' } })) as unknown as typeof fetch;
+  const none = await ask();
+  expect(none.status).toBe(502);
+  expect(maxAge(none)).toBe(300);
+  advance(400);
+  globalThis.fetch = (async () => Response.json([])) as unknown as typeof fetch;
+  expect(maxAge(await ask())).toBe(5 * 60);
+  // Past its ttl the old copy is served while the source fails, and kept as long as the pause.
+  advance(6 * 60);
+  globalThis.fetch = (async () => new Response('slow down', { status: 429, headers: { 'retry-after': '300' } })) as unknown as typeof fetch;
+  expect(maxAge(await ask())).toBe(0);
+  const old = await ask();
+  expect(old.status).toBe(200);
+  expect(maxAge(old)).toBe(300);
+});
+
 test('SR news reaches the papers through the relay, parsed and twice an hour at most', async () => {
   let calls = 0;
   globalThis.fetch = (async () => {

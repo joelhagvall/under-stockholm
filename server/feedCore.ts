@@ -164,10 +164,14 @@ export function createFeeds(options: FeedOptions = {}): Feeds {
       if (!isFeed(match[1])) return new Response('Unknown feed', { status: 404, headers });
       const feed = FEEDS[match[1]];
       const copy = await get(match[1], feed);
-      if (!copy) return Response.json({ error: 'unavailable' }, { status: 502, headers });
-      const age = Math.floor((Date.now() - copy.at) / 1000);
+      const now = Date.now();
+      // While a failed source is paused, the answer (an old copy or none) stays the same until it is asked again, so
+      // the caches in front may keep it that long too, and an outage does not send every player's poll to the relay.
+      const paused = Math.max(0, Math.ceil(((pausedUntil.get(match[1]) ?? 0) - now) / 1000));
+      if (!copy) return Response.json({ error: 'unavailable' }, { status: 502, headers: { ...headers, 'cache-control': `public, max-age=${paused}` } });
+      const age = Math.floor((now - copy.at) / 1000);
       // Browsers and any cache in front may keep it until the relay would fetch a new one.
-      const maxAge = Math.max(0, feed.ttl - age);
+      const maxAge = Math.max(0, feed.ttl - age, paused);
       return Response.json({ at: copy.at, data: copy.data }, { headers: { ...headers, 'cache-control': `public, max-age=${maxAge}`, age: String(age) } });
     },
   };
