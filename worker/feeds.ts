@@ -16,7 +16,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { sendAlert } from '../server/errorCore';
 import { createFeeds, type Feeds } from '../server/feedCore';
 import type { Timetable } from '../server/gtfs';
-import { gtfsDepartures, type TimetableStore } from '../server/gtfsFeed';
+import { gtfsDepartures, type StaticTry, type TimetableStore } from '../server/gtfsFeed';
 import { addressKey } from '../server/limits';
 import type { BudgetUse } from '../server/perfCore';
 import { Budget, budgetOf, log, Shares, spentAddress, spentBudget } from './budget';
@@ -69,6 +69,13 @@ export class FeedHub extends DurableObject<Env> {
         const text = JSON.stringify(timetable);
         sql.exec('DELETE FROM blobs WHERE name = ?', 'gtfs');
         for (let i = 0; i * CHUNK < text.length; i++) sql.exec('INSERT INTO blobs (name, part, data) VALUES (?, ?, ?)', 'gtfs', i, text.slice(i * CHUNK, (i + 1) * CHUNK));
+      },
+      readTry: async () => {
+        const row = sql.exec<{ data: string }>('SELECT data FROM blobs WHERE name = ?', 'gtfs-try').toArray()[0];
+        return row ? JSON.parse(row.data) as StaticTry : null;
+      },
+      writeTry: async (attempt) => {
+        sql.exec('INSERT OR REPLACE INTO blobs (name, part, data) VALUES (?, 0, ?)', 'gtfs-try', JSON.stringify(attempt));
       },
     };
     const keys = env.TRAFIKLAB_RT_KEY && env.TRAFIKLAB_STATIC_KEY ? { realtime: env.TRAFIKLAB_RT_KEY, static: env.TRAFIKLAB_STATIC_KEY } : null;

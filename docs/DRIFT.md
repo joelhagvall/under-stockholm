@@ -79,7 +79,7 @@ Trafiklab's recommended source for a whole line is GTFS Regional: one request gi
 **Feeds.**
 
 - Realtime: `https://opendata.samtrafiken.se/gtfs-rt/sl/TripUpdates.pb?key=…`, about 300 kB gzip, about 1 MB decoded, updated every 15 s. A cron run every minute can fetch it up to four times, 15 s apart (Silver), or every other minute (Bronze).
-- Static: `https://opendata.samtrafiken.se/gtfs/sl/sl.zip?key=…`, about 48 MB (`stop_times.txt` is about 140 MB unzipped). Fetched once a day (30 a month).
+- Static: `https://opendata.samtrafiken.se/gtfs/sl/sl.zip?key=…`, about 48 MB (`stop_times.txt` is about 140 MB unzipped). Fetched once a day (30 a month). A failed download is tried again after 30 min, then 1, 2 and 4 h, then every 6 h, the pause kept in storage so a restart does not start over: a month of failures costs about 130.
 - Both answer `406` without `Accept-Encoding: gzip`, which Bun sends on its own and Cloudflare's runtime does not (`source` in `server/feedCore.ts` asks for it).
 
 **What the data looks like** (checked 2026-09-24):

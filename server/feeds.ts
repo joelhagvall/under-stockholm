@@ -4,12 +4,13 @@
 
 import { sendAlert } from './errorCore';
 import { createFeeds } from './feedCore';
-import { gtfsDepartures } from './gtfsFeed';
+import { gtfsDepartures, type StaticTry } from './gtfsFeed';
 import type { Timetable } from './gtfs';
 
 const RT_KEY = process.env.TRAFIKLAB_RT_KEY;
 const STATIC_KEY = process.env.TRAFIKLAB_STATIC_KEY;
 const GTFS_FILE = process.env.GTFS_FILE ?? new URL('./gtfs-timetable.json', import.meta.url).pathname;
+const GTFS_TRY_FILE = `${GTFS_FILE}.try`;
 const log = (message: string) => console.warn(message);
 
 // Production always has both keys. Without them the relay still runs, but no line follows SL, so say so loudly.
@@ -25,6 +26,8 @@ const feeds = createFeeds({
   gtfs: RT_KEY && STATIC_KEY ? gtfsDepartures({ realtime: RT_KEY, static: STATIC_KEY }, {
     read: async () => JSON.parse(await Bun.file(GTFS_FILE).text()) as Timetable,
     write: async (timetable) => { await Bun.write(GTFS_FILE, JSON.stringify(timetable)); },
+    readTry: async () => JSON.parse(await Bun.file(GTFS_TRY_FILE).text()) as StaticTry,
+    writeTry: async (attempt) => { await Bun.write(GTFS_TRY_FILE, JSON.stringify(attempt)); },
   }, log) : undefined,
 });
 

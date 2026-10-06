@@ -4,7 +4,7 @@ dist
 .DS_Store
 .env*
 server/notes.json
-server/gtfs-timetable.json
+server/gtfs-timetable.json*
 video/
 .heap/
 perf/.run/
