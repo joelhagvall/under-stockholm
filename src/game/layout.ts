@@ -364,6 +364,8 @@ export const CROWD_LAYOUT = {
 
 /** Keep sign faces outside their housings and the most protruding rock. */
 export const SIGN_LAYOUT = { faceGap: 0.015, displayHalfDepth: 0.05, rockClearance: 0.12 };
+/** A platform's departure displays, one a track: how wide, and how far from the island's middle toward its track. */
+export const DISPLAY = { width: 2.0, offset: 2.4 };
 export const STATION_ROCK_INSET = 0.85;
 
 /** Repeated station fixtures, kept clear of the boarding paths. */

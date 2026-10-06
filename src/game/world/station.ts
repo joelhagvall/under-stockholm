@@ -1,4 +1,4 @@
-import { SIGN_LAYOUT, STATION_ROCK_INSET } from '../layout';
+import { DISPLAY, SIGN_LAYOUT, STATION_ROCK_INSET } from '../layout';
 import sv from '../i18n/sv.json';
 import { text } from '../i18n/text';
 import { BoxGeometry, CircleGeometry, CylinderGeometry, DoubleSide, Group, Matrix4, Mesh, MeshBasicMaterial, PlaneGeometry, Vector3 } from 'three';
@@ -1227,23 +1227,31 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   }
 
   yield;
-  // Departure displays: each island's shows the trains due on its two tracks.
+  // Departure displays, one a track as on SL's platforms: side by side across the island, each over its own edge and
+  // showing only its track's next trains, so at a shared station each line has its own (Slussen: 14 Mörby centrum
+  // over one edge, 19 Åkeshov over the other).
   /** Where a track or an island built on track 1's half of a two-level station ends up, folded under the other: z, y. */
   const folded = (z: number): [number, number] => (stacked && z < 0 ? [-z, -STACK.drop] : [z, 0]);
-  const platformTracks = trackZs.map((z) => ({ z: folded(z)[0], y: folded(z)[1], track: (z < 0 ? 1 : 2) as 1 | 2, line: net.lines.indexOf(lineAt(z)), number: trackText(z).number })).sort((a, b) => a.number - b.number);
+  const platformTracks = trackZs.map((z) => ({ z: folded(z)[0], y: folded(z)[1], raw: z, track: (z < 0 ? 1 : 2) as 1 | 2, line: net.lines.indexOf(lineAt(z)), number: trackText(z).number })).sort((a, b) => a.number - b.number);
   const displays: Array<{ sign: CanvasSign; tracks: number[] }> = [];
   for (const zi of islands) {
-    const tracks = platformTracks.flatMap((t, k) => (islandOf(t.z) === zi ? [k] : []));
+    // Matched as built, before the fold: the extras placed here fold with the island.
+    const tracks = platformTracks.filter((t) => islandOf(t.raw) === zi);
     for (const dx of [-48, 48].filter((d) => free(cx + d, 1.4))) {
-      // Tall enough for two trains a track and a line of notices under them.
-      const disp = createCanvasSign(1024, 320);
-      displays.push({ sign: disp, tracks: tracks.map((k) => platformTracks[k].number) });
-      for (const f of [-1, 1]) {
-        place(s, disp, 2.6, 0.81, new Vector3(cx + dx + f * SIGN_LAYOUT.displayHalfDepth, 3.6, zi), new Vector3(f, 0, 0));
-      }
-      s.lit.box({ x: cx + dx - SIGN_LAYOUT.displayHalfDepth, y: 3.17, z: zi - 1.35 }, { x: cx + dx + SIGN_LAYOUT.displayHalfDepth, y: 4.03, z: zi + 1.35 }, PAINT.fixture);
-      for (const rz of [-1.1, 1.1]) {
-        s.lit.box({ x: cx + dx - 0.03, y: 4.03, z: zi + rz - 0.03 }, { x: cx + dx + 0.03, y: RAIL, z: zi + rz + 0.03 }, PAINT.fixture);
+      for (const t of tracks) {
+        const dz = zi + Math.sign(t.raw - zi) * DISPLAY.offset;
+        // Tall enough for a track's two trains and a line of notices under them.
+        const disp = createCanvasSign(1024, 320);
+        displays.push({ sign: disp, tracks: [t.number] });
+        for (const f of [-1, 1]) {
+          place(s, disp, DISPLAY.width, DISPLAY.width * 320 / 1024, new Vector3(cx + dx + f * SIGN_LAYOUT.displayHalfDepth, 3.6, dz), new Vector3(f, 0, 0));
+        }
+        const half = DISPLAY.width / 2 + 0.05;
+        const top = 3.6 + DISPLAY.width * 160 / 1024 + 0.04;
+        s.lit.box({ x: cx + dx - SIGN_LAYOUT.displayHalfDepth, y: 3.6 - (top - 3.6), z: dz - half }, { x: cx + dx + SIGN_LAYOUT.displayHalfDepth, y: top, z: dz + half }, PAINT.fixture);
+        for (const rz of [-half + 0.25, half - 0.25]) {
+          s.lit.box({ x: cx + dx - 0.03, y: top, z: dz + rz - 0.03 }, { x: cx + dx + 0.03, y: RAIL, z: dz + rz + 0.03 }, PAINT.fixture);
+        }
       }
     }
   }
