@@ -13,7 +13,7 @@ export const GTFS_STATIC = 'https://opendata.samtrafiken.se/gtfs/sl/sl.zip';
 export const GTFS_REALTIME = 'https://opendata.samtrafiken.se/gtfs-rt/sl/TripUpdates.pb';
 /** Every metro station's Transport API site id, by name: a name is one site, even where two lines have their own platforms. */
 const SITES = new Map(LINES.flatMap((l) => l.stations.map((s) => [s.name, s.site] as const)));
-/** Each route's outbound terminal: direction 1 is toward it, as the game's track 1 and SL's blue line `direction_code`. */
+/** Each route's outbound terminal: direction 1 is toward it, as the game's track 1. */
 const OUTBOUND = new Map(LINES.flatMap((l) => l.routes.map((r) => [r.number, r.outbound] as const)));
 const METRO = '401';
 /** Service days before and after the download kept in the timetable, so one failed daily download changes nothing. */

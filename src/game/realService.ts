@@ -7,10 +7,11 @@ import { DEPARTURE_HOLD, DOOR_SLIDE, DOOR_WARNING, type Timetable, type Track } 
  * Every consumer of the timetable (doors, announcements, commuters, fares,
  * sound) already works from `timetable.stateAt(clock)`. So a real journey is
  * not a new kind of train; it is a warped clock on its route's timetable
- * (line 10 or 11). Each run walks the loop from one turnback cavern to the
- * other: westbound trains appear in the east cavern, stop at every station
- * and end in the cavern beyond Hjulsta or Akalla; eastbound trains come out
- * of that cavern and end at Kungsträdgården. At a platform the clock pauses with the doors open until
+ * (on the blue line 10 or 11, and so on). Each run walks the loop from one
+ * turnback cavern to the other: outbound trains appear in the cavern at the
+ * inbound end, stop at every station and end in the cavern beyond the outbound
+ * terminal (Hjulsta or Akalla on the blue line); inbound trains come out of that
+ * cavern and end at the inbound terminal (Kungsträdgården). At a platform the clock pauses with the doors open until
  * SL's expected departure. In the tunnel it runs slower so the train arrives
  * in time for the next one, since the game's stations are closer together
  * than the real ones.
@@ -20,7 +21,7 @@ import { DEPARTURE_HOLD, DOOR_SLIDE, DOOR_WARNING, type Timetable, type Track } 
  * its departure while it stands at a platform. A rider never feels a jump.
  */
 
-/** Extra seconds at the first station of a run: trains wait at Kungsträdgården, and pull straight in from the west. */
+/** Extra seconds at the first station of a run: outbound trains wait at the inbound terminal, inbound ones pull straight in. */
 const FIRST_WAIT: Record<Track, number> = { 1: 90, 2: 10 };
 /** At most this much extra standing time at a station; beyond it the tunnel run slows down instead. */
 const DWELL_EXTRA = 25;

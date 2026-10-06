@@ -412,7 +412,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   const express = new Express(operations, world.stationX, (t, x0, x1, z) => {
     const s = silver.stateAt(t);
     return !!s && Math.abs(s.z - z) < 2 && s.x > x0 - 80 && s.x < x1 + 80;
-  });
+  }, net.stations.flatMap((s, i) => (s.stacked ? [world.stationX[i]] : [])));
   const expressTrain = new Train(physics, 95);
   expressTrain.setActive(false);
   expressTrain.setDestination(text.express.sign);
@@ -636,7 +636,8 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     }).then(() => (respawning = false));
   };
   tallies.push(() => (staffKey.has ? text.key.held : ''));
-  artWalk.total = net.stations.filter((s) => artWalk.plaque(s.name)).length;
+  // The plaques are the blue line's art: a station of another line with the same name (T-Centralen, Fridhemsplan) has none.
+  artWalk.total = net.stations.filter((s) => s.line === 0 && artWalk.plaque(s.name)).length;
   artWalk.onRead = (title, body, progress, spoken) => {
     hud.notice(title, progress, 6);
     hud.say(body, Math.max(8, body.length / 14));
@@ -865,7 +866,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   });
   setPaused(!debug);
 
-  // Screensaver mode: the camera rides the line on its own until any key, click or touch.
+  // Screensaver mode: the camera rides the network on its own until any key, click or touch.
   const saver = new Screensaver({
     trains: () => services.filter((s) => s.active && s.state).map((s) => {
       const stop = s.timetable.stops[s.state!.phase === 'moving' ? s.state!.next : s.state!.stop];
@@ -1822,7 +1823,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     lineLive = live;
     realOn = live.some(Boolean);
     updateTrains(false);
-    for (const s of services) if (changed[s.line]) s.train.place(s.train.position.x, s.train.position.z, s.train.position.y - s.train.baseY);
+    for (const s of services) if (changed[s.line]) s.train.place(s.train.position.x, s.train.position.z, s.train.position.y);
     if (aboard && !respawning) {
       respawning = true;
       void hud.blackout(() => {
@@ -1840,7 +1841,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     time = to;
     updateTrains(false);
     updateSilver();
-    for (const s of services) s.train.place(s.train.position.x, s.train.position.z, s.train.position.y - s.train.baseY);
+    for (const s of services) s.train.place(s.train.position.x, s.train.position.z, s.train.position.y);
     if (carrier && local && carrier.isActive) player.teleport(carrier.position.clone().add(local));
   }
 

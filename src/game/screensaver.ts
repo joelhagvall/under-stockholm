@@ -7,7 +7,7 @@ import type { Train } from './train';
 import type { StationInfo } from './world/station';
 
 /**
- * Screensaver mode: the camera travels the line on its own. It rides in the
+ * Screensaver mode: the camera travels the network on its own. It rides in the
  * cab of a train watching the tunnel come at it, waits on a platform as a
  * train pulls in, sits in a carriage, and rides the escalators up, cutting
  * between shots through a fade. Slow generated music plays underneath. Any

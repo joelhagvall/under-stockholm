@@ -178,10 +178,9 @@ export class Train {
   private opacity = 1;
 
   /**
-   * @param baseY rail height: 0 on the blue line, higher for the red and green line platforms above it
    * @param boardable false for trains you can only watch: their doors open but their doorways stay blocked
    */
-  constructor(private readonly physics: Physics, readonly id: number, readonly variant: TrainVariant = 'c20', readonly baseY = 0, private readonly boardable = true) {
+  constructor(private readonly physics: Physics, readonly id: number, readonly variant: TrainVariant = 'c20', private readonly boardable = true) {
     const model = trainModel(variant);
     const mats = variantMaterials(variant);
     this.stock = stockOf(variant);
@@ -426,7 +425,7 @@ export class Train {
   /** @param y the rail's height, where it is not the usual (the lower level of a two-level station) */
   setPose(x: number, z: number, y = 0): void {
     this.previous.copy(this.position);
-    this.position.set(x, this.baseY + y, z);
+    this.position.set(x, y, z);
     this.group.position.copy(this.position);
     // A train out of service, or far away, has its colliders disabled; they catch up when it returns.
     if (!this.solid || this.previous.equals(this.position)) return;

@@ -68,7 +68,7 @@ export function formatClock(epoch: number): string {
 }
 
 /**
- * The blue line rests between 01:00 and 05:00 on weekday nights. The nights
+ * The metro rests between 01:00 and 05:00 on weekday nights. The nights
  * after Friday and Saturday have all-night service.
  */
 export function serviceOpen(epoch: number): boolean {

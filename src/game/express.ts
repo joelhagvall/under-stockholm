@@ -1,5 +1,5 @@
 import { hash01 } from './clock';
-import { TRACK_Z, TRAIN_HALF_L, TRAIN_NOSE, trackSide } from './layout';
+import { CAVE_HALF_L, STACK, TRACK_Z, TRAIN_HALF_L, TRAIN_NOSE, trackSide } from './layout';
 import type { Operations } from './operations';
 
 /**
@@ -18,6 +18,8 @@ const SPEED = 19;
 const REACH = 250;
 const RUN = (2 * REACH) / SPEED;
 const MARGIN = 60;
+/** How near a two-level station a run may not come: its track 1 dips under track 2 this far either side, where a run on the level would cut through the rock. */
+const STACKED_REACH = REACH + MARGIN + TRAIN_HALF_L + CAVE_HALF_L + STACK.portal;
 
 export interface ExpressState {
   slot: number;
@@ -31,8 +33,11 @@ export interface ExpressState {
 export class Express {
   private readonly plans = new Map<number, { start: number; station: number; dir: 1 | -1 } | null>();
 
-  /** @param stationX world x of every station */
-  constructor(private readonly operations: Operations, private readonly stationX: number[], private readonly blocked: (time: number, x0: number, x1: number, z: number) => boolean = () => false) {}
+  /**
+   * @param stationX world x of every station
+   * @param stacked world x of every two-level station, which no run comes near
+   */
+  constructor(private readonly operations: Operations, private readonly stationX: number[], private readonly blocked: (time: number, x0: number, x1: number, z: number) => boolean = () => false, private readonly stacked: number[] = []) {}
 
   /** The run in a half hour, if one fits: when it starts, where, and which way. */
   plan(slot: number): { start: number; station: number; dir: 1 | -1 } | null {
@@ -42,8 +47,9 @@ export class Express {
     const cx = this.stationX[station];
     const z = trackSide(dir) * TRACK_Z;
     let found: { start: number; station: number; dir: 1 | -1 } | null = null;
+    const nearStacked = this.stacked.some((x) => Math.abs(x - cx) < STACKED_REACH);
     // Try moments through the half hour until the stretch stays clear for the whole run.
-    for (let k = 0; k < 150 && !found; k++) {
+    for (let k = 0; k < 150 && !found && !nearStacked; k++) {
       const start = slot * SLOT + 120 + hash01(slot, 113) * 300 + k * 9;
       let clear = true;
       for (let t = start - 4; t <= start + RUN + 4 && clear; t += 1) {

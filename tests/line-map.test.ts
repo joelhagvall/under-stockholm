@@ -71,7 +71,7 @@ test('SL times are read as Stockholm local time', () => {
   expect(parseStockholm('nope')).toBeNull();
 });
 
-test('only blue line departures are kept', () => {
+test("only the asked lines' departures are kept", () => {
   const body = {
     departures: [
       { direction_code: 1, destination: 'Hjulsta', expected: '2026-09-23T20:12:42', state: 'ATSTOP', journey: { id: 1 }, line: { designation: '10' } },

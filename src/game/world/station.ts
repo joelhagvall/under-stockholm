@@ -1097,8 +1097,8 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     }
   }
 
-  // The art walk's plaque, on a stand in the middle of the platform.
-  const plaque = artWalk.plaque(def.name);
+  // The art walk's plaque, on a stand in the middle of the platform: the blue line's stations only, whose art it tells.
+  const plaque = def.line === 0 ? artWalk.plaque(def.name) : null;
   const artInteractables: Interactable[] = [];
   if (plaque) {
     const ax = [cx + 4.5, cx - 4.5, cx + 24].find((x) => clear(x, 0.6)) ?? cx + 4.5;

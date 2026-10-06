@@ -133,7 +133,7 @@ ${PAGES.map((p) => `  <url>\n    <loc>${base()}${p.path}</loc>\n${alternates('  
 
 ## Pages
 
-- [Under Stockholm](${base()}${PAGES[1].path}): the English landing page, with a live map of the blue line and the game itself
+- [Under Stockholm](${base()}${PAGES[1].path}): the English landing page, with a live map of every line and the game itself
 - [Under Stockholm på svenska](${base()}): the same page in Swedish
 
 ## Source

@@ -21,9 +21,8 @@ export const STALE = 150;
 const COVERED = 0.25;
 
 /**
- * Whether one poll's sightings cover a line of `stations` stations. Without GTFS the relay only asks for the blue
- * line's stations, but those that other lines share list their trains too: a line counts as covered only when SL
- * reported from a good part of it.
+ * Whether one poll's sightings cover a line of `stations` stations: a line counts as covered only when SL reported from
+ * a good part of it, not only from the stations it shares with another line.
  */
 export function covers(sightings: readonly Sighting[], stations: number): boolean {
   return new Set(sightings.map((x) => x.station)).size >= Math.max(2, COVERED * stations);
@@ -33,7 +32,7 @@ const FORGET = 20 * 60;
 export interface Sighting {
   journey: number;
   line: string;
-  /** 1 toward Hjulsta and Akalla (track 1), 2 toward Kungsträdgården (track 2). */
+  /** 1 toward the route's outbound terminal (track 1), 2 back (track 2). */
   direction: 1 | 2;
   destination: string;
   station: number;

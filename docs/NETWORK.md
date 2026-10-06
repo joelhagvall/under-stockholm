@@ -100,4 +100,3 @@ Click a station in the network view and the camera picks up the next train headi
 
 - **Coastline and depths.** Must be small inline data. Depths per station are published by SL and in public sources, but need collecting by hand.
 - **Mobile frame rate.** Keep everything instanced and the bloom optional.
-- **Real mode.** Needs the relay to carry departures for every line, not only the blue one.

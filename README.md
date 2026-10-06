@@ -27,7 +27,7 @@ Open http://localhost:5180 and click **Gå ner i tunnelbanan** (or **English** a
 
 Phones work without a keyboard: thumbstick to walk, drag to look. Gamepads work too. Keys are in [GAMEPLAY.md](docs/GAMEPLAY.md).
 
-Locally the trains follow SL's blue line out of the box. For all three lines, put a GTFS Regional Realtime and Static key from [Trafiklab](https://www.trafiklab.se/) in `.env.local` as `TRAFIKLAB_RT_KEY` and `TRAFIKLAB_STATIC_KEY`: the relay reads them, the browser never sees them. How it is hosted is in [DRIFT.md](docs/DRIFT.md).
+Locally every line keeps to the game's own timetable. For trains that follow SL's live metro, put a GTFS Regional Realtime and Static key from [Trafiklab](https://www.trafiklab.se/) in `.env.local` as `TRAFIKLAB_RT_KEY` and `TRAFIKLAB_STATIC_KEY`: the relay reads them, the browser never sees them. How it is hosted is in [DRIFT.md](docs/DRIFT.md).
 
 ## Nine things that matter
 
