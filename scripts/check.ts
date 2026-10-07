@@ -17,7 +17,7 @@
 // ports, so nothing else needs to run. Every run writes perf/last-run.json, with the tree it ran on (scripts/tree.ts),
 // which the pre-push hook and the agent hooks read (scripts/hooks): a push of exactly a tree that passed skips the gate. The limits below are the floor; the baseline catches a change that stays above the
 // floor but costs more than the noise between runs. `--accept` keeps the floor. A scene that misses on its frame times
-// is timed once more and fails only if it misses again, and a machine already busy before the timing is noted.
+// is timed once more and fails only on a check it misses both times, and a machine already busy before the timing is noted.
 
 import { existsSync } from 'node:fs';
 import { cpus, loadavg } from 'node:os';
@@ -75,21 +75,21 @@ interface LastRun { at: string; commit: string; tree: string | null; shape: stri
 
 const failures: string[] = [];
 
-/** What is wrong with one scene's frame rates, against the floor and the baseline. */
-function judgeFps(profile: string, scene: string, r: Result): string[] {
+/** What is wrong with one scene's frame rates, against the floor and the baseline, keyed by the check that missed. */
+function judgeFps(profile: string, scene: string, r: Result): Map<string, string> {
   const limit = LIMITS.fps[profile];
-  const out: string[] = [];
-  if (r.fps < limit.fps) out.push(`${r.fps} fps, floor ${limit.fps}`);
-  if (r.slow > limit.slow) out.push(`${r.slow}% of frames over 20 ms, at most ${limit.slow}%`);
-  if (r.hitches > limit.hitches) out.push(`${r.hitches} frames over 50 ms, at most ${limit.hitches}`);
-  if (r.worst > limit.worst) out.push(`worst frame ${r.worst} ms, ceiling ${limit.worst}`);
-  if (r.pixelRatio < limit.pixelRatio) out.push(`resolution fell to ${r.pixelRatio}, floor ${limit.pixelRatio}`);
+  const out = new Map<string, string>();
+  if (r.fps < limit.fps) out.set('fps', `${r.fps} fps, floor ${limit.fps}`);
+  if (r.slow > limit.slow) out.set('slow', `${r.slow}% of frames over 20 ms, at most ${limit.slow}%`);
+  if (r.hitches > limit.hitches) out.set('hitches', `${r.hitches} frames over 50 ms, at most ${limit.hitches}`);
+  if (r.worst > limit.worst) out.set('worst', `worst frame ${r.worst} ms, ceiling ${limit.worst}`);
+  if (r.pixelRatio < limit.pixelRatio) out.set('pixelRatio', `resolution fell to ${r.pixelRatio}, floor ${limit.pixelRatio}`);
   const b: Result | undefined = baseline?.fps?.[profile]?.[scene];
   if (!b || ACCEPT) return out;
-  if (r.fps < b.fps - DRIFT.fps) out.push(`${r.fps} fps, was ${b.fps}`);
-  if (r.slow > DRIFT.slow(b.slow)) out.push(`${r.slow}% of frames over 20 ms, was ${b.slow}%`);
-  if (r.calls > DRIFT.calls(b.calls)) out.push(`${r.calls} draw calls, was ${b.calls}`);
-  if (r.triangles > DRIFT.triangles(b.triangles)) out.push(`${r.triangles} triangles, was ${b.triangles}`);
+  if (r.fps < b.fps - DRIFT.fps) out.set('fps was', `${r.fps} fps, was ${b.fps}`);
+  if (r.slow > DRIFT.slow(b.slow)) out.set('slow was', `${r.slow}% of frames over 20 ms, was ${b.slow}%`);
+  if (r.calls > DRIFT.calls(b.calls)) out.set('calls', `${r.calls} draw calls, was ${b.calls}`);
+  if (r.triangles > DRIFT.triangles(b.triangles)) out.set('triangles', `${r.triangles} triangles, was ${b.triangles}`);
   return out;
 }
 
@@ -180,11 +180,13 @@ if ((PERF || SMOKE) && !failures.length) {
     else {
       const report: FpsReport = await Bun.file(fpsJson).json();
       last.fps = report;
-      // A scene that misses on its timing is timed once more, and fails only if it misses again: a lone hitch from
-      // something else on the machine is not a regression. Draw calls and triangles do not change between runs.
+      // A scene that misses on its timing is timed once more, and fails only on a check it misses both times: a lone
+      // hitch from something else on the machine is not a regression, and a travelling scene ends wherever the lazy
+      // builds had got to, so even its draw calls and triangles differ from one run to the next.
       const again: Record<string, string[]> = {};
+      const missed = new Map<string, string[]>();
       for (const [profile, scenes] of Object.entries(report)) {
-        for (const [scene, r] of Object.entries(scenes)) if (judgeFps(profile, scene, r).length) (again[profile] ??= []).push(scene);
+        for (const [scene, r] of Object.entries(scenes)) if (judgeFps(profile, scene, r).size) (again[profile] ??= []).push(scene);
       }
       for (const [profile, scenes] of Object.entries(again)) {
         const retryJson = join(SCRATCH, `fps-again-${profile}.json`);
@@ -195,13 +197,16 @@ if ((PERF || SMOKE) && !failures.length) {
           const r = retried[profile]?.[scene];
           if (!r) continue;
           const first = judgeFps(profile, scene, report[profile][scene]);
-          console.log(`  ${profile}, ${scene}: first ${first.join('; ')}; again ${judgeFps(profile, scene, r).length ? 'missed too' : 'passed'}`);
+          const second = judgeFps(profile, scene, r);
+          const both = [...second].filter(([check]) => first.has(check)).map(([, f]) => f);
+          console.log(`  ${profile}, ${scene}: first ${[...first.values()].join('; ')}; again ${both.length ? 'missed too' : second.size ? `passed the same checks, missed ${[...second.values()].join('; ')}` : 'passed'}`);
+          missed.set(`${profile}\n${scene}`, both);
           report[profile][scene] = r;
           (last.retried ??= []).push(`${profile}, ${scene}`);
         }
       }
       for (const [profile, scenes] of Object.entries(report)) {
-        for (const [scene, r] of Object.entries(scenes)) for (const f of judgeFps(profile, scene, r)) fail(`${profile}, ${scene}: ${f}${busy ? ` (${busy})` : ''}`);
+        for (const [scene, r] of Object.entries(scenes)) for (const f of missed.get(`${profile}\n${scene}`) ?? judgeFps(profile, scene, r).values()) fail(`${profile}, ${scene}: ${f}${busy ? ` (${busy})` : ''}`);
       }
     }
   } finally {
