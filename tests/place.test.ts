@@ -1,5 +1,5 @@
 import { afterEach, expect, spyOn, test } from 'bun:test';
-import { reloadForNewer, reopening, staleBuild } from '../src/place';
+import { notWasm, reloadForNewer, reopening, staleBuild } from '../src/place';
 
 const descriptors = ['sessionStorage', 'location'].map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)] as const);
 let clock: ReturnType<typeof spyOn> | null = null;
@@ -38,6 +38,12 @@ test('missing imports, CSS and invalid WASM headers can recover, other failures 
   for (const message of ['CompileError: WebAssembly.instantiate(): invalid opcode', 'Error: WebGL context lost', 'TypeError: undefined is not an object']) {
     expect(staleBuild(new Error(message))).toBe(false);
   }
+});
+
+test('a physics binary that arrived as something else is told apart from a missing chunk', () => {
+  expect(notWasm(new Error('CompileError: wasm validation error: at offset 4: failed to match magic number'))).toBe(true);
+  expect(notWasm('CompileError: WebAssembly.instantiate(): expected magic word 00 61 73 6d, found 3c 68 74 6d @+0')).toBe(true);
+  expect(notWasm('TypeError: Failed to fetch dynamically imported module: /assets/boot-old.js')).toBe(false);
 });
 
 test('a reload reopens the requested game or view once, without an immediate reload loop', () => {

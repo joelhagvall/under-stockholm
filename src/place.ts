@@ -66,7 +66,14 @@ export interface Opening {
  * magic bytes instead of the module import. Other compile errors still go through the normal error report.
  */
 export const staleBuild = (err: unknown): boolean =>
-  /dynamically imported module|Importing a module script failed|Unable to preload CSS/.test(String(err)) ||
+  /dynamically imported module|Importing a module script failed|Unable to preload CSS/.test(String(err)) || notWasm(err);
+
+/**
+ * Whether `err` says the physics binary arrived as something else. The host only ever sends it as WebAssembly or an
+ * empty 404, so when it still fails after the reload, something on the player's side (a proxy, security software, a
+ * captive portal) replaced it, and the page says so.
+ */
+export const notWasm = (err: unknown): boolean =>
   /(?:WebAssembly|wasm).*?(?:expected magic word|failed to match magic number)/i.test(String(err));
 
 /**

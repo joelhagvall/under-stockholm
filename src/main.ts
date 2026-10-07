@@ -1,6 +1,6 @@
 import { usesTouchControls } from './device';
 import { saveLang, type Lang } from './lang';
-import { comingBack, reloadForNewer, reopening, savedPlace, staleBuild } from './place';
+import { comingBack, notWasm, reloadForNewer, reopening, savedPlace, staleBuild } from './place';
 
 document.documentElement.classList.toggle('touch-device', usesTouchControls());
 // Following the link to the other language is a choice, and the game's menus keep to it.
@@ -39,9 +39,10 @@ function game(): void {
   const buttons = [start, tour, resume, network];
   const statusEl = document.getElementById('status') as HTMLParagraphElement;
   // The page carries its own copy of these, in its language.
-  const { loading, error, webgl } = statusEl.dataset;
-  // A machine without WebGL (most often with hardware acceleration off) is told what to do about it.
-  const failed = (err: unknown) => (/WebGL/.test(String(err)) ? webgl : error) ?? '';
+  const { loading, error, webgl, blocked } = statusEl.dataset;
+  // A machine without WebGL (most often with hardware acceleration off) is told what to do about it, and so is one
+  // whose network handed back something else for the physics binary.
+  const failed = (err: unknown) => (/WebGL/.test(String(err)) ? webgl : notWasm(err) ? blocked : error) ?? '';
   const menu = document.getElementById('menu') as HTMLElement;
   const game = document.getElementById('game') as HTMLDivElement;
   const invalidPrefetches = new Set<string>();
