@@ -359,16 +359,20 @@ export function vineTexture(period: number, arcLength: number): Texture {
     for (let k = 0; k < 5; k++) worker(((k + 0.3) / 5) * W, k, k % 2 === 0);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    // Paint grain.
-    const img = ctx.getImageData(0, 0, W * S, H * S);
-    const d = img.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const g = (rnd() - 0.5) * 14;
-      d[i] += g;
-      d[i + 1] += g;
-      d[i + 2] += g;
+    // Paint grain. Safari refuses to read back a canvas it could not give memory to (InvalidStateError): the vines
+    // go without grain then rather than stopping the game.
+    let img: ImageData | null = null;
+    try { img = ctx.getImageData(0, 0, W * S, H * S); } catch { /* No grain. */ }
+    if (img) {
+      const d = img.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const g = (rnd() - 0.5) * 14;
+        d[i] += g;
+        d[i + 1] += g;
+        d[i + 2] += g;
+      }
+      ctx.putImageData(img, 0, 0);
     }
-    ctx.putImageData(img, 0, 0);
 
     const t = finish(c, null);
     return t;

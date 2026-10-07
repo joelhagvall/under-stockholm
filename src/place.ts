@@ -77,6 +77,13 @@ export const notWasm = (err: unknown): boolean =>
   /(?:WebAssembly|wasm).*?(?:expected magic word|failed to match magic number)/i.test(String(err));
 
 /**
+ * Whether `err` says the browser could not read the game's code: the build targets ES2022 (and Safari 15), so a
+ * syntax error on import means a browser older than that, such as Chrome 81 on Android 4.4. Not a JSON error, which
+ * is the game's own.
+ */
+export const tooOld = (err: unknown): boolean => err instanceof SyntaxError && !/JSON/.test(err.message);
+
+/**
  * Loads the page again, from the current build, to open `what` once it is up. False, and nothing done, when it did so
  * within the last minute: the files are missing for some other reason, and the page says so instead.
  */

@@ -105,6 +105,9 @@ test('a device that cannot run the game alerts nobody', () => {
     "TypeError: n.roundRect is not a function. (In 'n.roundRect(42,34,172,228,24)')",
     'TypeError: Failed to fetch dynamically imported module: https://understockholm.com/assets/boot-abc.js',
     'CompileError: WebAssembly.instantiate(): expected magic word 00 61 73 6d, found 3c 21 44 4f',
+    'CompileError: wasm validation error: at offset 4: failed to match magic number',
+    "SyntaxError: Unexpected token '='",
   ]) expect(alertFor(parseError({ ...sample, message, stack: message }, Date.now())!, log)).toBeNull();
   expect(alertFor(parseError({ ...sample, message: "TypeError: undefined is not an object (evaluating 'new e.World')" }, Date.now())!, log)).not.toBeNull();
+  expect(alertFor(parseError({ ...sample, message: `SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON` }, Date.now())!, log)).not.toBeNull();
 });

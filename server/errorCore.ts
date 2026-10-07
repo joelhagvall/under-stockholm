@@ -123,7 +123,8 @@ export const ALERT_AGAIN_MS = 7 * 86_400_000;
 const ENVIRONMENT = [
   /Error creating WebGL context|2D canvas unavailable|getShaderPrecisionFormat/,
   /roundRect is not a function/,
-  /dynamically imported module|Importing a module script failed|Unable to preload CSS|expected magic word 00 61 73 6d/,
+  /dynamically imported module|Importing a module script failed|Unable to preload CSS|expected magic word 00 61 73 6d|failed to match magic number/,
+  /^SyntaxError: (?!.*JSON)/,
 ];
 
 /** When each group was last told of, '' for the last alert of any group: in memory or in the hub's storage. */

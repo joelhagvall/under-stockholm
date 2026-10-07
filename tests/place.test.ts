@@ -1,5 +1,5 @@
 import { afterEach, expect, spyOn, test } from 'bun:test';
-import { notWasm, reloadForNewer, reopening, staleBuild } from '../src/place';
+import { notWasm, reloadForNewer, reopening, staleBuild, tooOld } from '../src/place';
 
 const descriptors = ['sessionStorage', 'location'].map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)] as const);
 let clock: ReturnType<typeof spyOn> | null = null;
@@ -44,6 +44,12 @@ test('a physics binary that arrived as something else is told apart from a missi
   expect(notWasm(new Error('CompileError: wasm validation error: at offset 4: failed to match magic number'))).toBe(true);
   expect(notWasm('CompileError: WebAssembly.instantiate(): expected magic word 00 61 73 6d, found 3c 68 74 6d @+0')).toBe(true);
   expect(notWasm('TypeError: Failed to fetch dynamically imported module: /assets/boot-old.js')).toBe(false);
+});
+
+test('a syntax error on import means a browser too old for the game, a JSON error does not', () => {
+  expect(tooOld(new SyntaxError("Unexpected token '='"))).toBe(true);
+  expect(tooOld(new SyntaxError('Unexpected token \'<\', "<!DOCTYPE "... is not valid JSON'))).toBe(false);
+  expect(tooOld(new TypeError('x is not a function'))).toBe(false);
 });
 
 test('a reload reopens the requested game or view once, without an immediate reload loop', () => {
