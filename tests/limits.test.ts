@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { addressKey, blockKey, CachedBuild, Cooldown, DAY_MS, DayCap, foreignOrigin, MAX_BODY, readBody, untilMidnight } from '../server/limits';
+import { addressKey, bearer, blockKey, CachedBuild, Cooldown, DAY_MS, DayCap, foreignOrigin, MAX_BODY, readBody, untilMidnight } from '../server/limits';
 
 test('IPv4 is its own address, IPv6 counts by its /64', () => {
   expect(addressKey('203.0.113.7')).toBe('203.0.113.7');
@@ -92,4 +92,15 @@ test('a page on another site is foreign, the game itself and clients without a p
   expect(foreignOrigin(from('https://evil.example'))).toBe(true);
   expect(foreignOrigin(from('https://understockholm.com.evil.example'))).toBe(true);
   expect(foreignOrigin(from('null'))).toBe(true);
+});
+
+test('the admin token is only taken whole, and never when none is set', async () => {
+  const asking = (authorization?: string) => new Request('http://relay/notes/1', { method: 'DELETE', headers: authorization ? { authorization } : {} });
+  expect(await bearer(asking('Bearer secret'), 'secret')).toBe(true);
+  expect(await bearer(asking('Bearer secre'), 'secret')).toBe(false);
+  expect(await bearer(asking('Bearer secrets'), 'secret')).toBe(false);
+  expect(await bearer(asking('secret'), 'secret')).toBe(false);
+  expect(await bearer(asking(), 'secret')).toBe(false);
+  expect(await bearer(asking('Bearer '), '')).toBe(false);
+  expect(await bearer(asking('Bearer undefined'), undefined)).toBe(false);
 });

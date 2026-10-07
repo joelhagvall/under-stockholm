@@ -47,6 +47,20 @@ export async function readBody(request: Request, max = MAX_BODY): Promise<string
 }
 
 /**
+ * Whether a request carries `authorization: Bearer <token>`, compared in constant time: both sides are hashed to the
+ * same length first and every byte is looked at, so how long the answer takes says nothing about the token. False
+ * when no token is set.
+ */
+export async function bearer(request: Request, token: string | undefined): Promise<boolean> {
+  if (!token) return false;
+  const digest = async (text: string) => new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)));
+  const [given, expected] = await Promise.all([digest(request.headers.get('authorization') ?? ''), digest(`Bearer ${token}`)]);
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= given[i] ^ expected[i];
+  return diff === 0;
+}
+
+/**
  * One thing per key every `every` ms (a note, a report). A key is remembered only that long: the oldest are let go
  * as new ones come, so neither many addresses nor a long uptime make it grow, and nobody's wait is ever reset.
  */

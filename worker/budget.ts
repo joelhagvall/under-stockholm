@@ -3,7 +3,8 @@
 import { ADDRESS_DAY, BLOCK_DAY, blockKey, DayCap, untilMidnight, utcDay } from '../server/limits';
 import type { BudgetUse } from '../server/perfCore';
 
-export const log = (message: string) => console.warn(message);
+/** A warning in Workers Logs, as JSON so it can be searched: its `message` is what `bun run logs` groups by. */
+export const log = (message: string) => console.warn(JSON.stringify({ message }));
 
 /** The header an object answers with once an address has spent its share of the day: when it may come back (epoch ms). */
 export const SPENT_HEADER = 'x-spent-until';

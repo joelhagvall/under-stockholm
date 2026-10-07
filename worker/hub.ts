@@ -20,7 +20,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { cleanNote } from '../src/game/notePhrases';
 import { alertFor, ERROR_EVERY_MS, ERROR_KEPT, errorsPage, groupErrors, readError, sendAlert, type AlertLog, type ErrorAggregate, type ErrorReport } from '../server/errorCore';
 import { aggregate, PERF_EVERY_MS, PERF_KEPT, perfPage, readPerf, type BudgetUse, type PerfAggregate, type PerfReport } from '../server/perfCore';
-import { addressKey, AGGREGATE_MS, CachedBuild, Cooldown, HOUR_MS, NOTE_EVERY_MS, NOTES_PER_HOUR, readBody } from '../server/limits';
+import { addressKey, AGGREGATE_MS, bearer, CachedBuild, Cooldown, HOUR_MS, NOTE_EVERY_MS, NOTES_PER_HOUR, readBody } from '../server/limits';
 import { CLOSE_FLOOD, CLOSE_FULL, CLOSE_SPENT, flooding, hear, IDLE_MS, newPlayer, refill, refused, snapshots, spendMessage, TICK_MS, type Player } from '../server/pose';
 import { Budget, budgetOf, log, Shares, spentAddress, spentBudget, spentUntil } from './budget';
 import { feedUse, type FeedHub } from './feeds';
@@ -198,8 +198,7 @@ export class Hub extends DurableObject<Env> {
       return Response.json({ note });
     }
     if (request.method === 'DELETE') {
-      const token = this.env.NOTES_ADMIN_TOKEN;
-      if (!token || request.headers.get('authorization') !== `Bearer ${token}`) return new Response('Forbidden', { status: 403 });
+      if (!(await bearer(request, this.env.NOTES_ADMIN_TOKEN))) return new Response('Forbidden', { status: 403 });
       // DELETE /notes/<id> takes one note down, DELETE /notes?since=<epoch ms> every note put up since then.
       const since = Number(url.searchParams.get('since'));
       if (url.pathname === '/notes' && url.searchParams.has('since') && Number.isFinite(since)) sql.exec('DELETE FROM notes WHERE at >= ?', since);

@@ -47,6 +47,12 @@
     { "pattern": "www.understockholm.com", "custom_domain": true }
   ],
   "workers_dev": true,
-  // Logs from the hub and the feeds (a source failing, the GTFS timetable loading), kept a few days.
-  "observability": { "enabled": true }
+  // Logs from the hub and the feeds (a source failing, the GTFS timetable loading), kept a few days, and traces of one
+  // request in twenty (what a request waited on: the cache, an object, a source), which the top-level switch alone
+  // does not turn on. Stored traces count toward Cloudflare's observability allowance from December 2026.
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true },
+    "traces": { "enabled": true, "head_sampling_rate": 0.05 }
+  }
 }

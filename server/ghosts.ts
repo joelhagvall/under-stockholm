@@ -27,7 +27,7 @@ import { cleanNote } from '../src/game/notePhrases';
 import { handleErrors } from './errors';
 import { handleFeeds } from './feeds';
 import { handlePerf } from './perf';
-import { addressKey, Cooldown, HOUR_MS, NOTE_EVERY_MS, NOTES_PER_HOUR, readBody } from './limits';
+import { addressKey, bearer, Cooldown, HOUR_MS, NOTE_EVERY_MS, NOTES_PER_HOUR, readBody } from './limits';
 import { CLOSE_FLOOD, CLOSE_FULL, flooding, hear, IDLE_MS, MAX_CLIENTS, newPlayer, refill, refused, snapshots, spendMessage, TICK_MS, type Player } from './pose';
 
 // 0 lets the system pick a free port.
@@ -72,7 +72,7 @@ async function handleNotes(req: Request, url: URL, ip: string): Promise<Response
   }
   if (req.method === 'DELETE') {
     const id = Number(url.pathname.split('/')[2]);
-    if (!NOTES_ADMIN_TOKEN || req.headers.get('authorization') !== `Bearer ${NOTES_ADMIN_TOKEN}`) return new Response('Forbidden', { status: 403, headers: cors });
+    if (!(await bearer(req, NOTES_ADMIN_TOKEN))) return new Response('Forbidden', { status: 403, headers: cors });
     const since = Number(url.searchParams.get('since'));
     const bulk = url.pathname === '/notes' && url.searchParams.has('since') && Number.isFinite(since);
     notes = notes.filter((n) => (bulk ? n.at < since : n.id !== id));
