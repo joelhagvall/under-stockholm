@@ -16,7 +16,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { sendAlert } from '../server/errorCore';
 import { createFeeds, type Feeds } from '../server/feedCore';
 import type { Timetable } from '../server/gtfs';
-import { gtfsDepartures, type StaticTry, type TimetableStore } from '../server/gtfsFeed';
+import { gtfsDepartures, type GtfsFeed, type StaticTry, type TimetableStatus, type TimetableStore } from '../server/gtfsFeed';
 import { addressKey } from '../server/limits';
 import type { BudgetUse } from '../server/perfCore';
 import { Budget, budgetOf, log, Shares, spentAddress, spentBudget } from './budget';
@@ -36,13 +36,13 @@ const stub = (env: Env) => env.FEEDS.get(env.FEEDS.idFromName('feeds'), { locati
 /** Passes a feed request on to the object. */
 export const toFeeds = (env: Env, request: Request) => stub(env).fetch(request);
 
-/** Today's spending against FEED_BUDGET, or null if the object did not answer. */
-export async function feedUse(env: Env, origin: string): Promise<BudgetUse | null> {
+/** Today's spending against FEED_BUDGET and SL's timetable (null without the keys), or null if the object did not answer. */
+export async function feedUse(env: Env, origin: string): Promise<{ budget: BudgetUse; timetable: TimetableStatus | null } | null> {
   try {
     const answer = await stub(env).fetch(new Request(`${origin}${USE_PATH}`));
     if (!answer.ok) return null;
-    const { used, limit } = await answer.json() as { used: number; limit: number | null };
-    return { used, limit: limit ?? Infinity };
+    const { used, limit, timetable } = await answer.json() as { used: number; limit: number | null; timetable?: TimetableStatus | null };
+    return { budget: { used, limit: limit ?? Infinity }, timetable: timetable ?? null };
   } catch {
     return null;
   }
@@ -52,6 +52,7 @@ export class FeedHub extends DurableObject<Env> {
   private readonly feeds: Feeds;
   private readonly budget: Budget;
   private readonly shares: Shares;
+  private readonly gtfs: GtfsFeed | undefined;
   /** The site's origin, from the last request: an alert links to its /perf page. */
   private origin: string | null = null;
 
@@ -82,7 +83,8 @@ export class FeedHub extends DurableObject<Env> {
     const alertUrl = env.ALERT_URL;
     // An outage of SL's feed is told where a crash is (ALERT_URL), linking to /perf, which shows the feeds.
     const alert = alertUrl ? (title: string, text: string) => ctx.waitUntil(sendAlert(alertUrl, text, this.origin ? `${this.origin}/perf` : null, log, title)) : undefined;
-    this.feeds = createFeeds({ log, alert, gtfs: keys ? gtfsDepartures(keys, store, log) : undefined, waitUntil: (task) => ctx.waitUntil(task) });
+    this.gtfs = keys ? gtfsDepartures(keys, store, log) : undefined;
+    this.feeds = createFeeds({ log, alert, gtfs: this.gtfs, waitUntil: (task) => ctx.waitUntil(task) });
     void ctx.blockConcurrencyWhile(async () => {
       sql.exec('CREATE TABLE IF NOT EXISTS blobs (name TEXT NOT NULL, part INTEGER NOT NULL, data TEXT NOT NULL, PRIMARY KEY (name, part))');
       await this.budget.load();
@@ -94,7 +96,8 @@ export class FeedHub extends DurableObject<Env> {
     this.origin = url.origin;
     if (url.pathname === USE_PATH) {
       const { used, limit } = this.budget.use;
-      return Response.json({ used, limit: Number.isFinite(limit) ? limit : null });
+      const timetable = this.gtfs ? await this.gtfs.status() : null;
+      return Response.json({ used, limit: Number.isFinite(limit) ? limit : null, timetable });
     }
     const within = this.budget.spend(1);
     const over = this.shares.charge(addressKey(request.headers.get('cf-connecting-ip') ?? '?'));

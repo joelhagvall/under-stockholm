@@ -1,6 +1,5 @@
 import { expect, test } from 'bun:test';
-import { aggregate, parsePerf, summarize, type PerfReport } from '../server/perf';
-import { perfPage } from '../server/perfCore';
+import { aggregate, parsePerf, perfPage, summarize, timetableLine, type PerfReport } from '../server/perfCore';
 import { summarizeFrames } from '../src/game/telemetry';
 
 const sample = { v: 1, kind: 'touch', seconds: 120, frames: 7000, fps: 58.3, p95: 18.2, hitches: 3, scale: 1, pixelRatio: 1.234, loadS: 8.4, dpr: 3, w: 390, h: 844, cores: 8, memory: 4, gpu: 'ANGLE (Qualcomm, Adreno (TM) 650, OpenGL ES 3.2)', lang: 'sv', real: false, passengers: true };
@@ -53,6 +52,20 @@ test('the aggregate gives medians per class of device and per GPU', () => {
   expect(perfPage(all, { players: { used: 1_000_000, limit: 1_000_000 }, data })).toContain('other players are paused until midnight UTC');
   expect(perfPage(all, { players: { used: 5, limit: 10 }, data: { used: 300_000, limit: 300_000 } })).toContain('Spent: they wait until midnight UTC');
   expect(perfPage(all, { players: { used: 5, limit: Infinity }, data })).toContain('no daily budget');
+});
+
+test('the page says which SL timetable the feed runs on', () => {
+  const now = Date.UTC(2026, 9, 9, 12);
+  const status = { version: '2026-10-09', fetched: now - 6 * 3_600_000, tried: now - 6 * 3_600_000, failures: 0, loading: false };
+  expect(timetableLine(status, now)).toBe('<p>SL\'s timetable: export 2026-10-09, downloaded 6 h ago (2026-10-09 06:00 UTC).</p>\n');
+  expect(timetableLine({ ...status, tried: now - 30 * 60_000, failures: 2 }, now)).toContain('The last 2 downloads failed, the last started 30 min ago.');
+  // The download under way counts as failed until it is in, but is not called one.
+  expect(timetableLine({ ...status, tried: now - 60_000, failures: 1, loading: true }, now)).toContain('6 h ago (2026-10-09 06:00 UTC). Downloading a new one now.');
+  expect(timetableLine({ version: null, fetched: null, tried: null, failures: 0, loading: false }, now)).toContain('not in yet');
+  expect(timetableLine(null, now)).toContain('no GTFS keys');
+  const all = aggregate([]);
+  expect(perfPage(all)).not.toContain('SL\'s timetable');
+  expect(perfPage(all, undefined, null)).toContain('SL\'s timetable: no GTFS keys');
 });
 
 test('hitches: the mean, the median visit and the share in the game\'s own code', () => {

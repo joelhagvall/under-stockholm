@@ -218,10 +218,10 @@ export class Hub extends DurableObject<Env> {
         return aggregate(reports);
       });
       const feeds = await feedUse(this.env, url.origin);
-      const budgets = { players: this.players.use, data: this.data.use, ...(feeds ? { feeds } : {}) };
-      if (request.headers.get('accept')?.includes('text/html')) return new Response(perfPage(data, budgets), { headers: { 'content-type': 'text/html; charset=utf-8' } });
+      const budgets = { players: this.players.use, data: this.data.use, ...(feeds ? { feeds: feeds.budget } : {}) };
+      if (request.headers.get('accept')?.includes('text/html')) return new Response(perfPage(data, budgets, feeds?.timetable), { headers: { 'content-type': 'text/html; charset=utf-8' } });
       const json = ({ used, limit }: BudgetUse) => ({ used, limit: Number.isFinite(limit) ? limit : null });
-      return Response.json({ ...data, budget: json(budgets.players), dataBudget: json(budgets.data), feedBudget: feeds ? json(feeds) : null });
+      return Response.json({ ...data, budget: json(budgets.players), dataBudget: json(budgets.data), feedBudget: feeds ? json(feeds.budget) : null, ...(feeds ? { timetable: feeds.timetable } : {}) });
     }
     if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
     const now = Date.now();

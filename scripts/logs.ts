@@ -14,6 +14,8 @@
 // but is refused by the GraphQL analytics. Without it, or without one of the permissions, that part says so and the rest still
 // runs. The last deploy's time comes from `wrangler deployments`.
 import { $ } from 'bun';
+import type { TimetableStatus } from '../server/gtfsFeed';
+import { timetableLine } from '../server/perfCore';
 
 const SITE = 'https://understockholm.com';
 const SCRIPT = 'under-stockholm';
@@ -52,7 +54,7 @@ interface Build { build: string; battery: boolean; last: number; desktop?: Kind;
 
 const [errors, perf] = await Promise.all([
   fetch(`${SITE}/errors`).then((r) => r.json() as Promise<{ groups: ErrorGroup[] }>),
-  fetch(`${SITE}/perf`).then((r) => r.json() as Promise<{ builds: Build[]; budget: { used: number; limit: number }; dataBudget: { used: number; limit: number }; feedBudget?: { used: number; limit: number | null } | null }>),
+  fetch(`${SITE}/perf`).then((r) => r.json() as Promise<{ builds: Build[]; budget: { used: number; limit: number }; dataBudget: { used: number; limit: number }; feedBudget?: { used: number; limit: number | null } | null; timetable?: TimetableStatus | null }>),
 ]);
 const builds = perf.builds.filter((b) => !b.battery && b.build).sort((a, b) => b.last - a.last);
 const [newest, previous] = builds;
@@ -77,6 +79,7 @@ for (const kind of ['desktop', 'touch'] as const) {
 }
 const feeds = perf.feedBudget ? `, feeds ${fmt(perf.feedBudget.used)} / ${perf.feedBudget.limit === null ? 'no limit' : fmt(perf.feedBudget.limit)}` : '';
 console.log(`  today's budgets: players ${fmt(perf.budget.used)} / ${fmt(perf.budget.limit)}, notes and reports ${fmt(perf.dataBudget.used)} / ${fmt(perf.dataBudget.limit)}${feeds}`);
+if (perf.timetable !== undefined) console.log(`  ${timetableLine(perf.timetable, now).replace(/<\/?p>/g, '').trim()}`);
 
 if (!token) {
   console.log('\nCF_OBS_TOKEN is not set (see the top of scripts/logs.ts): no Worker logs or usage.');

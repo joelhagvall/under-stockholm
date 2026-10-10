@@ -8,6 +8,7 @@
 //   GET  /perf   the aggregate as JSON, or as a plain page for a browser (`Accept: text/html`)
 // Reports are appended to PERF_FILE (default server/perf.jsonl, not committed) and the last PERF_KEPT stay in memory.
 
+import { timetableStatus } from './feeds';
 import { AGGREGATE_MS, CachedBuild, Cooldown, readBody } from './limits';
 import { aggregate, PERF_EVERY_MS, PERF_KEPT, perfPage, readPerf, type PerfAggregate, type PerfReport } from './perfCore';
 
@@ -27,8 +28,9 @@ export async function handlePerf(req: Request, ip: string, cors: Record<string, 
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
   if (req.method === 'GET') {
     const data = answers.get(() => aggregate(reports));
-    if (req.headers.get('accept')?.includes('text/html')) return new Response(perfPage(data), { headers: { ...cors, 'content-type': 'text/html; charset=utf-8' } });
-    return Response.json(data, { headers: cors });
+    const timetable = await timetableStatus();
+    if (req.headers.get('accept')?.includes('text/html')) return new Response(perfPage(data, undefined, timetable), { headers: { ...cors, 'content-type': 'text/html; charset=utf-8' } });
+    return Response.json({ ...data, timetable }, { headers: cors });
   }
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: cors });
   const now = Date.now();

@@ -64,3 +64,16 @@ test('a restart keeps the pause instead of downloading again at once', async () 
   await tick();
   expect(calls.length).toBe(1);
 });
+
+test('the status says what the store holds and how the downloads went, without starting one', async () => {
+  const calls = failingStatic();
+  const store = memoryStore();
+  setSystemTime(new Date(Date.UTC(2026, 9, 1)));
+  expect(await gtfsDepartures(keys, store, () => {}).status()).toEqual({ version: null, fetched: null, tried: null, failures: 0, loading: false });
+  expect(calls.length).toBe(0);
+  const sl = gtfsDepartures(keys, store, () => {});
+  await sl();
+  expect((await sl.status()).loading).toBe(true);
+  await tick();
+  expect(await sl.status()).toEqual({ version: null, fetched: null, tried: Date.UTC(2026, 9, 1), failures: 1, loading: false });
+});

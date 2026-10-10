@@ -33,11 +33,27 @@ export interface TimetableStore {
   writeTry(attempt: StaticTry): Promise<void>;
 }
 
+/** The timetable as /perf shows it: which export is in and when it came, and how the downloads are going. */
+export interface TimetableStatus {
+  /** SL's export date, or null until one is in. */
+  version: string | null;
+  /** When it was downloaded, epoch ms. */
+  fetched: number | null;
+  /** When the last download started, epoch ms, and how many in a row have failed. */
+  tried: number | null;
+  failures: number;
+  /** Whether a download is under way. */
+  loading: boolean;
+}
+
+/** Every station's departures, with the timetable's state beside them. */
+export type GtfsFeed = (() => Promise<Record<number, unknown> | null>) & { status(): Promise<TimetableStatus> };
+
 /** How long to wait after a download that started `failures` failures in a row ago. */
 export const staticPause = (failures: number) => Math.min(STATIC_PAUSE_MAX, STATIC_RETRY * 2 ** Math.max(0, failures - 1));
 
 /** Every station's departures from GTFS, or null until a timetable is in (the feed is unavailable until then). */
-export function gtfsDepartures(keys: GtfsKeys, store: TimetableStore, log: (message: string) => void): () => Promise<Record<number, unknown> | null> {
+export function gtfsDepartures(keys: GtfsKeys, store: TimetableStore, log: (message: string) => void): GtfsFeed {
   let timetable: Timetable | null = null;
   let stored: Promise<void> | null = null;
   let tried: StaticTry = { at: 0, failures: 0 };
@@ -65,15 +81,24 @@ export function gtfsDepartures(keys: GtfsKeys, store: TimetableStore, log: (mess
     return timetable && now - timetable.fetched < STATIC_KEEP ? timetable : null;
   }
 
-  return async () => {
-    stored ??= Promise.all([
-      store.read().then((t) => { timetable ??= t; }, () => { /* Downloaded on first use. */ }),
-      store.readTry().then((t) => { if (t && t.at > tried.at) tried = t; }, () => { /* Never tried. */ }),
-    ]).then(() => {});
-    await stored;
+  /** What the store holds, read once per object (the timetable is a few MB). */
+  const restore = () => stored ??= Promise.all([
+    store.read().then((t) => { timetable ??= t; }, () => { /* Downloaded on first use. */ }),
+    store.readTry().then((t) => { if (t && t.at > tried.at) tried = t; }, () => { /* Never tried. */ }),
+  ]).then(() => {});
+
+  const feed = async () => {
+    await restore();
     const table = current();
     if (!table) return null;
-    const feed = new Uint8Array(await (await source(`${GTFS_REALTIME}?key=${keys.realtime}`)).arrayBuffer());
-    return departures(table, parseTripUpdates(feed), Date.now() / 1000);
+    const updates = new Uint8Array(await (await source(`${GTFS_REALTIME}?key=${keys.realtime}`)).arrayBuffer());
+    return departures(table, parseTripUpdates(updates), Date.now() / 1000);
   };
+  const status = async (): Promise<TimetableStatus> => {
+    await restore();
+    // In from the download under way, which only counts as done once it is stored.
+    const done = timetable !== null && timetable.fetched >= tried.at;
+    return { version: timetable?.version ?? null, fetched: timetable?.fetched ?? null, tried: tried.at || null, failures: done ? 0 : tried.failures, loading: loading !== null && !done };
+  };
+  return Object.assign(feed, { status });
 }

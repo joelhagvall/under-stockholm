@@ -1,6 +1,8 @@
 // Anonymous performance reports from players (src/game/telemetry.ts): what one report may hold, and what they sum
 // up to. Shared by the Bun relay (server/perf.ts) and the hub on Cloudflare (worker/hub.ts), which only keep them.
 
+import type { TimetableStatus } from './gtfsFeed';
+
 export interface PerfReport {
   v: 1;
   /** When it was received, epoch milliseconds (set by the relay). */
@@ -159,8 +161,11 @@ export type BudgetUse = { used: number; limit: number };
 /** The daily budgets: other players (`GHOST_BUDGET`), notes and reports (`DATA_BUDGET`), and feeds (`FEED_BUDGET`, left out when their object did not answer). */
 export type Budgets = { players: BudgetUse; data: BudgetUse; feeds?: BudgetUse };
 
-/** The aggregate as a plain page, for a browser, with today's budgets when the relay keeps them. */
-export function perfPage(data: PerfAggregate, budgets?: Budgets): string {
+/**
+ * The aggregate as a plain page, for a browser, with today's budgets when the relay keeps them, and SL's timetable when
+ * the relay knows it (null: no GTFS keys).
+ */
+export function perfPage(data: PerfAggregate, budgets?: Budgets, timetable?: TimetableStatus | null): string {
   const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const headings = '<tr><th></th><th>visits</th><th>fps</th><th>fps p10</th><th>p95 ms</th><th>hitches/min, mean</th><th>median</th><th>in the game\'s code</th><th>downscaled</th><th>load s</th><th>load p90</th></tr>';
   const row = (label: string, s: PerfSummary) => `<tr><td>${label}</td><td>${s.n}</td><td>${s.fps.median}</td><td>${s.fps.p10}</td><td>${s.p95.median}</td><td>${s.hitchesPerMinute}</td><td>${s.hitchesMedian}</td><td>${s.hitchesWork === null ? '' : `${Math.round(s.hitchesWork * 100)}%`}</td><td>${Math.round(s.downscaled * 100)}%</td><td>${s.loadS.median}</td><td>${s.loadS.p90}</td></tr>`;
@@ -172,13 +177,28 @@ export function perfPage(data: PerfAggregate, budgets?: Budgets): string {
   return `<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><title>Under Stockholm | performance</title>
 <style>body{font:14px/1.5 system-ui;margin:2em;color:#222}table{border-collapse:collapse;margin:1em 0}td,th{border:1px solid #ccc;padding:4px 10px;text-align:right}td:first-child,th:first-child{text-align:left}</style>
 <h1>Under Stockholm: how it runs for players</h1>
-${budgets ? budgetLine('Other players', budgets.players, 'other players are paused') + budgetLine('Notes and reports', budgets.data, 'they wait') + (budgets.feeds ? budgetLine('Feeds', budgets.feeds, 'they wait') : '') : ''}<p>${data.count} reports since ${data.since ? new Date(data.since).toISOString().slice(0, 10) : 'never'}. One per visit, after two minutes of play. Medians unless said otherwise.</p>
+${budgets ? budgetLine('Other players', budgets.players, 'other players are paused') + budgetLine('Notes and reports', budgets.data, 'they wait') + (budgets.feeds ? budgetLine('Feeds', budgets.feeds, 'they wait') : '') : ''}${timetable === undefined ? '' : timetableLine(timetable, Date.now())}<p>${data.count} reports since ${data.since ? new Date(data.since).toISOString().slice(0, 10) : 'never'}. One per visit, after two minutes of play. Medians unless said otherwise.</p>
 <table>${headings}
 ${row('desktop, all', data.all.desktop)}${row('touch, all', data.all.touch)}${row('desktop, last day', data.day.desktop)}${row('touch, last day', data.day.touch)}</table>
 <h2>By build and battery saver</h2><p>The 12 most recently seen build and mode groups, over all kept reports. Unknown includes older clients and visits whose battery saver changed.</p>
 <table>${headings}${builds}</table>
 <h2>By GPU</h2><table><tr><th>desktop</th><th>visits</th><th>fps</th></tr>${gpus(data.all.desktop)}</table>
 <table><tr><th>touch</th><th>visits</th><th>fps</th></tr>${gpus(data.all.touch)}</table>`;
+}
+
+/** Which GTFS export the SL feed runs on, how old it is, and any downloads that failed. */
+export function timetableLine(timetable: TimetableStatus | null, now: number): string {
+  if (!timetable) return '<p>SL\'s timetable: no GTFS keys, so no SL feed.</p>\n';
+  const ago = (at: number) => {
+    const minutes = Math.round((now - at) / 60_000);
+    return minutes < 120 ? `${minutes} min ago` : `${Math.round(minutes / 60)} h ago`;
+  };
+  const at = (ms: number) => `${new Date(ms).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+  const held = timetable.version && timetable.fetched ? `export ${timetable.version}, downloaded ${ago(timetable.fetched)} (${at(timetable.fetched)}).` : 'not in yet.';
+  // A download counts as failed until it is in, so the one under way is not among them.
+  const failed = timetable.failures - (timetable.loading ? 1 : 0);
+  const tries = failed > 0 && timetable.tried ? ` The last ${failed === 1 ? 'download' : `${failed} downloads`} failed, the last started ${ago(timetable.tried)}.` : '';
+  return `<p>SL's timetable: ${held}${tries}${timetable.loading ? ' Downloading a new one now.' : ''}</p>\n`;
 }
 
 function budgetLine(what: string, { used, limit }: BudgetUse, paused: string): string {

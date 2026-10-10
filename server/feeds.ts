@@ -4,7 +4,7 @@
 
 import { sendAlert } from './errorCore';
 import { createFeeds } from './feedCore';
-import { gtfsDepartures, type StaticTry } from './gtfsFeed';
+import { gtfsDepartures, type StaticTry, type TimetableStatus } from './gtfsFeed';
 import type { Timetable } from './gtfs';
 
 const RT_KEY = process.env.TRAFIKLAB_RT_KEY;
@@ -20,16 +20,20 @@ if (!RT_KEY || !STATIC_KEY) {
 }
 
 const ALERT_URL = process.env.ALERT_URL;
+const gtfs = RT_KEY && STATIC_KEY ? gtfsDepartures({ realtime: RT_KEY, static: STATIC_KEY }, {
+  read: async () => JSON.parse(await Bun.file(GTFS_FILE).text()) as Timetable,
+  write: async (timetable) => { await Bun.write(GTFS_FILE, JSON.stringify(timetable)); },
+  readTry: async () => JSON.parse(await Bun.file(GTFS_TRY_FILE).text()) as StaticTry,
+  writeTry: async (attempt) => { await Bun.write(GTFS_TRY_FILE, JSON.stringify(attempt)); },
+}, log) : undefined;
 const feeds = createFeeds({
   log,
   alert: ALERT_URL ? (title, text) => void sendAlert(ALERT_URL, text, null, log, title) : undefined,
-  gtfs: RT_KEY && STATIC_KEY ? gtfsDepartures({ realtime: RT_KEY, static: STATIC_KEY }, {
-    read: async () => JSON.parse(await Bun.file(GTFS_FILE).text()) as Timetable,
-    write: async (timetable) => { await Bun.write(GTFS_FILE, JSON.stringify(timetable)); },
-    readTry: async () => JSON.parse(await Bun.file(GTFS_TRY_FILE).text()) as StaticTry,
-    writeTry: async (attempt) => { await Bun.write(GTFS_TRY_FILE, JSON.stringify(attempt)); },
-  }, log) : undefined,
+  gtfs,
 });
 
 /** Answers /feeds/<name>, or returns null for any other path. */
 export const handleFeeds = (url: URL, cors: Record<string, string>): Promise<Response | null> => feeds.handle(url, cors);
+
+/** SL's timetable for /perf, or null without the keys. */
+export const timetableStatus = (): Promise<TimetableStatus | null> => gtfs?.status() ?? Promise.resolve(null);
