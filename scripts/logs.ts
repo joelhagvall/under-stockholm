@@ -5,7 +5,8 @@
 //   2. The Worker's own logs (Workers Logs): outcomes, what the errors and warnings say and where they happen.
 //   3. Usage over the last 7 days, projected to a month, against what Workers Paid includes, and where each Durable Object
 //      runs and how long it was awake.
-//   4. Traffic through the zone over the last 7 days, a day at a time: requests, page views, visitors, data, cache, countries.
+//   4. Traffic through the zone over the last 7 days, a day at a time: requests, page views, visitors, data, cache, countries,
+//      and page views and visits summed over every day Cloudflare keeps.
 //
 // Parts 2 to 4 need a Cloudflare API token in CF_OBS_TOKEN (in `.env.local`, which git ignores) with "Workers Observability:
 // Read" for the logs, "Account Analytics: Read" for the usage and "Zone: Read" and "Zone Analytics: Read" on
@@ -227,5 +228,20 @@ else {
     console.log(`  ${'week'.padEnd(5)} ${fmt(total.requests).padStart(9)} ${fmt(total.pageViews).padStart(6)} ${''.padStart(8)} ${mb(total.bytes).padStart(10)}  ${pct(total.cachedRequests, total.requests)} / ${pct(total.cachedBytes, total.bytes)}  ${fmt(total.threats).padStart(7)}`);
     const top = [...countries].sort((a, b) => b[1] - a[1]).slice(0, 8);
     console.log(`  countries: ${top.map(([c, n]) => `${c} ${pct(n, total.requests).trim()}`).join(', ')}`);
+  }
+
+  // Every day Cloudflare still keeps, back to when the zone was added: visitors summed over days count someone who comes back
+  // on another day again, so they are visits rather than people.
+  const allQuery = `query($z: String!, $from: Date!, $to: Date!) { viewer { zones(filter: { zoneTag: $z }) {
+    days: httpRequests1dGroups(limit: 400, orderBy: [date_ASC], filter: { date_geq: $from, date_leq: $to }) {
+      dimensions { date } sum { requests pageViews } uniq { uniques } } } } }`;
+  const allVars = { z: zone, from: new Date(now - 364 * 86_400_000).toISOString().slice(0, 10), to: variables.to };
+  const allRes = await fetch('https://api.cloudflare.com/client/v4/graphql', { method: 'POST', headers: auth, body: JSON.stringify({ query: allQuery, variables: allVars }) });
+  const allJson = await allRes.json().catch(() => null) as { data?: { viewer: { zones: { days: (Pick<Day, 'dimensions' | 'uniq'> & { sum: { requests: number; pageViews: number } })[] }[] } }; errors?: { message: string }[] } | null;
+  const allDays = allJson?.data?.viewer.zones[0]?.days;
+  if (!allRes.ok || allJson?.errors?.length || !allDays?.length) console.log(`  all time: ${allJson?.errors?.map((e) => e.message).join('; ') ?? allRes.status}`);
+  else {
+    const all = allDays.reduce((t, d) => ({ requests: t.requests + d.sum.requests, views: t.views + d.sum.pageViews, visits: t.visits + d.uniq.uniques }), { requests: 0, views: 0, visits: 0 });
+    console.log(`  all time (since ${allDays[0].dimensions.date}): ${fmt(all.views)} page views, ${fmt(all.visits)} visits (visitors a day, summed), ${fmt(all.requests)} requests`);
   }
 }

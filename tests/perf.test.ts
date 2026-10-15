@@ -112,7 +112,8 @@ test('versions and battery saver are separated, with old reports in an unknown g
   expect(data.builds[4]).toMatchObject({ build: '', battery: null });
   expect(data.all.touch.n).toBe(5);
   const page = perfPage(data);
-  expect(page).toContain('build-a, battery on, touch');
+  expect(page).toContain('build-a, battery on, touch</td><td>1970-01-01 00:00</td>');
+  expect(page.indexOf('build-b, battery off')).toBeLessThan(page.indexOf('build-a, battery on'));
   expect(page).toContain('build-a, battery off, touch');
   expect(page).toContain('(unknown build), battery unknown or changed, touch');
   expect(parsePerf({ ...sample, build: '<script>', battery: 'on' })!).toMatchObject({ build: '', battery: null });

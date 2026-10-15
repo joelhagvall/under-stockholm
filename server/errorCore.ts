@@ -158,9 +158,9 @@ export async function sendAlert(url: string, text: string, page: string | null, 
 const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const when = (ms: number) => new Date(ms).toISOString().slice(0, 16).replace('T', ' ');
 
-/** The groups as a plain page, for a browser. */
+/** The groups as a plain page, for a browser, the one met most recently first. */
 export function errorsPage(data: ErrorAggregate): string {
-  const rows = data.groups.map((g) => `<tr><td>${g.n}</td><td>${g.fatal}</td><td>${g.touch}</td><td>${when(g.last)}</td><td><details><summary>${escape(g.message)}<br><small>${escape(g.frame)}</small></summary>
+  const rows = [...data.groups].sort((a, b) => b.last - a.last).map((g) => `<tr><td>${g.n}</td><td>${g.fatal}</td><td>${g.touch}</td><td>${when(g.last)}</td><td><details><summary>${escape(g.message)}<br><small>${escape(g.frame)}</small></summary>
 <p>Builds: ${Object.entries(g.builds).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([build, n]) => `${escape(build || '(unknown)')}: ${n}`).join(', ')}<br>
 ${escape(g.sample.where || '(no station)')}, ${g.sample.played} s in, ${escape(g.sample.gpu || '(unknown gpu)')}<br>${escape(g.sample.ua)}</p><pre>${escape(g.sample.stack)}</pre></details></td></tr>`).join('');
   return `<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><title>Under Stockholm | errors</title>

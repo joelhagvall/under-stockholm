@@ -55,6 +55,15 @@ test('the page escapes what players sent', () => {
   expect(errorsPage(groupErrors([r]))).not.toContain('<img');
 });
 
+test('the page lists the groups by when they were last met, the newest first', () => {
+  const often = [1000, 2000].map((at) => parseError({ ...sample, message: 'Error: often' }, at)!);
+  const lately = parseError({ ...sample, message: 'Error: lately' }, 3000)!;
+  const data = groupErrors([...often, lately]);
+  expect(data.groups[0].message).toBe('Error: often');
+  const page = errorsPage(data);
+  expect(page.indexOf('Error: lately')).toBeLessThan(page.indexOf('Error: often'));
+});
+
 test('missing assets group across hashes in the message and keep the newest original report', () => {
   for (const [name, extension, prefix] of [
     ['boot', 'js', 'TypeError: Failed to fetch dynamically imported module: '],

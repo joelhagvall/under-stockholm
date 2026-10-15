@@ -167,21 +167,22 @@ export type Budgets = { players: BudgetUse; data: BudgetUse; feeds?: BudgetUse }
  */
 export function perfPage(data: PerfAggregate, budgets?: Budgets, timetable?: TimetableStatus | null): string {
   const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const headings = '<tr><th></th><th>visits</th><th>fps</th><th>fps p10</th><th>p95 ms</th><th>hitches/min, mean</th><th>median</th><th>in the game\'s code</th><th>downscaled</th><th>load s</th><th>load p90</th></tr>';
-  const row = (label: string, s: PerfSummary) => `<tr><td>${label}</td><td>${s.n}</td><td>${s.fps.median}</td><td>${s.fps.p10}</td><td>${s.p95.median}</td><td>${s.hitchesPerMinute}</td><td>${s.hitchesMedian}</td><td>${s.hitchesWork === null ? '' : `${Math.round(s.hitchesWork * 100)}%`}</td><td>${Math.round(s.downscaled * 100)}%</td><td>${s.loadS.median}</td><td>${s.loadS.p90}</td></tr>`;
+  const headings = (last = '') => `<tr><th></th>${last}<th>visits</th><th>fps</th><th>fps p10</th><th>p95 ms</th><th>hitches/min, mean</th><th>median</th><th>in the game's code</th><th>downscaled</th><th>load s</th><th>load p90</th></tr>`;
+  const row = (label: string, s: PerfSummary, last = '') => `<tr><td>${label}</td>${last}<td>${s.n}</td><td>${s.fps.median}</td><td>${s.fps.p10}</td><td>${s.p95.median}</td><td>${s.hitchesPerMinute}</td><td>${s.hitchesMedian}</td><td>${s.hitchesWork === null ? '' : `${Math.round(s.hitchesWork * 100)}%`}</td><td>${Math.round(s.downscaled * 100)}%</td><td>${s.loadS.median}</td><td>${s.loadS.p90}</td></tr>`;
   const builds = data.builds.map((b) => {
     const label = `${escape(b.build || '(unknown build)')}, battery ${b.battery === null ? 'unknown or changed' : b.battery ? 'on' : 'off'}`;
-    return (b.desktop.n ? row(`${label}, desktop`, b.desktop) : '') + (b.touch.n ? row(`${label}, touch`, b.touch) : '');
+    const last = `<td>${new Date(b.last).toISOString().slice(0, 16).replace('T', ' ')}</td>`;
+    return (b.desktop.n ? row(`${label}, desktop`, b.desktop, last) : '') + (b.touch.n ? row(`${label}, touch`, b.touch, last) : '');
   }).join('');
   const gpus = (s: PerfSummary) => s.gpus.map((g) => `<tr><td>${g.gpu.replace(/</g, '&lt;')}</td><td>${g.n}</td><td>${g.fps}</td></tr>`).join('');
   return `<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><title>Under Stockholm | performance</title>
 <style>body{font:14px/1.5 system-ui;margin:2em;color:#222}table{border-collapse:collapse;margin:1em 0}td,th{border:1px solid #ccc;padding:4px 10px;text-align:right}td:first-child,th:first-child{text-align:left}</style>
 <h1>Under Stockholm: how it runs for players</h1>
 ${budgets ? budgetLine('Other players', budgets.players, 'other players are paused') + budgetLine('Notes and reports', budgets.data, 'they wait') + (budgets.feeds ? budgetLine('Feeds', budgets.feeds, 'they wait') : '') : ''}${timetable === undefined ? '' : timetableLine(timetable, Date.now())}<p>${data.count} reports since ${data.since ? new Date(data.since).toISOString().slice(0, 10) : 'never'}. One per visit, after two minutes of play. Medians unless said otherwise.</p>
-<table>${headings}
+<table>${headings()}
 ${row('desktop, all', data.all.desktop)}${row('touch, all', data.all.touch)}${row('desktop, last day', data.day.desktop)}${row('touch, last day', data.day.touch)}</table>
-<h2>By build and battery saver</h2><p>The 12 most recently seen build and mode groups, over all kept reports. Unknown includes older clients and visits whose battery saver changed.</p>
-<table>${headings}${builds}</table>
+<h2>By build and battery saver</h2><p>The 12 most recently seen build and mode groups, over all kept reports, the newest first: last is the group's latest report. Unknown includes older clients and visits whose battery saver changed.</p>
+<table>${headings('<th>last</th>')}${builds}</table>
 <h2>By GPU</h2><table><tr><th>desktop</th><th>visits</th><th>fps</th></tr>${gpus(data.all.desktop)}</table>
 <table><tr><th>touch</th><th>visits</th><th>fps</th></tr>${gpus(data.all.touch)}</table>`;
 }
