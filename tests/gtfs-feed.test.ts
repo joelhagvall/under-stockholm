@@ -124,3 +124,22 @@ test('the first failed download of a row is told, and so is the one that ends it
   }
   expect(told).toEqual(['Under Stockholm: SL timetable download failed']);
 });
+
+test('a row of failed downloads is told again once the timetable in has two service days left', async () => {
+  const told: string[] = [];
+  const alert = (_: string, text: string) => { told.push(text); };
+  const table: Timetable = { version: '2026-10-01', fetched: Date.UTC(2026, 9, 1, 10), trips: [{ id: 'A', line: '11', direction: 1, destination: 'Akalla', dates: ['20261010'], stops: [[9001, 1, 43200, 43200]] }] };
+  const store = { ...memoryStore(), read: async () => table };
+  const calls = failingStatic();
+  const failing = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => String(input).includes('TripUpdates') ? new Response(new Uint8Array()) : failing(input)) as typeof fetch;
+  // Every 7 h from the 2nd to the 10th: the first failure is told, then the first with two days or fewer left (the 8th).
+  for (let clock = Date.UTC(2026, 9, 2, 10); clock < Date.UTC(2026, 9, 10, 20); clock += 7 * HOUR) {
+    setSystemTime(new Date(clock));
+    await gtfsDepartures(keys, store, () => {}, { alert })();
+    await tick();
+  }
+  expect(calls.length).toBeGreaterThan(20);
+  expect(told.length).toBe(2);
+  expect(told.every((t) => t.includes('trips until 2026-10-10'))).toBe(true);
+});

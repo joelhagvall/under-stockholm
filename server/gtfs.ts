@@ -210,6 +210,12 @@ export function runsToday(timetable: Timetable, now: number): boolean {
   return timetable.trips.some((t) => t.dates.includes(today));
 }
 
+/** Service days from that of `now` (epoch seconds) to the last the timetable has trips on: 0 on its last, negative after. */
+export function daysLeft(timetable: Timetable, now: number): number {
+  const last = timetable.trips.reduce((day, t) => t.dates.reduce((a, d) => (d > a ? d : a), day), '');
+  return last ? Math.round((serviceStart(last) - serviceStart(dateKey(now))) / 86400) : -Infinity;
+}
+
 /** The epoch second a service day's times count from. */
 export function serviceStart(date: string): number {
   const y = Number(date.slice(0, 4));
