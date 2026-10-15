@@ -16,8 +16,11 @@ const SITES = new Map(LINES.flatMap((l) => l.stations.map((s) => [s.name, s.site
 /** Each route's outbound terminal: direction 1 is toward it, as the game's track 1. */
 const OUTBOUND = new Map(LINES.flatMap((l) => l.routes.map((r) => [r.number, r.outbound] as const)));
 const METRO = '401';
-/** Service days before and after the download kept in the timetable, so one failed daily download changes nothing. */
-const KEEP_DAYS = { before: 1, after: 7 };
+/**
+ * Service days before and after the download kept in the timetable: it is used for as long as it has trips today
+ * (`runsToday`), so three weeks of failed downloads, a month's static quota spent among them, change nothing.
+ */
+const KEEP_DAYS = { before: 1, after: 21 };
 /** How far ahead departures are listed, like the Transport API. */
 const HORIZON = 60 * 60;
 /** Per station, line and direction: an hour of a route every ten minutes. */
@@ -200,6 +203,12 @@ const dateKey = (epoch: number) => {
   const d = stockholm(epoch);
   return `${d.year}${pad2(d.month)}${pad2(d.day)}`;
 };
+
+/** Whether the timetable has trips on the service day of `now` (epoch seconds), so it can still be used. */
+export function runsToday(timetable: Timetable, now: number): boolean {
+  const today = dateKey(now);
+  return timetable.trips.some((t) => t.dates.includes(today));
+}
 
 /** The epoch second a service day's times count from. */
 export function serviceStart(date: string): number {

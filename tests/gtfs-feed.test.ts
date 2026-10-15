@@ -77,3 +77,50 @@ test('the status says what the store holds and how the downloads went, without s
   await tick();
   expect(await sl.status()).toEqual({ version: null, fetched: null, tried: Date.UTC(2026, 9, 1), failures: 1, loading: false });
 });
+
+test('an old timetable is used for as long as it has trips today, whatever a failed download says', async () => {
+  const fetched = Date.UTC(2026, 9, 1, 10);
+  const table: Timetable = { version: '2026-10-01', fetched, trips: [{ id: 'A', line: '11', direction: 1, destination: 'Akalla', dates: ['20261014'], stops: [[9001, 1, 43200, 43200]] }] };
+  const store = { ...memoryStore(), read: async () => table };
+  const calls = failingStatic();
+  const failing = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => String(input).includes('TripUpdates') ? new Response(new Uint8Array()) : failing(input)) as typeof fetch;
+  // Thirteen days after it came, a day it still runs: served, while a new one is tried for.
+  setSystemTime(new Date(Date.UTC(2026, 9, 14, 10)));
+  expect(await gtfsDepartures(keys, store, () => {})()).not.toBeNull();
+  await tick();
+  expect(calls.length).toBe(1);
+  // The day after its last: none.
+  setSystemTime(new Date(Date.UTC(2026, 9, 15, 10)));
+  expect(await gtfsDepartures(keys, store, () => {})()).toBeNull();
+});
+
+test('a relay told to download less often keeps a day-old timetable without asking', async () => {
+  const table: Timetable = { version: '2026-10-01', fetched: Date.UTC(2026, 9, 1, 10), trips: [{ id: 'A', line: '11', direction: 1, destination: 'Akalla', dates: ['20261002'], stops: [[9001, 1, 43200, 43200]] }] };
+  const store = { ...memoryStore(), read: async () => table };
+  const calls = failingStatic();
+  const failing = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => String(input).includes('TripUpdates') ? new Response(new Uint8Array()) : failing(input)) as typeof fetch;
+  setSystemTime(new Date(Date.UTC(2026, 9, 2, 12)));
+  await gtfsDepartures(keys, store, () => {}, { every: 7 * 24 * HOUR })();
+  await tick();
+  expect(calls.length).toBe(0);
+  await gtfsDepartures(keys, store, () => {})();
+  await tick();
+  expect(calls.length).toBe(1);
+});
+
+test('the first failed download of a row is told, and so is the one that ends it', async () => {
+  const told: string[] = [];
+  const alert = (title: string) => { told.push(title); };
+  failingStatic();
+  const store = memoryStore();
+  let clock = Date.UTC(2026, 9, 1);
+  for (let i = 0; i < 3; i++) {
+    setSystemTime(new Date(clock));
+    await gtfsDepartures(keys, store, () => {}, { alert })();
+    await tick();
+    clock += 7 * HOUR;
+  }
+  expect(told).toEqual(['Under Stockholm: SL timetable download failed']);
+});

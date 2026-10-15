@@ -12,6 +12,11 @@ const STATIC_KEY = process.env.TRAFIKLAB_STATIC_KEY;
 const GTFS_FILE = process.env.GTFS_FILE ?? new URL('./gtfs-timetable.json', import.meta.url).pathname;
 const GTFS_TRY_FILE = `${GTFS_FILE}.try`;
 const log = (message: string) => console.warn(message);
+/**
+ * A new timetable once a week here, not once a day as in production: this relay runs on the same static key (250
+ * downloads a month), in every `bun run dev` and gate, and the timetable holds three weeks.
+ */
+const DEV_EVERY = 7 * 24 * 60 * 60 * 1000;
 
 // Production always has both keys. Without them the relay still runs, but no line follows SL, so say so loudly.
 if (!RT_KEY || !STATIC_KEY) {
@@ -20,15 +25,16 @@ if (!RT_KEY || !STATIC_KEY) {
 }
 
 const ALERT_URL = process.env.ALERT_URL;
+const alert = ALERT_URL ? (title: string, text: string) => void sendAlert(ALERT_URL, text, null, log, title) : undefined;
 const gtfs = RT_KEY && STATIC_KEY ? gtfsDepartures({ realtime: RT_KEY, static: STATIC_KEY }, {
   read: async () => JSON.parse(await Bun.file(GTFS_FILE).text()) as Timetable,
   write: async (timetable) => { await Bun.write(GTFS_FILE, JSON.stringify(timetable)); },
   readTry: async () => JSON.parse(await Bun.file(GTFS_TRY_FILE).text()) as StaticTry,
   writeTry: async (attempt) => { await Bun.write(GTFS_TRY_FILE, JSON.stringify(attempt)); },
-}, log) : undefined;
+}, log, { every: DEV_EVERY, alert }) : undefined;
 const feeds = createFeeds({
   log,
-  alert: ALERT_URL ? (title, text) => void sendAlert(ALERT_URL, text, null, log, title) : undefined,
+  alert,
   gtfs,
 });
 

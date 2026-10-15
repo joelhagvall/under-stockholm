@@ -4,19 +4,20 @@
 //
 // Keys: TRAFIKLAB_RT_KEY and TRAFIKLAB_STATIC_KEY, never with a VITE_ prefix: they stay on the relay.
 // Silver quota: realtime 250 a minute, so every 15 s, as often as SL updates it (the feed's ttl in feedCore.ts);
-// static 250 a month, so once a day, kept where `store` puts it so a restart does not download it again. A download
+// static 250 a month, so once a day, kept where `store` puts it so a restart does not download it again (the Bun relay
+// in development once a week, as it shares the key: `every`). A download
 // that fails is tried again after a pause that doubles to STATIC_PAUSE_MAX, also kept in `store` (the Durable Object
-// sleeps between requests): a month of failures costs about 130 of the 250.
+// sleeps between requests): a month of failures costs about 130 of the 250. The first failure of a row is told through
+// `alert`, and so is the download that ends it.
 
 import { source } from './feedCore';
-import { departures, GTFS_REALTIME, GTFS_STATIC, parseTripUpdates, readTimetable, type Timetable } from './gtfs';
+import { departures, GTFS_REALTIME, GTFS_STATIC, parseTripUpdates, readTimetable, runsToday, type Timetable } from './gtfs';
 
 /** Download a new timetable when this one is older (SL exports one a night)... */
-const STATIC_EVERY = 20 * 60 * 60 * 1000;
-/** ...but try at most this often, doubling after each failure up to STATIC_PAUSE_MAX, and serve the old one meanwhile: it holds a week of service days. */
+export const STATIC_EVERY = 20 * 60 * 60 * 1000;
+/** ...but try at most this often, doubling after each failure up to STATIC_PAUSE_MAX, and serve the old one meanwhile: it holds three weeks of service days. */
 const STATIC_RETRY = 30 * 60 * 1000;
 const STATIC_PAUSE_MAX = 6 * 60 * 60 * 1000;
-const STATIC_KEEP = 6 * 24 * 60 * 60 * 1000;
 /** The static timetable is about 48 MB. */
 const STATIC_TIMEOUT = 5 * 60_000;
 
@@ -52,8 +53,24 @@ export type GtfsFeed = (() => Promise<Record<number, unknown> | null>) & { statu
 /** How long to wait after a download that started `failures` failures in a row ago. */
 export const staticPause = (failures: number) => Math.min(STATIC_PAUSE_MAX, STATIC_RETRY * 2 ** Math.max(0, failures - 1));
 
-/** Every station's departures from GTFS, or null until a timetable is in (the feed is unavailable until then). */
-export function gtfsDepartures(keys: GtfsKeys, store: TimetableStore, log: (message: string) => void): GtfsFeed {
+export interface GtfsOptions {
+  /** Download a new timetable once the one in is this old, ms. */
+  every?: number;
+  /** Tells someone (ALERT_URL) that a download failed, the first of a row of failures, and that one came in again. */
+  alert?: (title: string, text: string) => void;
+}
+
+/** The last service day a timetable has trips on, YYYY-MM-DD. */
+const lastDay = (timetable: Timetable) => {
+  const day = timetable.trips.reduce((last, t) => t.dates.reduce((a, d) => (d > a ? d : a), last), '');
+  return `${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6, 8)}`;
+};
+
+/**
+ * Every station's departures from GTFS, or null until a timetable is in (the feed is unavailable until then), and
+ * again once it has no trips today.
+ */
+export function gtfsDepartures(keys: GtfsKeys, store: TimetableStore, log: (message: string) => void, { every = STATIC_EVERY, alert }: GtfsOptions = {}): GtfsFeed {
   let timetable: Timetable | null = null;
   let stored: Promise<void> | null = null;
   let tried: StaticTry = { at: 0, failures: 0 };
@@ -63,7 +80,7 @@ export function gtfsDepartures(keys: GtfsKeys, store: TimetableStore, log: (mess
   function current(): Timetable | null {
     const now = Date.now();
     const age = timetable ? now - timetable.fetched : Infinity;
-    if (age > STATIC_EVERY && !loading && now - tried.at > staticPause(tried.failures)) {
+    if (age > every && !loading && now - tried.at > staticPause(tried.failures)) {
       // Written before it starts, so a download that takes the object down with it still counts.
       tried = { at: now, failures: tried.failures + 1 };
       const attempt = tried;
@@ -76,9 +93,16 @@ export function gtfsDepartures(keys: GtfsKeys, store: TimetableStore, log: (mess
         tried = { at: attempt.at, failures: 0 };
         await store.writeTry(tried);
         log(`GTFS timetable ${timetable.version}: ${timetable.trips.length} metro trips`);
-      })().catch((err) => log(`GTFS timetable: ${err instanceof Error ? err.message : err}`)).finally(() => { loading = null; });
+        if (attempt.failures > 1) alert?.('Under Stockholm: SL timetable in again', `Export ${timetable.version} came in after ${attempt.failures - 1} failed downloads. It has trips until ${lastDay(timetable)}.`);
+      })().catch((err) => {
+        const reason = err instanceof Error ? err.message : String(err);
+        log(`GTFS timetable: ${reason}`);
+        if (attempt.failures !== 1) return;
+        const held = timetable ? `The one in (export ${timetable.version}) has trips until ${lastDay(timetable)}, and then every line keeps to the timetable.` : 'There is none in, so every line keeps to the timetable.';
+        alert?.('Under Stockholm: SL timetable download failed', `${reason}. ${held} Tried again within ${Math.round(staticPause(1) / 60_000)} min, doubling to ${STATIC_PAUSE_MAX / 3_600_000} h.`);
+      }).finally(() => { loading = null; });
     }
-    return timetable && now - timetable.fetched < STATIC_KEEP ? timetable : null;
+    return timetable && runsToday(timetable, now / 1000) ? timetable : null;
   }
 
   /** What the store holds, read once per object (the timetable is a few MB). */

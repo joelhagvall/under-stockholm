@@ -81,9 +81,9 @@ export class FeedHub extends DurableObject<Env> {
     };
     const keys = env.TRAFIKLAB_RT_KEY && env.TRAFIKLAB_STATIC_KEY ? { realtime: env.TRAFIKLAB_RT_KEY, static: env.TRAFIKLAB_STATIC_KEY } : null;
     const alertUrl = env.ALERT_URL;
-    // An outage of SL's feed is told where a crash is (ALERT_URL), linking to /perf, which shows the feeds.
+    // An outage of SL's feed, and a failed download of its timetable, is told where a crash is (ALERT_URL), linking to /perf, which shows the feeds.
     const alert = alertUrl ? (title: string, text: string) => ctx.waitUntil(sendAlert(alertUrl, text, this.origin ? `${this.origin}/perf` : null, log, title)) : undefined;
-    this.gtfs = keys ? gtfsDepartures(keys, store, log) : undefined;
+    this.gtfs = keys ? gtfsDepartures(keys, store, log, { alert }) : undefined;
     this.feeds = createFeeds({ log, alert, gtfs: this.gtfs, waitUntil: (task) => ctx.waitUntil(task) });
     void ctx.blockConcurrencyWhile(async () => {
       sql.exec('CREATE TABLE IF NOT EXISTS blobs (name TEXT NOT NULL, part INTEGER NOT NULL, data TEXT NOT NULL, PRIMARY KEY (name, part))');
