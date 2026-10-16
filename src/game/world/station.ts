@@ -57,11 +57,11 @@ import { hallDir, isOutdoor, onRoute, routeStations, stationRise, viaductAt, typ
 import type { Physics } from '../physics';
 import { addTrack, PAINT } from './parts';
 import { Section } from './section';
-import { terrazzoTexture, tileTexture } from '../gfx/textures';
+import { Painted, terrazzoTexture, tileTexture } from '../gfx/textures';
 import { drawPoster } from '../gfx/posters';
 import { hash01 } from '../clock';
 import type { Interactable, Zone } from './zones';
-import { stationArchitecture } from './stationDetails';
+import { pillarVines, stationArchitecture } from './stationDetails';
 import { stationOwnDetails } from './details';
 import { buildCanopy, buildCutting, buildDeck, buildGlobe, buildLanterns, buildViaduct, canopySpans, covered } from './canopy';
 import { TILED_WALL_H, TILED_TOP, VAULT_WALL_H, VAULT_TOP } from '../lines/theme';
@@ -82,6 +82,8 @@ const OPEN_AMBIENT = rgb(0x4a4a4a);
 
 /** One platform clock that has always been two minutes fast. Nobody has fixed it. */
 const FAST_CLOCK = { station: 2, clock: 0, minutes: 2 };
+/** Frames a build waits for its paintings to be decoded before it paints them again itself. */
+const PAINT_WAIT = 60;
 
 function fastBy(clock: ClockFace, minutes: number): ClockFace {
   const total = (clock.hour * 60 + clock.minute + minutes) % (24 * 60);
@@ -751,9 +753,16 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
   const cuts = holes.map((h) => ({ x0: h.x0, x1: h.x1, z0: h.z0, z1: h.z1 }));
   // The stairs come down through the lower level's vault, which is built as track 1's half before it is folded under.
   for (const w of stairWells) cuts.push({ x0: w.x0 - 0.3, x1: w.x1 + 0.3, z0: -LANE - OPENING - 0.3, z1: -LANE + OPENING + 0.3 });
+  // The artwork is painted (and kept) in the dry pass already, behind the loading screen: painted on the way it would
+  // hold up a frame for as long as 50 ms, and far longer on a phone. A build decodes its own copy off the main thread,
+  // in a frame or a few; one run to its end at once paints it again instead.
+  if (!dry) {
+    const paintings = [...(outdoor ? [] : profiles).map((p) => theme.art?.(profileLength(p), wallTop - CAVE_BOTTOM).texture), def.architecture === 'vines' ? pillarVines() : undefined]
+      .filter((t): t is Painted => t instanceof Painted);
+    for (const p of paintings) p.prepare();
+    for (let n = 0; n < PAINT_WAIT && paintings.some((p) => !p.ready); n++) yield;
+  }
   for (const profile of outdoor ? [] : profiles) {
-    // The artwork is painted (and cached) in the dry pass already, behind the loading screen: painted on the way it
-    // would hold up a frame for as long as 50 ms, and far longer on a phone.
     const art = theme.art?.(profileLength(profile), wallTop - CAVE_BOTTOM);
     if (dry) continue;
     if (art) yield* extrudeRockSteps(s.artLayer(art.texture), profile, xa, xb, { ...rock, artPeriod: art.period, cuts }, rgb(0xf4f4f4));

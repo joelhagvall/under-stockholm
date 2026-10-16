@@ -1,6 +1,6 @@
 import type { Texture } from 'three';
 import { CAVE_BOTTOM } from '../layout';
-import { cached, canvas, finish, mulberry32 } from './textures';
+import { cached, canvas, finish, mulberry32, painted, type Painted } from './textures';
 
 /**
  * Painted vaults for the stations with the best-known art, after the real
@@ -59,8 +59,8 @@ export interface Vault {
   wrap(fn: () => void): void;
 }
 
-export function vault(key: string, period: number, arcLength: number, seed: number, paint: (v: Vault) => void): Texture {
-  return cached(`${key}-${period}-${arcLength.toFixed(1)}`, () => {
+export function vault(key: string, period: number, arcLength: number, seed: number, paint: (v: Vault) => void): Painted {
+  return painted(`${key}-${period}-${arcLength.toFixed(1)}`, () => {
     const [c, ctx] = canvas(SIZE, SIZE);
     const px = SIZE / period;
     const py = SIZE / arcLength;
@@ -143,7 +143,7 @@ export function ellipse(ctx: CanvasRenderingContext2D, x: number, y: number, rx:
  * painted into it: red cottages, a factory, a clear-cut, an empty community
  * hall and a crop-dusting plane.
  */
-export function solnaCentrumTexture(arcLength: number): { texture: Texture; period: number } {
+export function solnaCentrumTexture(arcLength: number): { texture: Painted; period: number } {
   const period = 40;
   return { period, texture: vault('solna-centrum', period, arcLength, 1975, ({ ctx, arc, rnd, wrap, wall }) => {
     const sky = ctx.createLinearGradient(0, 0, 0, arc);
@@ -252,7 +252,7 @@ export function solnaCentrumTexture(arcLength: number): { texture: Texture; peri
  * White rock with its hollows painted sky blue and leaves drifting over the vault, and a blue pipe railing along both
  * track walls over the dark foot of the rock.
  */
-export function tenstaTexture(arcLength: number): { texture: Texture; period: number } {
+export function tenstaTexture(arcLength: number): { texture: Painted; period: number } {
   const period = 36;
   return { period, texture: vault('tensta', period, arcLength, 1975, ({ ctx, arc, rnd, wrap, wall }) => {
     ctx.fillStyle = '#f7f5ef';
@@ -298,7 +298,7 @@ export function tenstaTexture(arcLength: number): { texture: Texture; period: nu
  * houses under a sun, cars, fantastic beasts, rockets and handwritten words,
  * in black line with patches of bright crayon.
  */
-export function hallonbergenTexture(arcLength: number): { texture: Texture; period: number } {
+export function hallonbergenTexture(arcLength: number): { texture: Painted; period: number } {
   const period = 32;
   return { period, texture: vault('hallonbergen', period, arcLength, 1985, ({ ctx, arc, rnd, wall }) => {
     ctx.fillStyle = '#f6f5f0';

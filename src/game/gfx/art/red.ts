@@ -1,6 +1,6 @@
 import type { Texture } from 'three';
 import { ellipse, poly, vault, type Vault } from '../stationArt';
-import { cached, canvas, finish, mulberry32 } from '../textures';
+import { cached, canvas, finish, mulberry32, type Painted } from '../textures';
 
 /**
  * The red line's station art, after the real stations: each a texture round
@@ -11,7 +11,7 @@ import { cached, canvas, finish, mulberry32 } from '../textures';
  */
 
 export interface Art {
-  texture: Texture;
+  texture: Painted;
   period: number;
 }
 

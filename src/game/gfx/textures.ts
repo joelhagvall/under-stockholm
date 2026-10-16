@@ -1,5 +1,5 @@
 import text from '../i18n/sv.json';
-import { CanvasTexture, RepeatWrapping, SRGBColorSpace, type Texture } from 'three';
+import { CanvasTexture, RepeatWrapping, SRGBColorSpace, Texture } from 'three';
 import { wrapText } from './signs';
 
 /**
@@ -68,6 +68,140 @@ function tileNoise(size: number, cells: number[], weights: number[], seed: numbe
 }
 
 const cache = new Map<string, Texture>();
+
+/** How a painting is kept between builds: as a JPEG, a third of a megabyte where its canvas holds nine. */
+const KEPT_AS = 'image/jpeg';
+const KEPT_QUALITY = 0.92;
+
+/**
+ * A big painting (a station's vault, `vault` in stationArt.ts): painted once behind the loading screen, since painting
+ * it on the way would hold up a frame for 50 ms and far longer on a phone, but kept as a JPEG rather than as its canvas
+ * once the game is under way (`keepPaintings`). Kept as canvases, the forty-odd vaults held over 300 MB from the start,
+ * besides what the GPU holds, and phones lost the WebGL context while playing. Each build takes a texture of its own
+ * (`take`), decoded off the main thread (ask for it with `prepare` first), which lets go of its pixels once they are on
+ * the GPU and is freed with its section.
+ */
+export class Painted {
+  /** The canvas until it is kept as a JPEG, or handed to the first build if that comes first. */
+  private canvas: HTMLCanvasElement | null;
+  private blob: Blob | null = null;
+  private encoding = false;
+  private bitmap: ImageBitmap | null = null;
+  private decoding = false;
+  /** The texture's settings (wrapping, repeat, colour space), for each texture taken. */
+  private readonly settings: Texture;
+
+  constructor(private readonly paint: () => Texture) {
+    this.settings = paint();
+    this.canvas = this.settings.image as HTMLCanvasElement;
+    this.settings.image = null;
+    unkept.push(this);
+    if (keeping) keepNext();
+  }
+
+  /** Makes the JPEG of the canvas (copied as it is now), then lets go of the canvas unless a build has it. */
+  keep(done: () => void = () => {}): void {
+    const c = this.canvas;
+    if (!c || this.blob || this.encoding) return done();
+    this.encoding = true;
+    c.toBlob((blob) => {
+      this.encoding = false;
+      // Without a JPEG the canvas stays, as it always did.
+      if (blob) {
+        this.blob = blob;
+        if (this.canvas === c) { this.canvas = null; free(c); }
+      }
+      done();
+    }, KEPT_AS, KEPT_QUALITY);
+  }
+
+  /** Starts decoding the pixels for the next `take`. */
+  prepare(): void {
+    if (this.canvas || this.bitmap || this.decoding || !this.blob || typeof createImageBitmap !== 'function') return;
+    this.decoding = true;
+    createImageBitmap(this.blob).then((bitmap) => { this.bitmap = bitmap; }, () => { /* Painted again on `take`. */ }).finally(() => { this.decoding = false; });
+  }
+
+  /** Whether `take` has the pixels at hand, rather than having to paint them again. */
+  get ready(): boolean {
+    return !!(this.bitmap || this.canvas);
+  }
+
+  /** A texture of the painting for one build, to be freed with it (`Section.artLayer(texture, true)`). */
+  take(): Texture {
+    let texture: Texture;
+    const bitmap = this.bitmap;
+    if (bitmap) {
+      this.bitmap = null;
+      texture = new Texture(bitmap);
+      texture.onUpdate = () => bitmap.close();
+    } else {
+      // The JPEG is made of the canvas before the build has it, or there will be none to come back to.
+      if (this.canvas) this.keep();
+      const c = this.canvas ?? this.paint().image as HTMLCanvasElement;
+      this.canvas = null;
+      texture = new CanvasTexture(c);
+      texture.onUpdate = () => free(c);
+    }
+    texture.wrapS = this.settings.wrapS;
+    texture.wrapT = this.settings.wrapT;
+    texture.repeat.copy(this.settings.repeat);
+    texture.offset.copy(this.settings.offset);
+    texture.colorSpace = this.settings.colorSpace;
+    texture.anisotropy = this.settings.anisotropy;
+    if (bitmap) {
+      // An image bitmap goes up unflipped (WebGL ignores the flip for it), so the picture is read upside down instead.
+      texture.flipY = false;
+      texture.repeat.y = -this.settings.repeat.y;
+      texture.offset.y = 1 - this.settings.offset.y;
+    }
+    texture.needsUpdate = true;
+    return texture;
+  }
+}
+
+/** Paintings whose canvas is not kept as a JPEG yet, and whether that has begun. */
+const unkept: Painted[] = [];
+let keeping = false;
+let keepingOne = false;
+
+function keepNext(): void {
+  if (keepingOne) return;
+  const next = unkept.shift();
+  if (!next) return;
+  keepingOne = true;
+  next.keep(() => {
+    keepingOne = false;
+    keepNext();
+  });
+}
+
+/**
+ * Starts keeping the paintings as JPEGs, one at a time, which lets go of their canvases. Called once the loading
+ * screen is gone: until then the builds of the starting view take the canvases as they are, as fast as before.
+ */
+export function keepPaintings(): void {
+  keeping = true;
+  keepNext();
+}
+
+/** Lets go of a canvas's pixels now, rather than whenever it is collected. */
+function free(c: HTMLCanvasElement): void {
+  c.width = 0;
+  c.height = 0;
+}
+
+const paintings = new Map<string, Painted>();
+
+/** The painting kept under `key`, painted the first time it is asked for. */
+export function painted(key: string, paint: () => Texture): Painted {
+  let p = paintings.get(key);
+  if (!p) {
+    p = new Painted(paint);
+    paintings.set(key, p);
+  }
+  return p;
+}
 
 export function cached(key: string, make: () => Texture): Texture {
   let t = cache.get(key);
@@ -199,8 +333,8 @@ export function puffTexture(): Texture {
  * (repeating every `period` meters) and v over the vault's cross-section
  * (0 at the left wall foot, 1 at the right wall foot, `arcLength` meters).
  */
-export function vineTexture(period: number, arcLength: number): Texture {
-  return cached(`vines-${period}-${arcLength.toFixed(1)}`, () => {
+export function vineTexture(period: number, arcLength: number): Painted {
+  return painted(`vines-${period}-${arcLength.toFixed(1)}`, () => {
     const W = 2048;
     const H = 2048;
     // Drawn in 2048 px units, rendered at three quarters: the flat shapes stay crisp at half the memory.

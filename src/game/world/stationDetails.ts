@@ -14,6 +14,9 @@ import type { Section } from './section';
  * @param free whether the island is clear for something `half` long either side of `x`: no pier where a way up starts
  * @param claim keeps a stretch of the island for what stands on it, so no clock hangs over it (see `DetailSite.claim`)
  */
+/** The vines climbing the columns of a station with `vines` (Solna strand). */
+export const pillarVines = () => vineTexture(20, 36);
+
 export function stationArchitecture(s: Section, physics: Physics, def: StationDef, cx: number, exitDir: 1 | -1 = 1, free: (x: number, half?: number) => boolean = () => true, claim: (x: number, half: number) => void = () => {}): void {
   platformArt(s, physics, def, cx, exitDir, claim);
   const stone = rgb(0xc9c5b8);
@@ -64,7 +67,7 @@ export function stationArchitecture(s: Section, physics: Physics, def: StationDe
         for (let k = 0; k < sides; k++) {
           const n = (k + 1) % sides;
           if (def.architecture === 'vines') {
-            const layer = s.artLayer(vineTexture(20, 36));
+            const layer = s.artLayer(pillarVines());
             const a = rings[j][k], b = rings[j][n], c = rings[j + 1][n], d = rings[j + 1][k];
             const u0 = k / sides * 0.6, u1 = (k + 1) / sides * 0.6;
             const v0 = j / levels * 0.4, v1 = (j + 1) / levels * 0.4;

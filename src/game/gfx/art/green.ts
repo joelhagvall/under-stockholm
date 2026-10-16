@@ -1,6 +1,6 @@
 import type { Texture } from 'three';
 import { fbm3 } from '../noise';
-import { cached, canvas, finish, mulberry32 } from '../textures';
+import { cached, canvas, finish, mulberry32, type Painted } from '../textures';
 import { vault, type WallPen } from '../stationArt';
 
 /**
@@ -12,7 +12,7 @@ import { vault, type WallPen } from '../stationArt';
  * station and up from the rails.
  */
 
-type Art = { texture: Texture; period: number };
+type Art = { texture: Painted; period: number };
 
 /** Tiles of `w` by `h` meters from `x0` to `x1` and `h0` to `h1`, each a shade off `base`, on a grout ground. */
 function tileRun(g: CanvasRenderingContext2D, rnd: () => number, x0: number, x1: number, h0: number, h1: number, w: number, h: number, base: [number, number, number], grout: string, spread = 12): void {

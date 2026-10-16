@@ -19,6 +19,11 @@ export interface ErrorReport {
   /** Seconds since the game was opened. */
   played: number;
   gpu: string;
+  /** The device's memory in GB as the browser rounds it (Chromium only, at most 8), or 0 when unknown. */
+  memory: number;
+  /** Geometries and textures the renderer held on the GPU, or 0 before the world is up. */
+  geometries: number;
+  textures: number;
   ua: string;
   lang: string;
 }
@@ -38,11 +43,13 @@ export function parseError(raw: unknown, at = Date.now()): ErrorReport | null {
   if (r.v !== 1 || (r.kind !== 'desktop' && r.kind !== 'touch')) return null;
   const message = clean(r.message, 300).trim();
   if (!message) return null;
-  const played = typeof r.played === 'number' && Number.isFinite(r.played) ? Math.max(0, Math.min(86_400, Math.round(r.played))) : 0;
+  const count = (v: unknown, most: number) => typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(most, Math.round(v * 100) / 100)) : 0;
+  const played = Math.round(count(r.played, 86_400));
   return {
     v: 1, at, kind: r.kind, build: typeof r.build === 'string' && /^[\w.-]{1,64}$/.test(r.build) ? r.build : '',
     fatal: r.fatal === true, message, stack: clean(r.stack, 1500, true), where: clean(r.where, 40),
-    played, gpu: clean(r.gpu, 80), ua: clean(r.ua, 200), lang: clean(r.lang, 8),
+    played, gpu: clean(r.gpu, 80), memory: count(r.memory, 64), geometries: Math.round(count(r.geometries, 1e6)), textures: Math.round(count(r.textures, 1e6)),
+    ua: clean(r.ua, 200), lang: clean(r.lang, 8),
   };
 }
 
@@ -68,6 +75,9 @@ export interface ErrorGroup {
   sample: ErrorReport;
   /** Report counts per client version; the empty key is a report from an older client. */
   builds: Record<string, number>;
+  /** Report counts per GPU and per device memory in GB; the empty key is one not known. */
+  gpus: Record<string, number>;
+  memories: Record<string, number>;
 }
 
 export type ErrorAggregate = { since: number | null; count: number; day: number; groups: ErrorGroup[] };
@@ -91,10 +101,15 @@ export function groupErrors(reports: ErrorReport[], now = Date.now()): ErrorAggr
   for (const r of reports) {
     const frame = frameOf(r);
     const key = keyOf(r);
-    const g = groups.get(key) ?? { message: r.message, frame, n: 0, fatal: 0, touch: 0, first: r.at, last: r.at, sample: r, builds: Object.create(null) as Record<string, number> };
+    const tally = () => Object.create(null) as Record<string, number>;
+    const g = groups.get(key) ?? { message: r.message, frame, n: 0, fatal: 0, touch: 0, first: r.at, last: r.at, sample: r, builds: tally(), gpus: tally(), memories: tally() };
     g.n++;
     const build = r.build ?? '';
     g.builds[build] = (g.builds[build] ?? 0) + 1;
+    const gpu = r.gpu ?? '';
+    g.gpus[gpu] = (g.gpus[gpu] ?? 0) + 1;
+    const memory = r.memory ? String(r.memory) : '';
+    g.memories[memory] = (g.memories[memory] ?? 0) + 1;
     if (r.fatal) g.fatal++;
     if (r.kind === 'touch') g.touch++;
     g.first = Math.min(g.first, r.at);
@@ -117,15 +132,31 @@ export const ALERT_AGAIN_MS = 7 * 86_400_000;
 
 /**
  * Fatal errors that say what a player's device or connection could not do, not what the game got wrong: no WebGL or 2D
- * canvas, a browser too old for the game, and a module or WebAssembly file that did not arrive (an old tab after a
- * deploy, a captive portal; the loader already reloads for those). They stay on /errors but alert nobody.
+ * canvas, a browser too old for the game, a module or WebAssembly file that did not arrive (an old tab after a
+ * deploy, a captive portal; the loader already reloads for those), and a context lost while the tab was hidden. They stay on /errors but alert nobody.
  */
 const ENVIRONMENT = [
   /Error creating WebGL context|2D canvas unavailable|getShaderPrecisionFormat/,
   /roundRect is not a function/,
   /dynamically imported module|Importing a module script failed|Unable to preload CSS|expected magic word 00 61 73 6d|failed to match magic number/,
   /^SyntaxError: (?!.*JSON)/,
+  // A phone freeing a page it hid: the reload brings it back, and newer clients no longer report it.
+  /WebGL context lost in the background/,
 ];
+
+/** Whether a message says what a player's device or connection could not do (see `ENVIRONMENT`): no fix in the code. */
+export const isEnvironment = (message: string) => ENVIRONMENT.some((re) => re.test(message));
+
+/**
+ * A short name for a group that stays the same from one build to the next, as its key does: `bun run errors` lists
+ * each group by it, so a fix can name the group it is for.
+ */
+export function groupId(g: Pick<ErrorGroup, 'message' | 'frame'>): string {
+  const key = `${messageOf(g.message)}\n${chunkOf(g.frame)}`;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 0x01000193);
+  return (h >>> 0).toString(36).padStart(7, '0');
+}
 
 /** When each group was last told of, '' for the last alert of any group: in memory or in the hub's storage. */
 export interface AlertLog {
@@ -135,7 +166,7 @@ export interface AlertLog {
 
 /** The message to send for a report, marked as sent in `log`, or null when it is not worth one. */
 export function alertFor(r: ErrorReport, log: AlertLog): string | null {
-  if (!r.fatal || ENVIRONMENT.some((re) => re.test(r.message))) return null;
+  if (!r.fatal || isEnvironment(r.message)) return null;
   const key = keyOf(r);
   if (r.at - log.last(key) < ALERT_AGAIN_MS || r.at - log.last('') < ALERT_EVERY_MS) return null;
   log.mark(key, r.at);
@@ -158,11 +189,14 @@ export async function sendAlert(url: string, text: string, page: string | null, 
 const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const when = (ms: number) => new Date(ms).toISOString().slice(0, 16).replace('T', ' ');
 
+/** A tally's most frequent keys and their counts, for the page. */
+const counts = (tally: Record<string, number> = {}) => Object.entries(tally).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([key, n]) => `${escape(key || '(unknown)')}: ${n}`).join(', ');
+
 /** The groups as a plain page, for a browser, the one met most recently first. */
 export function errorsPage(data: ErrorAggregate): string {
   const rows = [...data.groups].sort((a, b) => b.last - a.last).map((g) => `<tr><td>${g.n}</td><td>${g.fatal}</td><td>${g.touch}</td><td>${when(g.last)}</td><td><details><summary>${escape(g.message)}<br><small>${escape(g.frame)}</small></summary>
-<p>Builds: ${Object.entries(g.builds).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([build, n]) => `${escape(build || '(unknown)')}: ${n}`).join(', ')}<br>
-${escape(g.sample.where || '(no station)')}, ${g.sample.played} s in, ${escape(g.sample.gpu || '(unknown gpu)')}<br>${escape(g.sample.ua)}</p><pre>${escape(g.sample.stack)}</pre></details></td></tr>`).join('');
+<p>Builds: ${counts(g.builds)}<br>GPUs: ${counts(g.gpus)}<br>Memory (GB): ${counts(g.memories)}<br>
+${escape(g.sample.where || '(no station)')}, ${g.sample.played} s in, ${escape(g.sample.gpu || '(unknown gpu)')}${g.sample.geometries || g.sample.textures ? `, ${g.sample.geometries} geometries and ${g.sample.textures} textures on the GPU` : ''}<br>${escape(g.sample.ua)}</p><pre>${escape(g.sample.stack)}</pre></details></td></tr>`).join('');
   return `<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><title>Under Stockholm | errors</title>
 <style>body{font:14px/1.5 system-ui;margin:2em;color:#222}table{border-collapse:collapse;margin:1em 0}td,th{border:1px solid #ccc;padding:4px 10px;vertical-align:top;text-align:right}td:last-child,th:last-child{text-align:left}pre{white-space:pre-wrap;font-size:12px}small{color:#666}</style>
 <h1>Under Stockholm: errors players met</h1>

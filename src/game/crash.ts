@@ -4,7 +4,8 @@ import { relayUrl } from './relay';
  * Errors players meet, sent to the relay (`server/errors.ts`, which has the shape and what is kept), so a crash on
  * someone's phone is known rather than never heard of. At most three a visit, each message once, as a beacon that
  * never waits for an answer. Without a relay, or in debug (the measuring scripts drive the game there), nothing is
- * sent. No identifiers: the message, the top of the stack, the nearest station, the class of device and the browser.
+ * sent. No identifiers: the message, the top of the stack, the nearest station, the class of device, its GPU and memory,
+ * what the game held on the GPU, and the browser.
  * No three.js here: the landing page loads it when the game cannot start.
  */
 
@@ -18,13 +19,18 @@ const STACK_LINES = 10;
 export interface CrashFacts {
   where: string;
   gpu: string;
+  /** Geometries and textures the renderer holds on the GPU. */
+  geometries: number;
+  textures: number;
 }
+
+const NO_FACTS: CrashFacts = { where: '', gpu: '', geometries: 0, textures: 0 };
 
 let sent = 0;
 let watching = false;
 const seen = new Set<string>();
 const opened = performance.now();
-let facts: () => CrashFacts = () => ({ where: '', gpu: '' });
+let facts: () => CrashFacts = () => NO_FACTS;
 
 /** What the game knows about where the player is, asked for when a report goes. */
 export function crashFacts(read: () => CrashFacts): void {
@@ -50,7 +56,7 @@ export function reportError(err: unknown, fatal: boolean): void {
     if (sent >= MAX_REPORTS || seen.has(message)) return;
     sent++;
     seen.add(message);
-    let known: CrashFacts = { where: '', gpu: '' };
+    let known = NO_FACTS;
     try { known = facts(); } catch { /* The world may be what broke. */ }
     const report = {
       v: 1,
@@ -62,6 +68,9 @@ export function reportError(err: unknown, fatal: boolean): void {
       where: known.where,
       played: (performance.now() - opened) / 1000,
       gpu: known.gpu,
+      memory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 0,
+      geometries: known.geometries,
+      textures: known.textures,
       ua: navigator.userAgent.slice(0, 200),
       lang: navigator.language.slice(0, 8),
     };

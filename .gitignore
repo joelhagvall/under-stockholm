@@ -23,3 +23,5 @@ public/audio/*.mp3
 .omo/
 # Slides and stills for talks: kept local
 talk/
+# Source maps of the builds (vite.config.ts), kept on this machine for `bun run errors`: never served
+.maps/

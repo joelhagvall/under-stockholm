@@ -1,13 +1,13 @@
 import type { Texture, Vector3 } from 'three';
 import { mix, rgb, type RGB } from '../gfx/color';
 import { fbm3 } from '../gfx/noise';
-import { cached, canvas, finish, mulberry32 } from '../gfx/textures';
+import { cached, canvas, finish, mulberry32, type Painted } from '../gfx/textures';
 
 export interface Theme {
   paint: (p: Vector3, n: Vector3) => RGB;
   /** Optional painted artwork for the vault, given the vault's cross-section length. */
   /** Optional painted artwork for the vault, given the vault's cross-section length and how high its walls stand before the ceiling. */
-  art?: (arcLength: number, wall?: number) => { texture: Texture; period: number };
+  art?: (arcLength: number, wall?: number) => { texture: Texture | Painted; period: number };
   ambient: RGB;
   lamp: RGB;
 }

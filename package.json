@@ -20,6 +20,8 @@
     "deploy": "bun scripts/deploy.ts",
     "nightly": "bun scripts/nightly.ts",
     "logs": "bun scripts/logs.ts",
+    "errors": "bun scripts/errors.ts",
+    "repro": "bun scripts/repro.ts",
     "prepare": "git config core.hooksPath scripts/hooks || true"
   },
   "dependencies": {
@@ -27,6 +29,7 @@
     "three": "^0.186.0"
   },
   "devDependencies": {
+    "@jridgewell/trace-mapping": "^0.3.31",
     "@types/bun": "latest",
     "@types/three": "^0.186.0",
     "puppeteer-core": "^25.12.0",

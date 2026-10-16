@@ -6,7 +6,8 @@
 //      baseline, as after `bun run release`): types, tests, budgets, leaks, every scene as a desktop and a phone, the
 //      time to playing, Lighthouse and pa11y, against the floors and perf/baseline.json;
 //   4. the production build with SITE_URL, its size budgets again, and a look at what would be uploaded;
-//   5. the upload with `bunx wrangler deploy` (wrangler.jsonc).
+//   5. the upload with `bunx wrangler deploy` (wrangler.jsonc), after which the build's source maps are kept in `.maps/`
+//      for `bun run errors` (they are never uploaded).
 // Options:
 //   (none)      the game without the recorded announcements (RECORDINGS=0 in vite.config.ts): they await the rights
 //               holder's approval, so every call is spoken by the browser's voice and no clip of the Utrop library is
@@ -23,6 +24,7 @@
 
 import { readdirSync, rmSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { keepMaps } from './sourcemaps';
 import { baselineHash, buildShape, deployFlags, tested } from './tested';
 
 const root = join(import.meta.dir, '..');
@@ -88,6 +90,10 @@ const files = (function walk(dir: string): string[] {
     return statSync(path).isDirectory() ? walk(path) : [relative(dist, path)];
   });
 })(dist);
+// The source maps stay on this machine (vite.config.ts moves them out of dist/): no player needs them, and only the
+// ones kept here still read an older build's stack once the next deploy has replaced its files.
+const maps = files.filter((f) => f.endsWith('.map'));
+if (maps.length) stop(`a source map would be uploaded: ${maps.slice(0, 5).join(', ')}`);
 if (LANDING) {
   // Nothing of the game may slip out: its code, the physics binary or a recording.
   const game = files.filter((f) => /\.(mp3|wasm)$/.test(f) || /^assets\/(boot|rapier|physics|silverpilen|view)-/.test(f));
@@ -107,4 +113,6 @@ if (DRY) {
 await clean(commit);
 console.log('\n==== Upload');
 if ((await sh(['bunx', 'wrangler', 'deploy'])).code !== 0) stop('wrangler could not upload it.');
-console.log(`\nLive: ${commit} at ${SITE_URL}${what}.`);
+// Its source maps, so `bun run errors` can read what players meet on it back to src/.
+const kept = keepMaps();
+console.log(`\nLive: ${commit} at ${SITE_URL}${what}. ${kept} source maps kept in .maps/.`);

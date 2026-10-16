@@ -9,12 +9,12 @@ import {
   MeshBasicMaterial,
   Points,
   PointsMaterial,
-  type Texture,
+  Texture,
   Vector3,
 } from 'three';
 import { bakeLighting, MeshBuilder, prepareLighting, type BakeLight, type Fold } from '../gfx/builder';
 import type { RGB } from '../gfx/color';
-import { detailTexture, floorTexture, glowTexture, tactileTexture } from '../gfx/textures';
+import { detailTexture, floorTexture, glowTexture, Painted, tactileTexture } from '../gfx/textures';
 import { torchify } from '../powerLights';
 import { snowify } from '../gfx/snow';
 
@@ -98,6 +98,8 @@ export class Section {
   readonly extras = new Group();
   private readonly art = new Map<Texture, MeshBuilder>();
   private readonly owned = new Set<Texture>();
+  /** The texture each painting gave this section. */
+  private readonly paintings = new Map<Painted, Texture>();
   private readonly glows: number[] = [];
 
   /**
@@ -159,9 +161,17 @@ export class Section {
 
   /**
    * A lit layer painted with an artwork texture (explicit UVs expected). `owned` for a texture made for this section
-   * alone (a station's clutter atlas): it is freed with the section, and its material with it.
+   * alone (a station's clutter atlas): it is freed with the section, and its material with it. A painting
+   * (`Painted`, a station's vault) is always owned: ask for it with `prepare` a few frames ahead.
    */
-  artLayer(texture: Texture, owned = false): MeshBuilder {
+  artLayer(art: Texture | Painted, owned = false): MeshBuilder {
+    let texture: Texture;
+    if (art instanceof Painted) {
+      // A painting gives each build a texture of its own, taken once and freed with the section; a dry pass needs none.
+      owned = true;
+      texture = this.dry ? DRY_ART : this.paintings.get(art) ?? art.take();
+      this.paintings.set(art, texture);
+    } else texture = art;
     let b = this.art.get(texture);
     if (!b) {
       b = new MeshBuilder(this.dry);
@@ -248,6 +258,8 @@ export class Section {
 }
 
 const NO_VERTICES = new Float32Array(0);
+/** What a dry pass's layers of a painting are keyed by: it is never drawn. */
+const DRY_ART = new Texture();
 
 /**
  * Frees an attribute's copy in memory once the GPU has it. The bounding box and sphere are worked out before, and

@@ -1,6 +1,7 @@
 // How the live game is doing since the last deploy, in one go: `bun run logs` (or `--since 24h`, `--since 7d`, an ISO time).
 //
-//   1. Players: the error groups on /errors seen since then, and /perf for the newest build against the one before it.
+//   1. Players: the error groups on /errors seen since then, where in src/ each broke (`bun run errors` has their whole
+//      stacks), and /perf for the newest build against the one before it.
 //      Both pages are public, so this part always runs.
 //   2. The Worker's own logs (Workers Logs): outcomes, what the errors and warnings say and where they happen.
 //   3. Usage over the last 7 days, projected to a month, against what Workers Paid includes, and where each Durable Object
@@ -17,6 +18,7 @@
 import { $ } from 'bun';
 import type { TimetableStatus } from '../server/gtfsFeed';
 import { timetableLine } from '../server/perfCore';
+import { symbolicate } from './sourcemaps';
 
 const SITE = 'https://understockholm.com';
 const SCRIPT = 'under-stockholm';
@@ -49,7 +51,7 @@ console.log(`Since ${time(from)} UTC (${((now - from) / 3_600_000).toFixed(1)} h
 
 // 1. Players.
 
-interface ErrorGroup { message: string; n: number; fatal: number; first: number; last: number; builds: Record<string, number>; sample: { ua: string; where: string } }
+interface ErrorGroup { message: string; frame: string; n: number; fatal: number; first: number; last: number; builds: Record<string, number>; gpus?: Record<string, number>; memories?: Record<string, number>; sample: { ua: string; where: string } }
 interface Kind { n: number; fps: { median: number; p10: number }; loadS: { median: number; p90: number }; hitchesPerMinute: number }
 interface Build { build: string; battery: boolean; last: number; desktop?: Kind; touch?: Kind }
 
@@ -67,8 +69,15 @@ for (const g of recent) {
   const tag = g.first >= from ? 'NEW ' : '    ';
   const onNewest = newest ? g.builds[newest.build] ?? 0 : 0;
   console.log(`  ${tag}${String(g.n).padStart(4)} (${g.fatal} fatal, ${onNewest} on newest) last ${time(g.last)}  ${g.message.slice(0, 100)}`);
+  if (g.frame) console.log(`        ${symbolicate(g.frame).slice(0, 140)}`);
   console.log(`        ${g.sample.where || '-'} | ${g.sample.ua.slice(0, 110)}`);
+  const top = (tally: Record<string, number> = {}) => Object.entries(tally).filter(([key]) => key).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([key, n]) => `${key.slice(0, 50)} ${n}`).join(', ');
+  const gpus = top(g.gpus);
+  const memories = top(g.memories);
+  if (gpus || memories) console.log(`        ${gpus || '-'} | GB: ${memories || '-'}`);
 }
+
+if (recent.length) console.log('  Whole stacks, read back to src/: bun run errors');
 
 head('Players: performance, newest build (the one before in brackets)');
 for (const kind of ['desktop', 'touch'] as const) {

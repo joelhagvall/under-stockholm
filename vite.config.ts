@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { defineConfig, type Plugin, type ViteDevServer } from 'vite';
@@ -37,6 +37,29 @@ function recordings(): Plugin {
       if (RECORDINGS) return;
       if (LANDING_ONLY) { rmSync(out, { recursive: true, force: true }); return; }
       for (const name of readdirSync(out)) if (name !== 'sfx') rmSync(join(out, name), { recursive: true, force: true });
+    },
+  };
+}
+
+/**
+ * The source maps, built so a player's stack on /errors can be read back to `src/`, but never served: each build moves
+ * them out of `dist/` into `.maps/latest/` (ignored by git), `bun run deploy` keeps those of what it uploads in `.maps/`,
+ * and `bun run errors` reads them (`scripts/sourcemaps.ts`).
+ */
+function sourceMaps(): Plugin {
+  let out = '';
+  return {
+    name: 'under-stockholm-source-maps',
+    apply: 'build',
+    configResolved(config) { out = resolve(config.root, config.build.outDir, 'assets'); },
+    closeBundle() {
+      const names = existsSync(out) ? readdirSync(out).filter((name) => name.endsWith('.map')) : [];
+      // A build without maps (`--sourcemap false`) leaves the last build's alone.
+      if (!names.length) return;
+      const kept = resolve(import.meta.dirname, '.maps/latest');
+      rmSync(kept, { recursive: true, force: true });
+      mkdirSync(kept, { recursive: true });
+      for (const name of names) renameSync(join(out, name), join(kept, name));
     },
   };
 }
@@ -174,7 +197,7 @@ ${PAGES.map((p) => `  <url>\n    <loc>${base()}${p.path}</loc>\n${alternates('  
 
 export default defineConfig({
   base: './',
-  plugins: [site(), recordings(), gameFiles()],
+  plugins: [site(), recordings(), gameFiles(), sourceMaps()],
   // Constants, so the landing page alone leaves the game's code out of the build instead of only never running it,
   // and a build without the recordings never asks for them.
   define: { __GAME__: JSON.stringify(!LANDING_ONLY), __RECORDINGS__: JSON.stringify(RECORDINGS), __BUILD__: JSON.stringify(BUILD) },
@@ -195,6 +218,8 @@ export default defineConfig({
     manifest: true,
     target: ['es2022', 'safari15'],
     chunkSizeWarningLimit: 1100,
+    // Hidden: written for `bun run errors`, named by no file, and moved out of dist/ by `sourceMaps()`.
+    sourcemap: 'hidden',
     rolldownOptions: {
       input: PAGES.map((p) => resolve(import.meta.dirname, p.path, 'index.html')),
     },

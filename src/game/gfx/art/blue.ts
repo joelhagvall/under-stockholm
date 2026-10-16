@@ -1,5 +1,5 @@
 import type { Texture } from 'three';
-import { cached, canvas, finish, mulberry32 } from '../textures';
+import { cached, canvas, finish, mulberry32, type Painted } from '../textures';
 import { ellipse, poly, vault, type Vault, type WallPen } from '../stationArt';
 
 /**
@@ -18,7 +18,7 @@ import { ellipse, poly, vault, type Vault, type WallPen } from '../stationArt';
  * the crown, and `wall()` draws in meters along the station and up from the rails.
  */
 
-type Art = { texture: Texture; period: number };
+type Art = { texture: Painted; period: number };
 
 /** Sprayed rock: a flat colour mottled with soft blotches of the given tones (as `r, g, b`). */
 function rockBase(v: Vault, base: string, tones: string[], blots = 240): void {

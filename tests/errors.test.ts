@@ -1,5 +1,15 @@
 import { expect, test } from 'bun:test';
-import { ALERT_AGAIN_MS, ALERT_EVERY_MS, alertFor, errorsPage, groupErrors, parseError, readError, type AlertLog, type ErrorReport } from '../server/errorCore';
+import { ALERT_AGAIN_MS, ALERT_EVERY_MS, alertFor, errorsPage, groupErrors, groupId, isEnvironment, parseError, readError, type AlertLog, type ErrorReport } from '../server/errorCore';
+
+test('a group keeps its id across builds, and a device that cannot run the game is told apart', () => {
+  const a = { message: 'Failed to fetch dynamically imported module: /assets/boot-Cd__3EM4.js', frame: 'at w (/assets/main-D_cRbqu8.js:2:2477)' };
+  const b = { message: 'Failed to fetch dynamically imported module: /assets/boot-Br16vdzw.js', frame: 'at q (/assets/main-CSqS8KJC.js:2:2490)' };
+  expect(groupId(a)).toBe(groupId(b));
+  expect(groupId(a)).not.toBe(groupId({ ...a, frame: 'at q (/assets/boot-Br16vdzw.js:1:1)' }));
+  expect(isEnvironment(a.message)).toBe(true);
+  expect(isEnvironment('Error: WebGL context lost in the background')).toBe(true);
+  expect(isEnvironment('Error: WebGL context lost while playing')).toBe(false);
+});
 
 const sample = {
   v: 1, kind: 'desktop', fatal: true, message: "TypeError: Cannot read properties of undefined (reading 'x')",
@@ -81,6 +91,19 @@ test('missing assets group across hashes in the message and keep the newest orig
     expect(groups[0].builds).toEqual({ 'old-build': 1, 'new-build': 1 });
     expect(errorsPage(groupErrors([a, b]))).toContain('old-build: 1, new-build: 1');
   }
+});
+
+test('groups count their GPUs and device memories, and the page lists them', () => {
+  const a = parseError({ ...sample, gpu: 'Mali-G52', memory: 4, geometries: 812.4, textures: -3 }, 1)!;
+  const b = parseError({ ...sample, gpu: 'Mali-G52', memory: 'lots' }, 2)!;
+  const { gpu: _gpu, memory: _memory, ...old } = parseError(sample, 3)!;
+  expect([a.memory, a.geometries, a.textures, b.memory]).toEqual([4, 812, 0, 0]);
+  const g = groupErrors([a, b, old as ErrorReport]).groups[0];
+  expect(g.gpus).toEqual({ 'Mali-G52': 2, '': 1 });
+  expect(g.memories).toEqual({ 4: 1, '': 2 });
+  const page = errorsPage(groupErrors([a, b]));
+  expect(page).toContain('GPUs: Mali-G52: 2');
+  expect(page).toContain('Memory (GB): 4: 1, (unknown): 1');
 });
 
 test('old reports and invalid build identifiers are accepted without inventing a version', () => {

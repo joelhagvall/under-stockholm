@@ -50,6 +50,7 @@ import { Ghosts, ghostUrl, RIDE_TRIP, type GhostPose } from './ghosts';
 import { relayUrl } from './relay';
 import { gpuName, Telemetry } from './telemetry';
 import { crashFacts, FEEDBACK_MAIL, reportError, watchErrors } from './crash';
+import { keepPaintings } from './gfx/textures';
 import { HallLife } from './hallLife';
 import { RushHour } from './rush';
 import { Hud } from './hud';
@@ -243,6 +244,8 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
 
   // Battery saver asks for the power-saving GPU: on a laptop with two, the other one is what starts the fans.
   const renderer = new WebGLRenderer({ antialias: true, powerPreference: settings.value.battery ? 'low-power' : 'high-performance' });
+  // Read once: a lost context, the reason for many reports, answers nothing.
+  const gpu = gpuName(renderer.getContext());
   renderer.domElement.className = 'game-canvas';
   renderer.domElement.setAttribute('aria-label', 'Under Stockholm game view');
   root.appendChild(renderer.domElement);
@@ -739,15 +742,15 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   // Touch play never needs pointer lock. All pause paths clear held input.
   const canvas = renderer.domElement;
   // The baked world lives only on the GPU (`dropArray` in `section.ts`), so a lost context cannot be filled again:
-  // the page comes back instead, where the player stood, also when the browser never restores the context. The loss
-  // is reported, since to the player it only looks like the game jumping back: apart, a loss in a tab that was just
-  // hidden (a phone freeing a page in the background, which the reload handles) from one in the middle of play.
+  // the page comes back instead, where the player stood, also when the browser never restores the context. A loss in
+  // the middle of play is reported, since to the player it only looks like the game jumping back; one in a tab that
+  // was just hidden is a phone freeing a page in the background, which nothing can prevent and the reload handles.
   let shownAt = -Infinity;
   document.addEventListener('visibilitychange', () => { if (!document.hidden) shownAt = performance.now(); });
   canvas.addEventListener('webglcontextlost', (event) => {
     event.preventDefault();
     const away = document.hidden || performance.now() - shownAt < CONTEXT_AWAY;
-    reportError(new Error(away ? 'WebGL context lost in the background' : 'WebGL context lost while playing'), false);
+    if (!away) reportError(new Error('WebGL context lost while playing'), false);
     try { rememberPlace(); } catch { /* The page comes back to the last place kept. */ }
     window.setTimeout(() => { comeBack(); location.reload(); }, CONTEXT_WAIT);
   });
@@ -2662,6 +2665,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   // Physics, the starting view and its first GPU render are ready. Let the player in without a minimum timer.
   loading.classList.add('is-done');
   window.setTimeout(() => loading.remove(), debug ? 0 : 400);
+  keepPaintings();
   last = performance.now();
   // A frame that throws would throw again on every frame after it: the loop stops, the error is reported
   // (`crash.ts`), and a card offers the page back where the player stood, as after a lost WebGL context.
@@ -2709,9 +2713,9 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     ranAt = since >= interval && since < interval * 3 ? now - (since % interval) : now;
     try { frame(); } catch (err) { crash(err); }
   });
-  crashFacts(() => ({ where: world.nearestStation(player.feet.x).name, gpu: gpuName(renderer.getContext()) }));
+  crashFacts(() => ({ where: world.nearestStation(player.feet.x).name, gpu, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }));
   // Not in debug: the measuring scripts drive the game there, and their frames are not a player's.
-  telemetry = new Telemetry(debug ? null : relayUrl(), () => ({ touch: touchMode, scale: resolution.level, pixelRatio: renderer.getPixelRatio(), loadS, real: realOn, passengers: people, gpu: gpuName(renderer.getContext()) }));
+  telemetry = new Telemetry(debug ? null : relayUrl(), () => ({ touch: touchMode, scale: resolution.level, pixelRatio: renderer.getPixelRatio(), loadS, real: realOn, passengers: people, gpu }));
   window.addEventListener('pagehide', () => telemetry?.leave());
   window.addEventListener('pagehide', () => rememberPlace());
   document.addEventListener('visibilitychange', () => { if (document.hidden) rememberPlace(); });
