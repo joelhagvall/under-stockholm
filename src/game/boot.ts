@@ -2675,6 +2675,9 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     crashed = true;
     renderer.setAnimationLoop(null);
     console.error(err);
+    // With the context lost, three throws on the first shader it compiles (`createShader` gives null): the page
+    // already comes back on its own (`webglcontextlost` above, which reports the loss), so no card and no crash.
+    if (renderer.getContext().isContextLost()) return;
     reportError(err, true);
     try { rememberPlace(); } catch { /* Where the player stands may be what broke. */ }
     try { audio.suspend(); } catch { /* The page reloads anyway. */ }
