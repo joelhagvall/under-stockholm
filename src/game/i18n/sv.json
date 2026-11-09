@@ -246,6 +246,43 @@
     "topUpPrompt": "E · Fyll på reskortet med 200 kr",
     "toppedUp": "Du fyllde på {amount} kr. Saldo {balance} kr."
   },
+  "guard": {
+    "title": "Ordningsvakt",
+    "start": "Bli ordningsvakt",
+    "exit": "Gå ur tjänst",
+    "radio": "Radion",
+    "intro": "Du är i tjänst som ordningsvakt. Radion säger vart du ska, åk dit och prata med personen under den gula pilen.",
+    "firstHere": "Första ärendet är här på stationen.",
+    "firstAway": "Första ärendet är på {station}.",
+    "ticket": "I tjänst, kontrollanterna låter dig vara",
+    "off": "Passet är slut. Ärenden i dag: {count}.",
+    "call": "{case}: {station}.",
+    "here": "Här på stationen, {distance} m bort",
+    "waiting": "Lugnt på radion just nu",
+    "handled": "Ärenden",
+    "tally": "Ordningsvakt: {count} ärenden",
+    "cases": {
+      "smoker": { "call": "Någon röker på perrongen", "prompt": "E · Be personen fimpa", "done": "”Här är det rökfritt.” Personen muttrar, fimpar och stoppar fimpen i fickan." },
+      "music": { "call": "Högljudd musik på perrongen", "prompt": "E · Be personen sänka", "done": "”Har du hörlurar?” Det hade personen. Det blir tyst, och någon på bänken tackar dig." },
+      "edge": { "call": "Någon står för nära spårkanten", "prompt": "E · Be personen backa", "done": "”Håll dig bakom den gula linjen.” Personen tittar ner, ser kanten och tar två steg bakåt." },
+      "child": { "call": "Ett barn har kommit bort", "prompt": "E · Prata med barnet", "done": "Du ropar ut på radion. En stressad förälder kommer springande från rulltrappan och kramar barnet." },
+      "singer": { "call": "Någon sjunger för full hals", "prompt": "E · Be personen dämpa sig", "done": "”Fint, men lite tystare.” Personen bugar och fortsätter nynna för sig själv." },
+      "dozing": { "call": "Någon har somnat stående", "prompt": "E · Väck personen", "done": "Personen rycker till. ”Är det här Slussen?” Du pekar på skylten och önskar en bra dag." }
+    }
+  },
+  "ghostWalk": {
+    "prompt": "E · Tänd lyktan",
+    "again": "E · Tänd lyktan igen",
+    "intro": "Lyktan blir varm i handen, fast ingen har varit här sedan 1977. Långt bort på perrongen, bakom dig, står någon med en likadan lykta.",
+    "clockAfter": "Klockan går. Den visar rätt tid, för första gången sedan hösten 1977.",
+    "stops": [
+      ["E · Lyssna vid bänken", "Någon viskar nära örat: ”Nattvakten. Hösten 1977. Någon måste ju gå runt här, nu när stationen är klar.” Gestalten bleknar. Längre bort lyser det igen."],
+      ["E · Följ fotspåren", "Fotspår i dammet. De går bara åt ett håll, och de tar slut här. ”Varje natt samma runda. Bänken, bockarna, skylten, telefonen, klockan.”"],
+      ["E · Lys på skylten", "Lyktan gör skylten nästan ny. ”Det skulle komma folk hit. Det kom aldrig någon. Bara hon, det silverfärgade tåget.”"],
+      ["E · Lyssna i luren", "Det brusar, och rösten kommer från luren och från perrongen samtidigt. ”Jag ringde och sa att jag blivit kvar. Ingen kom och löste av mig.”"],
+      ["E · Säg att han kan gå hem", "”Passet är slut. Du kan gå hem nu.” Gestalten nickar, ställer ner lyktan och går rakt in i berget. Bakom dig börjar klockan ticka."]
+    ]
+  },
   "driver": {
     "title": "Förarläge",
     "start": "Förarläge",
@@ -779,6 +816,8 @@
       "through": ["Rakt igenom", "Stå i vägen för det som inte finns."],
       "clipping": ["Urklippet", "Personalrummet på T-Centralen."],
       "kymlinge": ["Kymlinge", "Stationen som aldrig öppnade."],
+      "ghostWalk": ["Spökvandringen", "En lykta står och väntar på Kymlinge."],
+      "guard": ["Ordningsvakt", "Gå i tjänst från pausmenyn och lyssna på radion."],
       "lastPage": ["Den sista sidan", "Ett låst plåtskåp."],
       "loop": ["Tidsslingan", "Följ med Silverpilen hela vägen."],
       "art": ["Konsten", "Läs skylten om konsten på en perrong."],

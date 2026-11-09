@@ -37,6 +37,16 @@ export function stockOf(variant: TrainVariant): Stock {
   return variant === 'c30' || variant === 'retro30' ? C30_STOCK : C20_STOCK;
 }
 
+/** Every how many of the blue line's trains is a C30: some of the line's trains have been since August 2026, the rest are C20s. */
+const BLUE_C30_EVERY = 3;
+
+/** The stock of a line's `slot`th train: the red line's are all C30s, some of the blue line's, the green line's none. */
+export function lineStock(line: 'blue' | 'red' | 'green', slot: number): 'c20' | 'c30' {
+  if (line === 'red') return 'c30';
+  // Not 2, 5, ...: those are the trains that rest in the summer timetable (`summerRest`), and the C30s should still run.
+  return line === 'blue' && slot % BLUE_C30_EVERY === 1 ? 'c30' : 'c20';
+}
+
 const C20 = {
   body: rgb(0xbfc8ce),
   rib: rgb(0xaab4bb),
@@ -82,7 +92,8 @@ type Palette = typeof C20;
 
 /**
  * The C30, from photographs: a smooth white body with a dark skirt, a window to each bay, blue doors, and a front of
- * black glass inside a ring of white light. Inside, pale walls, yellow poles and seats in grey with black and white
+ * one tall pane of black glass inside a ring of light, white ahead and pink behind (`c30LightRing`), with white cheeks
+ * either side carrying the lamps in narrow black strips. Inside, pale walls, yellow poles and seats in grey with black and white
  * triangles, the priority seats yellow.
  */
 const C30_LOOK: Palette = {
@@ -450,9 +461,40 @@ function roofArc(b: MeshBuilder, cx: number, yc: number, radius: number, halfAng
   geo.dispose();
 }
 
+/** The C30's ring of light on the front: `[half width, bottom, top, corner radius]`. */
+const C30_RING = {
+  outer: [1.06, 1.1, 3.38, 0.3] as const,
+  inner: [0.98, 1.18, 3.3, 0.26] as const,
+};
+/** Where the C30's lamps sit on the white cheeks beside the ring. */
+export const C30_LAMP = { y: 1.7, z: 1.17 };
+
+const lightRings = new Map<number, BufferGeometry>();
+
+/** The ring of light alone, a hair in front of the painted one, for the train to light white ahead and pink behind. */
+export function c30LightRing(end: 1 | -1): BufferGeometry {
+  let geo = lightRings.get(end);
+  if (geo) return geo;
+  const b = new MeshBuilder();
+  const x = end * (L + NOSE + 0.012);
+  const outer = roundedRing(x, ...C30_RING.outer);
+  const inner = roundedRing(x, ...C30_RING.inner);
+  const white = rgb(0xffffff);
+  for (let i = 0; i < outer.p.length; i++) {
+    const j = (i + 1) % outer.p.length;
+    b.tri(outer.p[i], inner.p[i], inner.p[j], white);
+    b.tri(outer.p[i], inner.p[j], outer.p[j], white);
+  }
+  geo = b.build();
+  lightRings.set(end, geo);
+  return geo;
+}
+
 function* exterior(ext: MeshBuilder, glass: MeshBuilder, C: Palette, stock: Stock): Generator<void, void> {
   // Underframe.
   box(ext, -L, L, 0.45, 1.02, -W + 0.05, W - 0.05, C.skirt);
+  // The C30's panels hang down over the bogies as well.
+  if (C.smooth) for (const side of [-1, 1]) box(ext, -L, L, 0.16, 0.5, side * (W - 0.09), side * (W - 0.05), C.skirt);
 
   for (const { center: cx, halfLength } of stock.sections) {
     // Arched roof, from shoulder to shoulder.
@@ -551,8 +593,20 @@ function* exterior(ext: MeshBuilder, glass: MeshBuilder, C: Palette, stock: Stoc
     }
     // The black windshield mask wraps a short way onto the cab sides, at the train's ends and either side of a coupling.
     const mask = (x0: number, x1: number) => box(ext, x0, x1, WIN_LO, 3.08, Math.min(zo, zo + side * 0.014), Math.max(zo, zo + side * 0.014), C.mask);
-    for (const end of [-1, 1]) mask(end * (L - 2.6), end * L);
-    for (const gx of stock.couplings) for (const end of [-1, 1]) mask(gx + end * TRAIN_JOINT_HALF_W, gx + end * 2.6);
+    // On the C30 the cab's side stays white, with its own tall dark window and a smaller one in the cab door behind it.
+    const cabSide = (front: number, back: number) => {
+      if (!C.smooth) { mask(front, back); return; }
+      const z0 = Math.min(zo, zo + side * 0.014);
+      const z1 = Math.max(zo, zo + side * 0.014);
+      const dir = Math.sign(back - front);
+      box(ext, front, back, WIN_LO - 0.02, 3.1, z0, z1, C.body);
+      const pane = (from: number, to: number, y0: number, y1: number) =>
+        box(ext, front + dir * from, front + dir * to, y0, y1, Math.min(zo, zo + side * 0.02), Math.max(zo, zo + side * 0.02), C.mask);
+      pane(0.25, 0.95, 1.72, 3.0);
+      pane(1.6, 2.15, 2.1, 2.95);
+    };
+    for (const end of [-1, 1]) cabSide(end * L, end * (L - 2.6));
+    for (const gx of stock.couplings) for (const end of [-1, 1]) cabSide(gx + end * TRAIN_JOINT_HALF_W, gx + end * 2.6);
   }
 
   yield;
@@ -580,14 +634,13 @@ function* exterior(ext: MeshBuilder, glass: MeshBuilder, C: Palette, stock: Stoc
         }
       };
       const fascia = roundedRing(fx, 1.28, 0.62, 3.4, 0.4);
-      const screen = roundedRing(fx + end * 0.016, 0.97, 1.87, 3.13, 0.16);
+      const screen = C.frame ? roundedRing(fx + end * 0.016, 0.94, 1.25, 3.22, 0.2) : roundedRing(fx + end * 0.016, 0.97, 1.87, 3.13, 0.16);
       if (C.frame) {
-        // The C30: nearly the whole front black glass, inside a thin ring of light.
-        const light = roundedRing(fx, 1.2, 1.02, 3.36, 0.34);
-        const mask = roundedRing(fx + end * 0.008, 1.13, 1.09, 3.3, 0.3);
-        ring(fascia, light, C.nose);
-        ring(light, roundedRing(fx, 1.13, 1.09, 3.3, 0.3), C.frame);
-        ring(mask, screen, C.mask);
+        // The C30: one tall pane inside a thin ring of light, narrower than the front so white cheeks show either side.
+        const [o, i] = [roundedRing(fx, ...C30_RING.outer), roundedRing(fx, ...C30_RING.inner)];
+        ring(fascia, o, C.nose);
+        ring(o, i, C.frame);
+        ring(roundedRing(fx + end * 0.008, ...C30_RING.inner), screen, C.mask);
       } else {
         const mask = roundedRing(fx + end * 0.008, 1.2, 1.58, 3.36, 0.34);
         ring(fascia, roundedRing(fx, 1.2, 1.58, 3.36, 0.34), C.nose);
@@ -596,21 +649,29 @@ function* exterior(ext: MeshBuilder, glass: MeshBuilder, C: Palette, stock: Stoc
       const center = new Vector3(fx + end * 0.016, 2.5, 0);
       for (let i = 0; i < screen.p.length; i++) glass.tri(center, screen.p[i], screen.p[(i + 1) % screen.p.length], C.body);
     }
-    // Reflective vertical highlights and rubber center seam.
-    box(ext, fx + end * 0.019, fx + end * 0.021, 1.97, 3.08, -0.84, -0.77, rgb(0x637781));
-    box(ext, fx + end * 0.023, fx + end * 0.025, 1.87, 3.12, -0.025, 0.025, C.mask);
-    for (const wz of [-0.43, 0.43]) {
-      const wiper = new BoxGeometry(0.025, 0.66, 0.025);
-      ext.geometry(wiper, new Matrix4().makeRotationX(0.3).setPosition(fx + end * 0.035, 2.19, wz), C.mask);
+    if (C.frame) {
+      // One long wiper across the single pane, and the lamps' narrow black strips on the cheeks.
+      const wiper = new BoxGeometry(0.025, 1.0, 0.03);
+      ext.geometry(wiper, new Matrix4().makeRotationX(0.55).setPosition(fx + end * 0.035, 1.78, -0.34), C.mask);
       wiper.dispose();
+      for (const z of [-C30_LAMP.z, C30_LAMP.z]) box(ext, fx - 0.02, fx + 0.02, C30_LAMP.y - 0.34, C30_LAMP.y + 0.34, z - 0.08, z + 0.08, C.mask);
+    } else {
+      // Reflective vertical highlights and rubber center seam.
+      box(ext, fx + end * 0.019, fx + end * 0.021, 1.97, 3.08, -0.84, -0.77, rgb(0x637781));
+      box(ext, fx + end * 0.023, fx + end * 0.025, 1.87, 3.12, -0.025, 0.025, C.mask);
+      for (const wz of [-0.43, 0.43]) {
+        const wiper = new BoxGeometry(0.025, 0.66, 0.025);
+        ext.geometry(wiper, new Matrix4().makeRotationX(0.3).setPosition(fx + end * 0.035, 2.19, wz), C.mask);
+        wiper.dispose();
+      }
+      // Twin round lamp recesses under the windscreen.
+      for (const z of [-0.83, 0.83]) {
+        const housing = new CylinderGeometry(0.12, 0.12, 0.045, 16);
+        ext.geometry(housing, new Matrix4().makeRotationZ(Math.PI / 2).setPosition(fx, 1.73, z), C.mask);
+        housing.dispose();
+      }
     }
     box(ext, fx - 0.025, fx + 0.025, 0.65, 1.06, -1.14, 1.14, C.skirt);
-    // Twin round lamp recesses under the windscreen.
-    for (const z of [-0.83, 0.83]) {
-      const housing = new CylinderGeometry(0.12, 0.12, 0.045, 16);
-      ext.geometry(housing, new Matrix4().makeRotationZ(Math.PI / 2).setPosition(fx, 1.73, z), C.mask);
-      housing.dispose();
-    }
     yield;
     // Coupler.
     box(ext, end * (L + NOSE - 0.05), end * (L + NOSE + 0.35), 0.6, 0.85, -0.18, 0.18, C.bogie);

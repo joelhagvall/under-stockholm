@@ -39,6 +39,8 @@ import { Music, Screensaver } from './screensaver';
 import { dateAt, daytime, type ShowPose, type ShowScene, Showcase, silverStop, weekdayAt } from './showcase';
 import { luciaPose } from './festivities';
 import { CLUES, mystery } from './mystery';
+import { GhostWalker } from './ghostWalk';
+import { Guard } from './guard';
 import { DISCOVERIES, DiscoveryBook, GROUPS } from './discoveries';
 import { era, type Era } from './era';
 import { Preacher } from './preacher';
@@ -71,7 +73,7 @@ import { Silverpilen, type SilverState } from './silverpilen';
 import { RealSilverpilen, type Rival } from './silverReal';
 import { Timetable, type TrainState } from './timetable';
 import { setWindowFog, Train } from './train';
-import { loadTrainModel } from './trainModel';
+import { lineStock, loadTrainModel } from './trainModel';
 import { OpenAirWeather, Weather, type WeatherKind } from './weather';
 import { Disruptions, forStation } from './disruptions';
 import { Warnings } from './warnings';
@@ -350,15 +352,14 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   loadMark('trains-start');
   for (let index = 0; index < POOL; index++) {
     const offset = operations.offsets[index] ?? 0;
-    // The red line runs the C30, the others the C20.
-    const train = new Train(physics, index, net.lines[slots[index].line].id === 'red' ? 'c30' : 'c20');
+    const slot = services.filter((s) => s.line === slots[index].line).length;
+    const train = new Train(physics, index, lineStock(net.lines[slots[index].line].id, slot));
     const tt = operations.timetableOf(index);
     const st = tt.stateAt(time + offset);
     train.place(st.x, st.z, st.y);
     const spare = !!slots[index].spare;
     if (spare) train.setActive(false);
     scene.add(train.group);
-    const slot = services.filter((s) => s.line === slots[index].line).length;
     services.push({ index, train, timetable: tt, offset, clock: time + offset, rate: 1, route: slots[index].route, line: slots[index].line, journey: null, state: null, active: !spare, delay: 0, brake: null, slot });
     setProgress(0.7 + 0.15 * (index + 1) / POOL);
     if (performance.now() - trainSlice >= LOADING_SLICE_MS) {
@@ -683,6 +684,13 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     full: () => bag.full(),
   });
   world.interactables.push(...lost.interactables);
+  /** Inside a station proper, not in a tunnel, a staff room or at Kymlinge. */
+  const inStation = (spot: { station: number | null; area: string }) => spot.station !== null && (spot.area === 'platform' || spot.area === 'hall' || spot.area === 'escalator');
+  const guard = new Guard(scene, world.stations, net.layout.routes.map((r) => r.stations), { notice: (title, body, seconds) => hud.notice(title, body, seconds) });
+  world.interactables.push(guard.interactable);
+  tallies.push(() => (guard.total ? format(text.guard.tally, { count: guard.total }) : ''));
+  const ghostWalker = new GhostWalker(scene, world.kymlingeX);
+  world.interactables.push(...ghostWalker.interactables);
   // Handing in comes ahead of topping up the card at the same booth: the nearest wins, and the first on a tie.
   world.interactables.unshift(...lost.booths);
   // What the player carries, pictured from the things' own models.
@@ -835,6 +843,18 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
   hud.driverButton.addEventListener('click', (event) => {
     event.stopPropagation();
     if (driving) stopDriving(); else startDriving();
+    resume();
+  });
+  hud.guardButton.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (guard.active) guard.stop();
+    else if (!saver.active && !show.active && !life) {
+      if (driving) stopDriving();
+      guard.start(world.nearestStation(player.feet.x).index, inStation(world.locate(player.feet)));
+    }
+    fares.onDuty = guard.active;
+    hud.setGuardButton(guard.active);
+    if (!guard.active) hud.setGuard(null);
     resume();
   });
   real.setEnabled(realWanted);
@@ -1080,6 +1100,7 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     const from = serviceOpen(time) ? time : time + 6 * 3600;
     const run = lifeRun(from);
     if (!run) return;
+    endGuardDuty();
     audio.start();
     if (document.pointerLockElement) document.exitPointerLock();
     life = { service: run.service, stops: run.stops, scenes: lifeScenes(run.stops.length), index: 0, until: Infinity, seat: null, cutting: true,
@@ -1545,8 +1566,17 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
       .then(() => (respawning = false));
   }
 
+  /** Something else has taken over the player: no radio meanwhile. */
+  function endGuardDuty(): void {
+    guard.stop(true);
+    fares.onDuty = false;
+    hud.setGuardButton(false);
+    hud.setGuard(null);
+  }
+
   function startDriving(): void {
     if (driving || respawning) return;
+    endGuardDuty();
     const nearest = driverRoute.reduce((a, b) => (Math.abs(world.stationX[b] - player.feet.x) < Math.abs(world.stationX[a] - player.feet.x) ? b : a));
     respawning = true;
     void hud.blackout(() => {
@@ -2216,6 +2246,15 @@ export async function startGame(root: HTMLElement, options: GameOptions = {}): P
     const hour = stockholm(time).hours;
     critters.update(dt, here, world.stations, player.feet, regular.map((s) => ({ x: s.state!.x, z: s.state!.z, speed: s.state!.speed })), hour > 6 && hour < 21.5 && serviceOpen(time), out);
     lost.update(dt, player.feet, out, player.camera);
+    ghostWalker.update(dt, player.feet.x);
+    if (guard.active) {
+      if (saver.active || show.active) endGuardDuty();
+      else {
+        const post = world.nearestStation(player.feet.x).index;
+        guard.update(dt, player.feet, post, out);
+        hud.setGuard(guard.readout(player.feet, post, inStation(here)));
+      }
+    }
     signals.update(dt, [...carriers(), ...(expressState ? [expressTrain] : [])].map((t) => ({ x: t.position.x, z: t.position.z })), player.feet.x,
       regular.map((s) => ({ id: s.train.id, state: s.state!, timetable: s.timetable })), out, player.feet);
     trackWork.update(dt, time, player.feet, out);

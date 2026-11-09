@@ -3,6 +3,7 @@ import { label, lang, text } from './i18n/text';
 import { FEEDBACK_MAIL } from './crash';
 import type { Network } from './line';
 import type { DriverReadout } from './driver';
+import type { GuardReadout } from './guard';
 import { networkMapLayout } from './world/station';
 import type { Explored } from './explore';
 import { keyName, settings, type Action } from './settings';
@@ -54,6 +55,7 @@ export class Hud {
   readonly ghostButton: HTMLButtonElement;
   readonly voiceButton: HTMLButtonElement;
   readonly driverButton: HTMLButtonElement;
+  readonly guardButton: HTMLButtonElement;
   readonly saverButton: HTMLButtonElement;
   readonly loopButton: HTMLButtonElement;
   readonly eraButton: HTMLButtonElement;
@@ -87,6 +89,8 @@ export class Hud {
   private readonly ghostsLine: HTMLParagraphElement;
   private readonly noticeCard: HTMLDivElement;
   private readonly driverPanel: HTMLDivElement;
+  private readonly guardPanel: HTMLDivElement;
+  private guarding = false;
   private readonly ticket: HTMLParagraphElement;
   private noticeTimer = 0;
   private lastClock = '';
@@ -112,6 +116,7 @@ export class Hud {
       <div class="hud-status"><p class="hud-line">${text.line}</p><p class="hud-title" aria-live="polite"></p><p class="hud-sub" aria-live="polite"></p><p class="hud-trip" hidden></p><p class="hud-ghosts" hidden></p></div>
       <div class="hud-notice" role="status" hidden><p class="hud-notice-title"></p><p class="hud-notice-body"></p></div>
       <div class="hud-found" role="status" hidden><p class="hud-found-label" data-t="discover.found"></p><p class="hud-found-body"></p></div>
+      <div class="hud-guard" hidden aria-live="off"><strong class="hud-guard-badge"></strong><span class="hud-guard-call"></span><span class="hud-guard-where"></span><span class="hud-guard-count"></span></div>
       <div class="hud-driver" hidden aria-live="off">
         <div class="hud-driver-speed"><strong>0</strong><span>${text.driver.speed}</span></div>
         <div class="hud-driver-limit"><span>${text.driver.limit}</span><strong>80</strong></div>
@@ -168,6 +173,7 @@ export class Hud {
           <div class="pause-mode-list">
             <button type="button" class="pause-option pause-trip" aria-expanded="false" aria-controls="pause-trip" data-t="trip.button"></button>
             <button type="button" class="pause-option pause-driver" data-key="drive"></button>
+            <button type="button" class="pause-option pause-guard"></button>
             <button type="button" class="pause-option pause-show" data-t="show.button"></button>
             <button type="button" class="pause-option pause-life" data-t="life"></button>
             <button type="button" class="pause-option pause-network" data-t="network"></button>
@@ -235,6 +241,7 @@ export class Hud {
     this.ghostButton = this.pause.querySelector('.pause-ghosts')!;
     this.voiceButton = this.pause.querySelector('.pause-voices')!;
     this.driverButton = this.pause.querySelector('.pause-driver')!;
+    this.guardButton = this.pause.querySelector('.pause-guard')!;
     this.saverButton = this.pause.querySelector('.pause-saver')!;
     this.loopButton = this.pause.querySelector('.pause-loop')!;
     this.eraButton = this.pause.querySelector('.pause-era')!;
@@ -283,6 +290,10 @@ export class Hud {
     this.ghostsLine = q('.hud-ghosts');
     this.noticeCard = q('.hud-notice');
     this.driverPanel = q('.hud-driver');
+    this.guardPanel = q('.hud-guard');
+    // The status card grows with a trip or the line about other players, and the guard's card sits under it in a narrow window.
+    const statusCard = q('.hud-status');
+    new ResizeObserver(() => this.guardPanel.style.setProperty('--status-bottom', `${statusCard.getBoundingClientRect().bottom + 8}px`)).observe(statusCard);
     this.foundCard = q('.hud-found');
     this.showCard = q('.hud-show');
     this.langButton = this.pause.querySelector('.pause-lang')!;
@@ -309,6 +320,30 @@ export class Hud {
 
   setTicket(line: string): void {
     if (this.ticket.textContent !== line) this.ticket.textContent = line;
+  }
+
+  setGuardButton(on: boolean): void {
+    this.guarding = on;
+    this.guardButton.textContent = on ? text.guard.exit : text.guard.start;
+  }
+
+  /** The security guard's card: the case the radio has given you and where it is. */
+  setGuard(readout: GuardReadout | null): void {
+    if (this.guardPanel.hidden !== (readout === null)) {
+      this.guardPanel.hidden = readout === null;
+      this.root.classList.toggle('is-guarding', readout !== null);
+      this.placeCaption();
+    }
+    if (!readout) return;
+    const p = this.guardPanel;
+    const put = (selector: string, value: string) => {
+      const el = p.querySelector(selector)!;
+      if (el.textContent !== value) el.textContent = value;
+    };
+    put('.hud-guard-badge', text.guard.title);
+    put('.hud-guard-call', readout.call);
+    put('.hud-guard-where', readout.where);
+    put('.hud-guard-count', `${text.guard.handled}: ${readout.count}`);
   }
 
   setDriverButton(driving: boolean): void {
@@ -344,6 +379,7 @@ export class Hud {
     }
     this.setEra(this.past);
     this.setDriverButton(this.driving);
+    this.setGuardButton(this.guarding);
     if (this.tripPanel) this.planPreview();
   }
 
@@ -535,7 +571,7 @@ export class Hud {
     if (!this.caption.textContent) return;
     for (let pass = 0; pass < 3; pass++) {
       const c = this.caption.getBoundingClientRect();
-      const hit = [this.map, this.tipLine].map((el) => el.getBoundingClientRect())
+      const hit = [this.map, this.tipLine, this.guardPanel].map((el) => el.getBoundingClientRect())
         .find((r) => r.width > 0 && c.left < r.right && c.right > r.left && c.top < r.bottom && c.bottom > r.top);
       if (!hit) return;
       this.caption.style.bottom = `${this.root.getBoundingClientRect().bottom - hit.top + 12}px`;

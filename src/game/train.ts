@@ -19,7 +19,7 @@ import {
 import { createCanvasSign, fitText, FONT, MONO, redraw, signMesh, type CanvasSign } from './gfx/signs';
 import { detailTexture, doorLeafTexture } from './gfx/textures';
 import { CAB_DEPTH, CABIN_DESIGN as I, DOOR_HALF_W, DOOR_TOP, TRAIN_ROOF, type Stock } from './layout';
-import { CAB_X, FLOOR, L, NOSE, seatBays, seatStyle, stockOf, trainModel, W, wallSegments, type SeatStyle, type TrainVariant } from './trainModel';
+import { C30_LAMP, c30LightRing, CAB_X, FLOOR, L, NOSE, seatBays, seatStyle, stockOf, trainModel, W, wallSegments, type SeatStyle, type TrainVariant } from './trainModel';
 import { headlightBeam } from './headlights';
 import type { Physics } from './physics';
 
@@ -49,6 +49,10 @@ diffuseColor.a = mix(diffuseColor.a, 0.82, glance);
 const glassMaterial = glassy(new MeshBasicMaterial({ color: 0x34495a, transparent: true, opacity: 0.32, depthWrite: false, side: DoubleSide }));
 const headMaterial = new MeshBasicMaterial({ color: 0xfff6e0 });
 const tailMaterial = new MeshBasicMaterial({ color: 0xff2a1a });
+const ringHeadMaterial = new MeshBasicMaterial({ color: 0xf7fbff, side: DoubleSide });
+const ringTailMaterial = new MeshBasicMaterial({ color: 0xff2a7f, side: DoubleSide });
+/** The lit part of a C30's lamp strip. */
+const stripLamp = new BoxGeometry(0.04, 0.5, 0.09);
 // Transparent for the tinted window in the leaf (see `doorLeafTexture`); the rest of the leaf is opaque in the texture.
 const doorMaterial = new MeshLambertMaterial({ map: doorLeafTexture(), transparent: true });
 const interiorDoorMaterial = new MeshBasicMaterial({ map: doorLeafTexture(true), color: 0xe0e5e8, transparent: true });
@@ -159,6 +163,8 @@ export class Train {
   private readonly insideSign: CanvasSign;
   private readonly infoSign: CanvasSign;
   private readonly logoSign: CanvasSign;
+  private readonly roundLamp: BufferGeometry;
+  private readonly frontSigns: Array<{ destination: Mesh; number: Mesh; end: number }> = [];
   private destText = '';
   private insideText = '';
   private infoText = '';
@@ -196,12 +202,13 @@ export class Train {
     this.doorLook = mats.door;
     this.group.add(this.leaves);
     for (const end of [-1, 1]) {
-      const beam = headlightBeam(L + NOSE, 1.73, 0.83);
+      const lampZ = this.stock.id === 'c30' ? C30_LAMP.z : 0.83;
+      const beam = headlightBeam(L + NOSE, 1.73, lampZ);
       beam.scale.x = end;
       beam.visible = false;
       this.beams.push(beam);
       this.group.add(beam);
-      const tail = headlightBeam(L + NOSE, 1.73, 0.83, true);
+      const tail = headlightBeam(L + NOSE, 1.73, lampZ, true);
       tail.scale.x = end;
       tail.visible = false;
       this.tails.push(tail);
@@ -210,42 +217,44 @@ export class Train {
 
     const lamp = new CylinderGeometry(0.078, 0.078, 0.04, 20);
     lamp.rotateZ(Math.PI / 2);
-    for (const end of [-1, 1]) {
+    this.roundLamp = lamp;
+    for (const end of [-1, 1] as const) {
       const g = new Group();
-      for (const z of [-0.83, 0.83]) {
+      for (const z of [-1, 1]) {
         const m = new Mesh(lamp, headMaterial);
         m.position.set(end * (L + NOSE + 0.04), 1.73, z);
         g.add(m);
       }
+      if (this.stock.id === 'c30') {
+        const ring = new Mesh(c30LightRing(end), ringHeadMaterial);
+        ring.userData.ring = true;
+        g.add(ring);
+      }
       this.heads.push(g);
       this.group.add(g);
     }
+    this.placeLamps(variant === 'c30');
 
     this.destSign = createCanvasSign(512, 80);
     this.insideSign = createCanvasSign(512, 80);
     this.infoSign = createCanvasSign(512, 96);
     // The car number, on a transparent plate for the nose and the sides. No operator's logo: the game is not SL's.
-    this.logoSign = createCanvasSign(256, 96, (ctx, w, h) => {
-      ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = `700 40px ${FONT}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`${2100 + id}`, w / 2, h / 2 + 1);
-    });
+    this.logoSign = createCanvasSign(256, 96);
     this.logoSign.material.transparent = true;
     for (const end of [-1, 1]) {
       const m = signMesh(this.destSign.material, 1.5, 0.24);
-      // At the top of the windshield mask.
+      // At the top of the windshield mask (see `dressFront`).
       m.position.set(end * (L + NOSE + 0.03), 3.19, 0);
       m.rotation.order = 'YXZ';
       m.rotation.y = (end * Math.PI) / 2;
       this.signs.add(m);
       const logo = signMesh(this.logoSign.material, 0.8, 0.3);
       logo.position.set(end * (L + NOSE + 0.03), 1.4, 0);
+      this.frontSigns.push({ destination: m, number: logo, end });
       logo.rotation.y = (end * Math.PI) / 2;
       this.signs.add(logo);
     }
+    this.dressFront(variant === 'c30');
     for (const cx of this.stock.units) {
       for (const side of [-1, 1]) {
         const badge = signMesh(this.logoSign.material, 0.65, 0.24);
@@ -332,6 +341,8 @@ export class Train {
     const variant: TrainVariant = era === 'retro' ? (c30 ? 'retro30' : 'retro') : c30 ? 'c30' : 'c20';
     if (variant === this.look) return;
     this.look = variant;
+    this.placeLamps(variant === 'c30');
+    this.dressFront(variant === 'c30');
     const model = trainModel(variant);
     this.exteriorMesh.geometry = model.exterior;
     this.glassMesh.geometry = model.glass;
@@ -479,12 +490,49 @@ export class Train {
     return this.doorSide;
   }
 
+  /** The car number and the destination on the nose: the C30's, or those of every other look. */
+  private dressFront(c30Front: boolean): void {
+    redraw(this.logoSign, (ctx, w, h) => {
+      ctx.clearRect(0, 0, w, h);
+      // The C30's body is white and its numbers run from 2301, in dark paint.
+      ctx.fillStyle = c30Front ? '#2b2f35' : '#ffffff';
+      ctx.font = `700 40px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${c30Front ? 2301 + (this.id % 116) : 2100 + this.id}`, w / 2, h / 2 + 1);
+    });
+    for (const { destination, number, end } of this.frontSigns) {
+      // On the C30 the destination is inside its one tall pane, and the number small on the white cheek under the lamp.
+      destination.position.y = c30Front ? 3.08 : 3.19;
+      number.position.y = c30Front ? 1.2 : 1.4;
+      number.position.z = c30Front ? -end * C30_LAMP.z : 0;
+      number.scale.setScalar(c30Front ? 0.7 : 1);
+    }
+  }
+
+  /** The C30's narrow lamps on the cheeks and its ring of light, or the round lamps under the windscreen. */
+  private placeLamps(c30Front: boolean): void {
+    // The time machine's old stock on the C30's layout has its lamps closer together.
+    if (this.stock.id === 'c30') for (const beam of [...this.beams, ...this.tails]) beam.scale.z = c30Front ? 1 : 0.83 / C30_LAMP.z;
+    for (const g of this.heads) {
+      for (const child of g.children as Mesh[]) {
+        if (child.userData.ring) { child.visible = c30Front; continue; }
+        child.geometry = c30Front ? stripLamp : this.roundLamp;
+        child.position.y = c30Front ? C30_LAMP.y : 1.73;
+        child.position.z = Math.sign(child.position.z) * (c30Front ? C30_LAMP.z : 0.83);
+      }
+    }
+  }
+
   /** +1 when heading toward +x. Swaps head and tail lights. */
   setHeading(dir: 1 | -1): void {
     if (dir === this.headDir) return;
     this.headDir = dir;
-    this.heads[1].children.forEach((c) => ((c as Mesh).material = dir > 0 ? headMaterial : tailMaterial));
-    this.heads[0].children.forEach((c) => ((c as Mesh).material = dir > 0 ? tailMaterial : headMaterial));
+    const light = (g: Group, ahead: boolean) => g.children.forEach((c) => {
+      (c as Mesh).material = c.userData.ring ? (ahead ? ringHeadMaterial : ringTailMaterial) : ahead ? headMaterial : tailMaterial;
+    });
+    light(this.heads[1], dir > 0);
+    light(this.heads[0], dir < 0);
     this.beams[1].visible = dir > 0;
     this.beams[0].visible = dir < 0;
     this.tails[1].visible = dir < 0;

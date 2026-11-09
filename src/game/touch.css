@@ -1,3 +1,4 @@
+/* hud.css is imported after this file, so a rule here beats one there only with higher specificity: put .is-touch overrides of HUD parts next to the part in hud.css. */
 .touch-controls { position: absolute; inset: 0; pointer-events: none; }
 .touch-controls button, .touch-stick { pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .touch-controls button, .pause-option, .pause-resume {

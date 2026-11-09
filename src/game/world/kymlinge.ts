@@ -30,6 +30,8 @@ import { archHole, archProfile, extrudeRockSteps, rectHole, wallWithHoles } from
 import { paintedSign, place, textSign } from './signage';
 import { drawClock } from './station';
 import type { Interactable, Zone } from './zones';
+import { stockholm } from '../clock';
+import { CLOCK_STOP, ghostWalk, PHONE_STOP, SIGN_STOP } from '../ghostWalk';
 import { mystery } from '../mystery';
 import { staffKey } from '../staffKey';
 
@@ -174,7 +176,7 @@ export function* kymlingeSteps(physics: Physics, kx: number, dry = false): Gener
   const leaning = place(s, enamel, 3, 0.56, new Vector3(kx + 12, PLATFORM_Y + 0.62, -PLATFORM_HALF_W + 1.2), new Vector3(0, 0, 1));
   leaning.rotation.x = -0.28;
   s.lit.box({ x: kx + 10.4, y: PLATFORM_Y, z: -PLATFORM_HALF_W + 0.9 }, { x: kx + 13.6, y: PLATFORM_Y + 0.05, z: -PLATFORM_HALF_W + 1.25 }, rgb(0x2b2b2b));
-  interactables.push({ pos: new Vector3(kx + 12, PLATFORM_Y + 0.8, -PLATFORM_HALF_W + 1.6), radius: 1.8, prompt: () => text.kymlinge.signPrompt, act: () => text.kymlinge.sign });
+  interactables.push({ pos: new Vector3(kx + 12, PLATFORM_Y + 0.8, -PLATFORM_HALF_W + 1.6), radius: 1.8, prompt: () => text.kymlinge.signPrompt, enabled: () => !ghostWalk.waitingAt(SIGN_STOP), act: () => text.kymlinge.sign });
 
   yield;
   // A clock that stopped before anyone arrived.
@@ -192,14 +194,33 @@ export function* kymlingeSteps(physics: Physics, kx: number, dry = false): Gener
   s.lit.geometry(ring, new Matrix4().makeRotationZ(Math.PI / 2).setPosition(kx - 6, 3.85, 0), rgb(0x2a2c30));
   ring.dispose();
   s.lit.box({ x: kx - 6.02, y: 4.2, z: -0.02 }, { x: kx - 5.98, y: CAVE_TOP, z: 0.02 }, rgb(0x2a2c30));
-  interactables.push({ pos: new Vector3(kx - 6, PLATFORM_Y + 1, 0), radius: 2, prompt: () => text.kymlinge.clockPrompt, act: () => { mystery.read('clock'); return text.kymlinge.clock; } });
+  interactables.push({
+    pos: new Vector3(kx - 6, PLATFORM_Y + 1, 0), radius: 2, prompt: () => text.kymlinge.clockPrompt, enabled: () => !ghostWalk.waitingAt(CLOCK_STOP),
+    act: () => {
+      // Walking first must not cost the clue: it is only to be had here.
+      mystery.read('clock');
+      return ghostWalk.done ? text.ghostWalk.clockAfter : text.kymlinge.clock;
+    },
+  });
+  // The night watchman's lantern, on a crate under the clock: it starts the ghost walk (`ghostWalk.ts`).
+  s.lit.box({ x: kx - 7.3, y: PLATFORM_Y, z: -1.9 }, { x: kx - 6.7, y: PLATFORM_Y + 0.5, z: -1.3 }, rgb(0x6b4f33));
+  s.lit.box({ x: kx - 7.09, y: PLATFORM_Y + 0.5, z: -1.69 }, { x: kx - 6.91, y: PLATFORM_Y + 0.54, z: -1.51 }, rgb(0x2a2c30));
+  s.lit.box({ x: kx - 7.09, y: PLATFORM_Y + 0.8, z: -1.69 }, { x: kx - 6.91, y: PLATFORM_Y + 0.84, z: -1.51 }, rgb(0x2a2c30));
+  for (const [dx, dz] of [[-0.09, -0.09], [0.08, -0.09], [-0.09, 0.08], [0.08, 0.08]] as const) {
+    s.lit.box({ x: kx - 7 + dx, y: PLATFORM_Y + 0.54, z: -1.6 + dz }, { x: kx - 7 + dx + 0.015, y: PLATFORM_Y + 0.8, z: -1.6 + dz + 0.015 }, rgb(0x2a2c30));
+  }
+  const flame = new SphereGeometry(0.06, 8, 6);
+  s.unlit.geometry(flame, new Matrix4().setPosition(kx - 7, PLATFORM_Y + 0.67, -1.6), BULB);
+  flame.dispose();
+  s.light(kx - 7, PLATFORM_Y + 1, -1.6, BULB, 0.5, 5);
+  physics.box({ x: kx - 7.3, y: PLATFORM_Y, z: -1.9 }, { x: kx - 6.7, y: PLATFORM_Y + 0.5, z: -1.3 });
 
   // An emergency phone that still has a line to somewhere.
   s.lit.box({ x: kx + 30 - 0.3, y: PLATFORM_Y, z: -0.3 }, { x: kx + 30 + 0.3, y: PLATFORM_Y + 2.2, z: 0.3 }, rgb(0x2b3037));
   physics.box({ x: kx + 30 - 0.3, y: PLATFORM_Y, z: -0.3 }, { x: kx + 30 + 0.3, y: PLATFORM_Y + 2.2, z: 0.3 });
   s.lit.box({ x: kx + 30 - 0.36, y: PLATFORM_Y + 1, z: -0.16 }, { x: kx + 30 - 0.3, y: PLATFORM_Y + 1.5, z: 0.16 }, rgb(0x2a7a45));
   place(s, textSign('Nödtelefon', 256, 64, '#1f7a3d'), 0.34, 0.085, new Vector3(kx + 30 - 0.365, PLATFORM_Y + 1.6, 0), new Vector3(-1, 0, 0));
-  interactables.push({ pos: new Vector3(kx + 29.4, PLATFORM_Y + 1.2, 0), radius: 1.3, prompt: () => text.kymlinge.phonePrompt, act: () => (mystery.has('lastPage') ? text.mystery.phoneAfter : text.kymlinge.phone) });
+  interactables.push({ pos: new Vector3(kx + 29.4, PLATFORM_Y + 1.2, 0), radius: 1.3, prompt: () => text.kymlinge.phonePrompt, enabled: () => !ghostWalk.waitingAt(PHONE_STOP), act: () => (mystery.has('lastPage') ? text.mystery.phoneAfter : text.kymlinge.phone) });
   // A steel cabinet by the phone, locked with a staff lock. The logbook's last page is inside.
   s.lit.box({ x: kx + 32, y: PLATFORM_Y, z: -0.45 }, { x: kx + 32.9, y: PLATFORM_Y + 1.9, z: 0.45 }, rgb(0x4a5057));
   s.lit.box({ x: kx + 32.9, y: PLATFORM_Y + 0.95, z: 0.25 }, { x: kx + 32.94, y: PLATFORM_Y + 1.1, z: 0.32 }, rgb(0xc9a44a));
@@ -233,9 +254,16 @@ export function* kymlingeSteps(physics: Physics, kx: number, dry = false): Gener
 
   const group = yield* s.finishSteps();
   const bulb = flicker;
+  let ticked = -1;
   return {
     group, zones, interactables, spawn,
     update(time) {
+      // Once the watchman has gone home the stopped clock runs.
+      if (ghostWalk.done && Math.floor(time) !== ticked) {
+        ticked = Math.floor(time);
+        const now = stockholm(time);
+        redraw(face, (ctx, w, h) => drawClock(ctx, w, h, { hour: now.hour, minute: now.minute, second: now.second }));
+      }
       if (!bulb) return;
       const f = noise3(time * 7, 0, 0, 5);
       const k = f > 0.55 ? 1 : f > 0.4 ? 0.35 : 0.08;

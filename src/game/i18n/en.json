@@ -155,6 +155,43 @@
     "topUpPrompt": "E · Top up your card with 200 kr",
     "toppedUp": "You topped up {amount} kr. Balance {balance} kr."
   },
+  "guard": {
+    "title": "Security guard",
+    "start": "Be a security guard",
+    "exit": "Go off duty",
+    "radio": "The radio",
+    "intro": "You are on duty as a security guard. The radio says where to go: ride there and talk to the person under the yellow arrow.",
+    "firstHere": "The first case is right here at the station.",
+    "firstAway": "The first case is at {station}.",
+    "ticket": "On duty, the inspectors let you be",
+    "off": "Shift over. Cases today: {count}.",
+    "call": "{case}: {station}.",
+    "here": "At this station, {distance} m away",
+    "waiting": "All quiet on the radio",
+    "handled": "Cases",
+    "tally": "Security guard: {count} cases",
+    "cases": {
+      "smoker": { "call": "Someone is smoking on the platform", "prompt": "E · Ask them to put it out", "done": "”Här är det rökfritt.” They mutter, put it out and pocket the stub." },
+      "music": { "call": "Loud music on the platform", "prompt": "E · Ask them to turn it down", "done": "”Har du hörlurar?” They did. It goes quiet, and someone on the bench thanks you." },
+      "edge": { "call": "Someone is too close to the edge", "prompt": "E · Ask them to step back", "done": "”Håll dig bakom den gula linjen.” They look down, see the edge and take two steps back." },
+      "child": { "call": "A child has got lost", "prompt": "E · Talk to the child", "done": "You call it in on the radio. A stressed parent comes running from the escalator and hugs the child." },
+      "singer": { "call": "Someone is singing at the top of their voice", "prompt": "E · Ask them to keep it down", "done": "”Fint, men lite tystare.” They bow and go on humming to themselves." },
+      "dozing": { "call": "Someone has fallen asleep standing up", "prompt": "E · Wake them", "done": "They jerk awake. ”Är det här Slussen?” You point at the sign and wish them a good day." }
+    }
+  },
+  "ghostWalk": {
+    "prompt": "E · Light the lantern",
+    "again": "E · Light the lantern again",
+    "intro": "The lantern grows warm in your hand, though nobody has been here since 1977. Far along the platform, behind you, someone stands with a lantern just like it.",
+    "clockAfter": "The clock is going. It shows the right time, for the first time since the autumn of 1977.",
+    "stops": [
+      ["E · Listen by the bench", "Someone whispers close to your ear: ”Nattvakten. Hösten 1977. Någon måste ju gå runt här, nu när stationen är klar.” The figure fades. Further off, a light comes on again."],
+      ["E · Follow the footprints", "Footprints in the dust. They go only one way, and they end here. ”Varje natt samma runda. Bänken, bockarna, skylten, telefonen, klockan.”"],
+      ["E · Shine on the sign", "The lantern makes the sign look almost new. ”Det skulle komma folk hit. Det kom aldrig någon. Bara hon, det silverfärgade tåget.”"],
+      ["E · Listen to the receiver", "It hisses, and the voice comes from the receiver and the platform at once. ”Jag ringde och sa att jag blivit kvar. Ingen kom och löste av mig.”"],
+      ["E · Tell him he can go home", "”Passet är slut. Du kan gå hem nu.” The figure nods, sets down the lantern and walks straight into the rock. Behind you, the clock starts to tick."]
+    ]
+  },
   "driver": {
     "title": "Driver mode",
     "start": "Driver mode",
@@ -524,6 +561,8 @@
       "through": ["Straight through", "Stand in the way of what is not there."],
       "clipping": ["The clipping", "The staff room at T-Centralen."],
       "kymlinge": ["Kymlinge", "The station that never opened."],
+      "ghostWalk": ["The ghost walk", "A lantern is waiting at Kymlinge."],
+      "guard": ["Security guard", "Go on duty from the pause menu and listen to the radio."],
       "lastPage": ["The last page", "A locked metal cabinet."],
       "loop": ["The time loop", "Ride Silverpilen all the way."],
       "art": ["The art", "Read the sign about the art on a platform."],

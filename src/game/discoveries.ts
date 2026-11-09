@@ -67,11 +67,14 @@ export const DISCOVERIES: Discovery[] = [
   { id: 'rush', group: 'depths', texts: ['rush.finish'] },
   { id: 'guards', group: 'depths', texts: ['rush.guards'] },
 
+  { id: 'guard', group: 'modes', texts: ['guard.intro'] },
+
   { id: 'silverpilen', group: 'mystery', texts: ['silverpilen.sighted', 'silverpilen.standing'] },
   { id: 'through', group: 'mystery', texts: ['silverpilen.through'] },
   { id: 'clipping', group: 'mystery', texts: ['mystery.clues.clipping'] },
   { id: 'kymlinge', group: 'mystery', texts: ['kymlinge.name', 'kymlinge.sign', 'kymlinge.clock', 'kymlinge.phone'] },
   { id: 'lastPage', group: 'mystery', texts: ['mystery.clues.lastPage'] },
+  { id: 'ghostWalk', group: 'mystery', texts: ['ghostWalk.intro'] },
   { id: 'loop', group: 'mystery', texts: ['loop.wake'] },
   { id: 'powerCut', group: 'mystery', texts: ['power.out'] },
 

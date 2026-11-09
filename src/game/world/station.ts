@@ -206,6 +206,8 @@ export interface StationInfo {
   escalators: EscalatorZone[];
   /** Where each island platform's middle lies: z = 0, or both of a shared station's (see `LANE`). */
   platforms: number[];
+  /** Where the island's benches stand along x, leaving out any place a way up takes (see `benchXs`). */
+  benches: number[];
   /** Each island's rail height, as `platforms`: 0, or under the other at a two-level station (see `STACK`). */
   levels: number[];
   /** Every track along a platform, as the departure boards list them: `setDepartures` takes each one's rows, in this order, by `number`. */
@@ -1384,6 +1386,7 @@ export function* stationSteps(physics: Physics, net: Network, index: number, cx:
     escalator,
     escalators,
     platforms: islands.map((z) => folded(z)[0]),
+    benches,
     levels: islands.map((z) => folded(z)[1]),
     platformTracks,
     rise,

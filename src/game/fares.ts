@@ -93,6 +93,8 @@ export class Fares {
   private readonly gates: GateState[] = [];
   private readonly card = loadCard();
   private validUntil: number;
+  /** The inspectors let a security guard on duty be. */
+  onDuty = false;
   /** Did the player's latest entry through the gates go through a tap? */
   private dodged = false;
   private side = new Map<number, number>();
@@ -152,7 +154,7 @@ export class Fares {
 
   /** One line for the pause menu. */
   statusLine(): string {
-    const ticket = this.valid ? format(text.fares.valid, { time: formatClock(this.validUntil) }) : text.fares.ticketless;
+    const ticket = this.onDuty ? text.guard.ticket : this.valid ? format(text.fares.valid, { time: formatClock(this.validUntil) }) : text.fares.ticketless;
     return this.card.debt > 0 ? `${ticket} · ${format(text.fares.debt, { amount: this.card.debt.toLocaleString('sv-SE') })}` : ticket;
   }
 
@@ -302,7 +304,7 @@ export class Fares {
       mesh.instanceMatrix.needsUpdate = true;
 
       // The check itself: they ask, and wait for the card.
-      if (mine && !seg.boarding && !this.checked.has(seg.key) && Math.abs(localPlayer - x) < 2.5) {
+      if (mine && !this.onDuty && !seg.boarding && !this.checked.has(seg.key) && Math.abs(localPlayer - x) < 2.5) {
         this.checked.add(seg.key);
         this.asking = { key: seg.key, train: s.train, stop: seg.stop, since: this.now, reminded: false };
         this.events.notice(text.fares.checkTitle, text.fares.checkAsk, 6);
